@@ -3926,6 +3926,9 @@
       if (player) addItemToBackpack(createItem(type));
       updateBackpackHud();
     },
+    clearEnemies() {
+      if (world) for (const enemy of world.enemies) enemy.dead = true;
+    },
     touchAimHold(down) {
       touch.aiming = !!down;
       if (down) touch.aimPressAt = performance.now();
