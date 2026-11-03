@@ -438,6 +438,7 @@
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
     touchControls: $('#touchControls'),
+    moveZone: $('#moveZone'),
     movePad: $('#movePad'),
     moveKnob: $('#moveKnob'),
     aimPad: $('#aimPad'),
@@ -2984,16 +2985,72 @@
     button.addEventListener('lostpointercapture', release);
   }
 
-  function setupTouchControls() {
-    setupVirtualStick(el.movePad, el.moveKnob, (x, y, mag) => {
-      touch.moveX = x;
-      touch.moveY = y;
+  function setupFloatingMoveStick() {
+    let pointerId = null;
+
+    const move = (event) => {
+      const rect = el.movePad.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = event.clientX - cx;
+      const dy = event.clientY - cy;
+      const distance = Math.hypot(dx, dy);
+      const maxRadius = Math.max(28, rect.width * 0.31);
+      const clamped = Math.min(distance, maxRadius);
+      const nx = distance > 0.001 ? dx / distance : 0;
+      const ny = distance > 0.001 ? dy / distance : 0;
+      const mag = maxRadius > 0 ? Math.min(1, distance / maxRadius) : 0;
+      el.moveKnob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
+      touch.moveX = nx;
+      touch.moveY = ny;
       touch.moveMag = mag;
-    }, () => {
+    };
+
+    const end = (event) => {
+      if (pointerId !== null && event && event.pointerId !== pointerId) return;
+      pointerId = null;
+      el.movePad.classList.remove('active');
+      el.moveKnob.style.transform = 'translate(-50%, -50%)';
       touch.moveX = 0;
       touch.moveY = 0;
       touch.moveMag = 0;
+    };
+
+    el.moveZone.addEventListener('pointerdown', (event) => {
+      if (pointerId !== null) return;
+      if (mode !== 'raid' || !raid || raid.paused || raid.ended) return;
+      pointerId = event.pointerId;
+      enableTouchUI();
+      Sound.init();
+
+      const zone = el.moveZone.getBoundingClientRect();
+      const padSize = Math.max(92, Math.min(122, window.innerWidth * 0.13));
+      const half = padSize / 2 + 6;
+      const cx = clamp(event.clientX - zone.left, half, zone.width - half);
+      const cy = clamp(event.clientY - zone.top, half, zone.height - half);
+      el.movePad.style.left = `${cx}px`;
+      el.movePad.style.top = `${cy}px`;
+      el.movePad.classList.add('active');
+      el.moveKnob.style.transform = 'translate(-50%, -50%)';
+      touch.moveX = 0;
+      touch.moveY = 0;
+      touch.moveMag = 0;
+      try { el.moveZone.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
+      event.preventDefault();
     });
+
+    el.moveZone.addEventListener('pointermove', (event) => {
+      if (event.pointerId !== pointerId) return;
+      move(event);
+      event.preventDefault();
+    });
+    el.moveZone.addEventListener('pointerup', end);
+    el.moveZone.addEventListener('pointercancel', end);
+    el.moveZone.addEventListener('lostpointercapture', end);
+  }
+
+  function setupTouchControls() {
+    setupFloatingMoveStick();
 
     setupVirtualStick(el.aimPad, el.aimKnob, (x, y, mag) => {
       if (mag > 0.16) {

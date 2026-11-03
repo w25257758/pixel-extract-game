@@ -606,6 +606,22 @@ body.touch-device .control-hint { opacity: .55; }
   pointer-events: none;
 }
 
+.move-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 10;
+  display: none;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body.touch-device .move-zone { display: block; }
+
 .touch-pad {
   position: absolute;
   width: clamp(92px, 13vw, 122px);
@@ -619,7 +635,17 @@ body.touch-device .control-hint { opacity: .55; }
   pointer-events: auto;
 }
 .touch-pad.active { border-color: rgba(214, 255, 77, .75); }
-.move-pad { left: 3.2%; bottom: 4.5%; }
+.move-pad {
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  display: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 19;
+}
+.move-pad.active { display: block; }
 .aim-pad { right: 3.2%; bottom: 4.5%; border-color: rgba(85, 217, 255, .33); }
 .aim-pad.active { border-color: rgba(85, 217, 255, .9); }
 .touch-knob {
