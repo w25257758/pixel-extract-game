@@ -109,6 +109,31 @@
   };
 
   const RARITY_LABEL = { common: '普通', uncommon: '精良', rare: '稀有', epic: '史诗' };
+  const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4 };
+  const RISK_DEFS = {
+    normal: { label: '普通', hint: '稳定收益', enemyCount: 1, enemyHp: 1, enemyDamage: 1, rareChance: 0.24, color: '#7ed7a0' },
+    danger: { label: '危险', hint: '更多敌人 · 更好掉落', enemyCount: 1.35, enemyHp: 1.25, enemyDamage: 1.2, rareChance: 0.42, color: '#ffad45' },
+    extreme: { label: '极限', hint: '高压 · 最高收益', enemyCount: 1.75, enemyHp: 1.55, enemyDamage: 1.45, rareChance: 0.6, color: '#ff5b6e' }
+  };
+
+  function riskDef() {
+    return RISK_DEFS[save.settings.raidRisk] || RISK_DEFS.normal;
+  }
+
+  function sortItemList(list) {
+    return list.slice().sort((a, b) => {
+      const da = defOf(a);
+      const db = defOf(b);
+      const kindOrder = { weapon: 0, armor: 1, loot: 2 };
+      const kindDiff = (kindOrder[da.kind] ?? 3) - (kindOrder[db.kind] ?? 3);
+      if (kindDiff) return kindDiff;
+      const rarityDiff = (RARITY_ORDER[db.rarity] || 0) - (RARITY_ORDER[da.rarity] || 0);
+      if (rarityDiff) return rarityDiff;
+      const valueDiff = (db.sell || 0) - (da.sell || 0);
+      if (valueDiff) return valueDiff;
+      return da.name.localeCompare(db.name, 'zh-CN');
+    });
+  }
 
   function createItem(type, qty = 1) {
     return { id: uid(), type, qty };
@@ -145,10 +170,14 @@
     floatText: true,
     damageFlash: true,
     autoLock: true,
+    performanceMode: false,
+    raidRisk: 'normal',
     moveStickMode: 'floating',
     moveStickSize: 100,
     moveZoneWidth: 50,
-    moveSensitivity: 1
+    moveSensitivity: 1,
+    aimPadSize: 100,
+    aimSensitivity: 1
   };
 
   function defaultSave() {
@@ -197,6 +226,9 @@
     touchSettings.moveStickSize = clamp(Number(touchSettings.moveStickSize) || 100, 70, 150);
     touchSettings.moveZoneWidth = clamp(Number(touchSettings.moveZoneWidth) || 50, 30, 70);
     touchSettings.moveSensitivity = clamp(Number(touchSettings.moveSensitivity) || 1, 0.6, 1.6);
+    touchSettings.aimPadSize = clamp(Number(touchSettings.aimPadSize) || 100, 70, 120);
+    touchSettings.aimSensitivity = clamp(Number(touchSettings.aimSensitivity) || 1, 0.6, 1.6);
+    touchSettings.raidRisk = RISK_DEFS[touchSettings.raidRisk] ? touchSettings.raidRisk : 'normal';
     return merged;
   }
 
@@ -243,6 +275,7 @@
 
   function addToStash(item) {
     addItemToArray(save.stash, item);
+    save.stash = sortItemList(save.stash);
   }
 
   function stashSlotCount() { return save.stash.length; }
@@ -379,6 +412,10 @@
     loadoutMeds: $('#loadoutMeds'),
     loadoutSlots: $('#loadoutSlots'),
     startRaidBtn: $('#startRaidBtn'),
+    riskPicker: $('#riskPicker'),
+    riskHint: $('#riskHint'),
+    stashRarityFilter: $('#stashRarityFilter'),
+    sellLowBtn: $('#sellLowBtn'),
     stashGrid: $('#stashGrid'),
     stashEmpty: $('#stashEmpty'),
     stashCount: $('#stashCount'),
@@ -410,7 +447,14 @@
     settingScreenShake: $('#settingScreenShake'),
     settingFloatText: $('#settingFloatText'),
     settingDamageFlash: $('#settingDamageFlash'),
+    settingPerformanceMode: $('#settingPerformanceMode'),
     settingAutoLock: $('#settingAutoLock'),
+    settingAimPadSize: $('#settingAimPadSize'),
+    aimPadSizeValue: $('#aimPadSizeValue'),
+    settingAimSensitivity: $('#settingAimSensitivity'),
+    aimSensitivityValue: $('#aimSensitivityValue'),
+    exportSaveBtn: $('#exportSaveBtn'),
+    importSaveBtn: $('#importSaveBtn'),
     settingsTabGeneral: $('#settingsTabGeneral'),
     settingsTabTouch: $('#settingsTabTouch'),
     settingsGeneralPanel: $('#settingsGeneralPanel'),
@@ -433,6 +477,7 @@
     hudLevel: $('#hudLevel'),
     raidTimer: $('#raidTimer'),
     raidObjective: $('#raidObjective'),
+    mapIntel: $('#mapIntel'),
     interactPrompt: $('#interactPrompt'),
     promptText: $('#promptText'),
     promptBarFill: $('#promptBarFill'),
@@ -505,10 +550,11 @@
     document.body.classList.toggle('move-stick-fixed', mode === 'fixed');
     document.documentElement.style.setProperty('--move-pad-scale', (save.settings.moveStickSize || 100) / 100);
     document.documentElement.style.setProperty('--move-zone-width', `${save.settings.moveZoneWidth || 50}%`);
+    document.documentElement.style.setProperty('--aim-pad-scale', (save.settings.aimPadSize || 100) / 100);
     if (el.touchHint) {
       el.touchHint.textContent = mode === 'fixed'
-        ? '左下摇杆移动 · 右侧长按开火/拖动瞄准 · 靠近补给箱站2秒搜索'
-        : '左侧按住移动 · 右侧长按开火/拖动瞄准 · 靠近补给箱站2秒搜索';
+        ? '左下摇杆移动 · 右侧轻触瞄准/长按开火 · 靠近补给箱站2秒搜索'
+        : '左侧按住移动 · 右侧轻触瞄准/长按开火 · 靠近补给箱站2秒搜索';
     }
     el.movePad.classList.remove('active');
     el.moveKnob.style.transform = 'translate(-50%, -50%)';
@@ -529,7 +575,12 @@
     el.settingScreenShake.checked = save.settings.screenShake !== false;
     el.settingFloatText.checked = save.settings.floatText !== false;
     el.settingDamageFlash.checked = save.settings.damageFlash !== false;
+    el.settingPerformanceMode.checked = save.settings.performanceMode === true;
     el.settingAutoLock.checked = save.settings.autoLock !== false;
+    el.settingAimPadSize.value = save.settings.aimPadSize;
+    el.aimPadSizeValue.textContent = `${save.settings.aimPadSize}%`;
+    el.settingAimSensitivity.value = save.settings.aimSensitivity;
+    el.aimSensitivityValue.textContent = `${sensitivityLabel(save.settings.aimSensitivity)} ${Number(save.settings.aimSensitivity).toFixed(1)}x`;
     el.moveStickModeControl.querySelectorAll('button[data-value]').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.value === save.settings.moveStickMode);
     });
@@ -549,6 +600,37 @@
 
   function closeSettings() {
     el.settingsOverlay.classList.add('hidden');
+  }
+
+  function exportSaveCode() {
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(save))));
+    const done = () => toast('存档码已复制。请保存到备忘录或发给自己。');
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code).then(done).catch(() => {
+        window.prompt('复制下面的存档码：', code);
+      });
+    } else {
+      window.prompt('复制下面的存档码：', code);
+    }
+  }
+
+  function importSaveCode() {
+    const code = window.prompt('粘贴存档码（导入会覆盖当前存档）：');
+    if (!code || !code.trim()) return;
+    try {
+      const json = decodeURIComponent(escape(atob(code.trim())));
+      const parsed = JSON.parse(json);
+      if (!parsed || typeof parsed !== 'object') throw new Error('invalid');
+      save = normalizeSave(parsed);
+      selectedStashId = null;
+      selectedInventoryItemId = null;
+      persist();
+      renderAllBase();
+      syncSettingsUI();
+      toast('存档已导入。');
+    } catch (err) {
+      toast('存档码无效，未导入任何内容。');
+    }
   }
 
   function updateFullscreenLabels() {
@@ -630,6 +712,7 @@
 
   let selectedStashId = null;
   let selectedInventoryItemId = null;
+  let stashRarityFilter = 'all';
   let toastTimer = 0;
 
   function toast(message) {
@@ -679,10 +762,21 @@
   function renderStash() {
     el.stashCount.textContent = `${stashSlotCount()} / ∞`;
     el.stashGrid.innerHTML = '';
-    el.stashEmpty.classList.toggle('hidden', save.stash.length > 0);
-    if (selectedStashId && !save.stash.some((i) => i.id === selectedStashId)) selectedStashId = null;
+    if (el.stashRarityFilter) {
+      el.stashRarityFilter.querySelectorAll('button[data-rarity]').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.rarity === stashRarityFilter);
+      });
+    }
+    const filtered = sortItemList(save.stash).filter((item) => {
+      return stashRarityFilter === 'all' || defOf(item).rarity === stashRarityFilter;
+    });
+    el.stashEmpty.classList.toggle('hidden', filtered.length > 0);
+    el.stashEmpty.textContent = save.stash.length === 0
+      ? '仓库是空的。带战利品撤离，或去黑市进货。'
+      : '没有符合当前品质筛选的物资。';
+    if (selectedStashId && !filtered.some((i) => i.id === selectedStashId)) selectedStashId = null;
 
-    for (const item of save.stash) {
+    for (const item of filtered) {
       const def = defOf(item);
       const slot = document.createElement('button');
       slot.type = 'button';
@@ -700,7 +794,7 @@
       el.stashGrid.appendChild(slot);
     }
 
-    const selected = save.stash.find((i) => i.id === selectedStashId);
+    const selected = filtered.find((i) => i.id === selectedStashId);
     if (!selected) {
       el.itemActions.classList.add('hidden');
       return;
@@ -714,6 +808,24 @@
     el.selectedValue.textContent = `出售 +${itemSellValue(selected)}`;
     el.equipBtn.classList.toggle('hidden', def.kind !== 'weapon' && def.kind !== 'armor');
     el.sellBtn.textContent = `出售 ×${selected.qty || 1}`;
+  }
+
+  function sellLowValue() {
+    const lowValue = save.stash.filter((item) => defOf(item).rarity === 'common');
+    if (!lowValue.length) {
+      toast('仓库里没有普通品质物资。');
+      return;
+    }
+    const total = lowValue.reduce((sum, item) => sum + itemSellValue(item), 0);
+    const count = lowValue.reduce((sum, item) => sum + (item.qty || 1), 0);
+    if (!confirm(`确定出售全部 ${count} 件普通品质物资，获得 ${total} 废料吗？`)) return;
+    save.stash = save.stash.filter((item) => defOf(item).rarity !== 'common');
+    save.scrap += total;
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    playSound('pickup');
+    toast(`已出售 ${count} 件普通物资，获得 ${total} 废料。`);
   }
 
   function renderShop() {
@@ -771,6 +883,33 @@
     return def.desc;
   }
 
+  function gearCompareText(item) {
+    const def = defOf(item);
+    if (def.kind === 'weapon') {
+      const next = WEAPON_DEFS[def.weapon];
+      if (!save.equipped.weapon) return '<span class="compare up">当前武器槽为空 · 可直接装备</span>';
+      const current = WEAPON_DEFS[defOf(save.equipped.weapon).weapon];
+      const nextDps = next.damage * (next.pellets || 1) / next.cooldown;
+      const currentDps = current.damage * (current.pellets || 1) / current.cooldown;
+      const pct = Math.round((nextDps / currentDps - 1) * 100);
+      if (Math.abs(pct) <= 2) return '<span class="compare">DPS 与当前武器基本持平</span>';
+      return `<span class="compare ${pct > 0 ? 'up' : 'down'}">DPS ${pct > 0 ? '+' : ''}${pct}% · 对比当前武器</span>`;
+    }
+    if (def.kind === 'armor') {
+      const next = ARMOR_DEFS[def.armor];
+      if (!save.equipped.armor) return '<span class="compare up">当前没有护甲 · 可直接装备</span>';
+      const current = ARMOR_DEFS[defOf(save.equipped.armor).armor];
+      const diff = Math.round((next.reduction - current.reduction) * 100);
+      const extras = [];
+      if (next.speedBonus) extras.push(`移速 +${Math.round(next.speedBonus * 100)}%`);
+      if (next.medkitBonus) extras.push(`医疗包 +${next.medkitBonus}`);
+      if (next.stealth) extras.push(`匿踪 +${Math.round((1 - next.stealth) * 100)}%`);
+      const extraText = extras.length ? ` · ${extras.join(' · ')}` : '';
+      return `<span class="compare ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">减伤 ${diff > 0 ? '+' : ''}${diff}%${extraText}</span>`;
+    }
+    return '';
+  }
+
   function equipStashItem(itemId) {
     const idx = save.stash.findIndex((i) => i.id === itemId);
     if (idx < 0) return;
@@ -815,7 +954,7 @@
 
   function renderEquipChoices(kind, target) {
     target.innerHTML = '';
-    const items = save.stash.filter((item) => defOf(item).kind === kind);
+    const items = sortItemList(save.stash.filter((item) => defOf(item).kind === kind));
     if (items.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'equip-empty';
@@ -834,6 +973,7 @@
         <div class="equip-choice-mid">
           <div class="equip-choice-name">${def.name}</div>
           <div class="equip-choice-stats">${gearStatsText(item)}</div>
+          <div class="gear-compare-row">${gearCompareText(item)}</div>
         </div>
         <button class="equip-choice-btn" type="button">装备</button>`;
       row.querySelector('button').addEventListener('click', () => equipStashItem(item.id));
@@ -905,7 +1045,18 @@
     el.statLoot.textContent = save.stats.loot;
   }
 
+  function syncRiskPicker() {
+    if (!el.riskPicker) return;
+    const key = save.settings.raidRisk || 'normal';
+    const risk = RISK_DEFS[key] || RISK_DEFS.normal;
+    el.riskPicker.querySelectorAll('button[data-risk]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.risk === key);
+    });
+    if (el.riskHint) el.riskHint.textContent = risk.hint;
+  }
+
   function renderAllBase() {
+    syncRiskPicker();
     renderLoadout();
     renderStash();
     renderShop();
@@ -953,7 +1104,10 @@
     aimAngle: 0,
     aimMag: 0,
     aiming: false,
-    hasAim: false
+    hasAim: false,
+    aimPressAt: 0,
+    aimTargetAngle: 0,
+    firing: false
   };
 
   function enableTouchUI() {
@@ -1164,6 +1318,7 @@
     ensureFloor(spawn.x, spawn.y);
     ensureFloor(extraction.x, extraction.y);
 
+    const risk = riskDef();
     const containers = [];
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
@@ -1176,7 +1331,7 @@
           y: spot.y,
           w: 30,
           h: 24,
-          rarity: Math.random() < 0.24 ? 'rare' : 'common',
+          rarity: Math.random() < risk.rareChance ? 'rare' : 'common',
           searched: false,
           progress: 0,
           pulse: rand(0, TAU)
@@ -1184,7 +1339,7 @@
       }
     }
 
-    const enemyCount = 6 + Math.min(7, Math.floor(save.level / 2));
+    const enemyCount = Math.round((6 + Math.min(7, Math.floor(save.level / 2))) * risk.enemyCount);
     const enemies = [];
     const kinds = ['grunt', 'grunt', 'scout', 'grunt', 'heavy'];
     for (let i = 0; i < enemyCount; i++) {
@@ -1401,6 +1556,10 @@
   }
 
   function addParticle(x, y, color, count = 5, speed = 80, size = 3, life = 0.45) {
+    if (save.settings.performanceMode) {
+      if (world.particles.length > 90) return;
+      count = Math.min(count, 1);
+    }
     for (let i = 0; i < count; i++) {
       const a = rand(0, TAU);
       const s = rand(speed * 0.25, speed);
@@ -1426,19 +1585,27 @@
     });
   }
 
-  function findPlayerLockTarget(maxRange) {
+  function findPlayerLockTarget(maxRange, aimAngle = player ? player.angle : 0) {
     if (!world || !player) return null;
     const valid = (enemy) => enemy && !enemy.dead &&
       dist2(enemy.x, enemy.y, player.x, player.y) <= maxRange * maxRange &&
       lineOfSight(player.x, player.y, enemy.x, enemy.y);
-    if (valid(player.lockTarget)) return player.lockTarget;
+    const angleDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    if (valid(player.lockTarget)) {
+      const currentAngle = Math.atan2(player.lockTarget.y - player.y, player.lockTarget.x - player.x);
+      if (angleDiff(currentAngle, aimAngle) < 0.58) return player.lockTarget;
+    }
     let best = null;
     let bestScore = Infinity;
     for (const enemy of world.enemies) {
       if (!valid(enemy)) continue;
-      let score = dist2(enemy.x, enemy.y, player.x, player.y);
-      if (enemy.isBoss) score *= 0.8;
-      if (enemy.state === 'chase') score *= 0.72;
+      const d = Math.sqrt(dist2(enemy.x, enemy.y, player.x, player.y));
+      const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+      const diff = angleDiff(enemyAngle, aimAngle);
+      let score = d * (1 + diff * 1.85);
+      if (diff < Math.PI / 3) score *= 0.72;
+      if (enemy.isBoss) score *= 0.82;
+      if (enemy.state === 'chase') score *= 0.8;
       if (score < bestScore) {
         bestScore = score;
         best = enemy;
@@ -1517,6 +1684,10 @@
       }
 
       if (touch.ui && touch.hasAim) {
+        const sens = save.settings.aimSensitivity || 1;
+        const smooth = Math.min(1, dt * 22 * sens);
+        const diff = Math.atan2(Math.sin(touch.aimTargetAngle - touch.aimAngle), Math.cos(touch.aimTargetAngle - touch.aimAngle));
+        touch.aimAngle += diff * smooth;
         this.angle = touch.aimAngle;
       } else if (touch.ui && this.moving) {
         this.angle = Math.atan2(dy, dx);
@@ -1536,11 +1707,13 @@
       }
 
       const wantsLock = touch.ui && touch.aiming && save.settings.autoLock !== false;
-      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40) : null;
+      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40, touch.aimAngle) : null;
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }
-      const touchWantsShoot = touch.ui && touch.aiming;
+      const holdSeconds = touch.aiming && touch.aimPressAt ? (performance.now() - touch.aimPressAt) / 1000 : 0;
+      const touchWantsShoot = touch.ui && touch.aiming && holdSeconds >= 0.15;
+      touch.firing = touchWantsShoot && !this.reloading;
       const wantsShoot = touchWantsShoot || (this.weapon.auto ? mouse.down : mouse.semiQueued);
       if (wantsShoot && !this.reloading) {
         if (this.tryShoot()) {
@@ -1639,6 +1812,10 @@
       showDamageFlash();
       playSound('hurt');
       addParticle(this.x, this.y, '#ff5b6e', 5, 60, 2, 0.4);
+      if (raid && raid.interactionType === 'search' && raid.progress > 0.05) {
+        raid.searchInterruptTimer = 0.9;
+        addFloatText(this.x, this.y - 24, '搜索被打断', '#ffad45');
+      }
       updateHUD();
       if (this.hp <= 0) {
         this.hp = 0;
@@ -1674,6 +1851,10 @@
       this.fireCd = rand(0.2, 0.9);
       this.hitFlash = 0;
       this.muzzleFlash = 0;
+      this.shotWindup = 0;
+      this.shotWindupMax = 0;
+      this.winding = false;
+      this.elite = false;
 
       const statTable = {
         grunt: { hp: 46, speed: 73, vision: 335, range: 320, damage: 8, cooldown: 0.95, xp: 18, scrap: 3, color: '#d65b64' },
@@ -1682,16 +1863,17 @@
         boss: { hp: 340, speed: 58, vision: 460, range: 460, damage: 17, cooldown: 1.05, xp: 180, scrap: 45, color: '#ff3e6c', name: '终焉守卫' }
       };
       const s = statTable[kind] || statTable.grunt;
+      const risk = riskDef();
       this.name = s.name || '敌人';
-      this.maxHp = s.hp + Math.max(0, save.level - 1) * (this.isBoss ? 20 : 2);
+      this.maxHp = Math.round((s.hp + Math.max(0, save.level - 1) * (this.isBoss ? 20 : 2)) * risk.enemyHp);
       this.hp = this.maxHp;
       this.speed = s.speed;
       this.vision = s.vision;
       this.range = s.range;
-      this.damage = s.damage;
+      this.damage = s.damage * risk.enemyDamage;
       this.cooldown = s.cooldown;
-      this.xp = s.xp;
-      this.scrap = s.scrap;
+      this.xp = Math.round(s.xp * (1 + (risk.enemyDamage - 1) * 0.75));
+      this.scrap = Math.round(s.scrap * (1 + (risk.enemyDamage - 1) * 0.75));
       this.color = s.color;
     }
 
@@ -1777,8 +1959,21 @@
         }
       }
 
-      if (canSee && distToPlayer < this.range && this.fireCd <= 0) {
-        this.shoot();
+      if (this.winding) {
+        if (!canSee || distToPlayer > this.range * 1.22) {
+          this.winding = false;
+          this.shotWindup = 0;
+        } else {
+          this.shotWindup = Math.max(0, this.shotWindup - dt);
+          if (this.shotWindup <= 0) {
+            this.winding = false;
+            this.shoot();
+          }
+        }
+      } else if (canSee && distToPlayer < this.range && this.fireCd <= 0) {
+        this.winding = true;
+        this.shotWindupMax = this.isBoss ? 0.55 : this.kind === 'heavy' ? 0.4 : 0.3;
+        this.shotWindup = this.shotWindupMax;
       }
 
       // Keep enemies from stacking on top of each other.
@@ -1887,12 +2082,14 @@
       const found = player.backpack.find((i) => i.type === item.type);
       if (found) {
         found.qty += item.qty || 1;
+        player.backpack = sortItemList(player.backpack);
         updateBackpackHud();
         return true;
       }
     }
     if (player.backpack.length >= player.capacity) return false;
     player.backpack.push({ ...item, id: item.id || uid(), qty: item.qty || 1 });
+    player.backpack = sortItemList(player.backpack);
     updateBackpackHud();
     return true;
   }
@@ -2106,7 +2303,9 @@
         nearestD = d;
       }
     }
-    const atExit = dist2(player.x, player.y, world.extraction.x, world.extraction.y) < world.extraction.r * world.extraction.r;
+    const altActive = world.altExtraction && world.altExtraction.timeLeft > 0;
+    const atExit = dist2(player.x, player.y, world.extraction.x, world.extraction.y) < world.extraction.r * world.extraction.r ||
+      (altActive && dist2(player.x, player.y, world.altExtraction.x, world.altExtraction.y) < world.altExtraction.r * world.altExtraction.r);
     const type = atExit ? 'extract' : nearest ? 'search' : null;
 
     if (type !== raid.interactionType || (type === 'search' && nearest !== raid.searchTarget)) {
@@ -2129,10 +2328,24 @@
     el.interactPrompt.classList.remove('hidden');
     const duration = type === 'search' ? 2.0 : 3.0;
     if (type === 'search') {
-      const remaining = Math.max(0, duration - raid.progress);
-      el.promptText.textContent = `正在搜索补给箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`;
-      raid.progress += dt;
-      nearest.progress = clamp(raid.progress / duration, 0, 1);
+      if (raid.searchInterruptTimer > 0) {
+        raid.progress = 0;
+        nearest.progress = 0;
+        el.promptText.textContent = '搜索被打断 · 站定后继续';
+      } else if (player.moving) {
+        raid.progress = 0;
+        nearest.progress = 0;
+        el.promptText.textContent = '站定 2 秒搜索 · 移动会中断';
+      } else if (player.reloading) {
+        raid.progress = 0;
+        nearest.progress = 0;
+        el.promptText.textContent = '换弹中 · 搜索暂停';
+      } else {
+        const remaining = Math.max(0, duration - raid.progress);
+        el.promptText.textContent = `正在搜索补给箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`;
+        raid.progress += dt;
+        nearest.progress = clamp(raid.progress / duration, 0, 1);
+      }
     } else {
       const remaining = Math.max(0, duration - raid.progress);
       el.promptText.textContent = `正在撤离 ${remaining.toFixed(1)} 秒 · 请留在区域内`;
@@ -2159,6 +2372,8 @@
       return;
     }
     raid.timeLeft -= dt;
+    raid.searchInterruptTimer = Math.max(0, raid.searchInterruptTimer - dt);
+    updateRaidEvent(dt);
     if (raid.timeLeft <= 0) {
       raid.timeLeft = 0;
       endRaid(false, '行动超时，撤离通道关闭。');
@@ -2214,6 +2429,31 @@
       el.hudAmmo.textContent = `${player.mag} / ${player.reserve}`;
     }
     el.hudLevel.textContent = `LV.${save.level}`;
+    if (el.aimPad) {
+      el.aimPad.classList.toggle('charging', !!(touch.ui && touch.aiming && !touch.firing));
+      el.aimPad.classList.toggle('firing', !!(touch.ui && touch.aiming && touch.firing));
+    }
+    if (raid) {
+      const eventText = raid.event
+        ? ` · ${raid.event.label}${raid.event.timer > 0 ? ` · ${Math.ceil(raid.event.timer)} 秒` : ''}`
+        : ' · 搜刮物资';
+      el.raidObjective.textContent = `${riskDef().label}行动${eventText} · 撤离点 3 秒自动撤离`;
+    }
+    if (world && world.boss) {
+      const bossD = Math.hypot(world.boss.x - player.x, world.boss.y - player.y);
+      const bossAngle = Math.atan2(world.boss.y - player.y, world.boss.x - player.x);
+      const dirs = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
+      const dir = dirs[(Math.round((bossAngle + Math.PI * 2) / (Math.PI / 4)) % 8)];
+      let nearestD = Infinity;
+      let chasing = 0;
+      for (const enemy of world.enemies) {
+        if (enemy.dead) continue;
+        if (enemy.state === 'chase') chasing += 1;
+        nearestD = Math.min(nearestD, Math.hypot(enemy.x - player.x, enemy.y - player.y));
+      }
+      const nearText = nearestD === Infinity ? '--' : `${Math.round(nearestD / TILE)}格`;
+      el.mapIntel.textContent = `首领 ${dir} ${world.boss.dead ? '已击倒' : `${Math.round(bossD / TILE)}格`} · 近敌 ${nearText} · 交火 ${chasing}`;
+    }
 
     if (raid) {
       const t = Math.max(0, Math.ceil(raid.timeLeft));
@@ -2261,7 +2501,7 @@
       selectedInventoryItemId = player.backpack[0].id;
     }
 
-    for (const item of player.backpack) {
+    for (const item of sortItemList(player.backpack)) {
       const def = defOf(item);
       const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : '物资';
       const selected = item.id === selectedInventoryItemId;
@@ -2276,7 +2516,8 @@
         </div>
         <span class="slot-icon" style="color:${choiceIconColor(def)}">${def.icon}</span>
         <span class="slot-name">${def.name}</span>
-        <span class="inv-qty">×${item.qty || 1}</span>`;
+        <span class="inv-qty">×${item.qty || 1}</span>
+        ${def.kind === 'weapon' || def.kind === 'armor' ? `<span class="inv-compare">${gearCompareText(item).replace(/<[^>]+>/g, '')}</span>` : ''}`;
       div.addEventListener('click', () => {
         selectedInventoryItemId = item.id;
         buildInventoryOverlay();
@@ -2321,7 +2562,8 @@
         <div class="inventory-detail-value">总值<br>+${itemSellValue(selectedItem)}</div>
       </div>
       <div class="inventory-detail-desc">${def.desc}</div>
-      <div class="inventory-detail-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>`;
+      <div class="inventory-detail-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>
+      ${def.kind === 'weapon' || def.kind === 'armor' ? `<div class="inventory-detail-compare">${gearCompareText(selectedItem)}</div>` : ''}`;
   }
 
   function openInventory() {
@@ -2380,8 +2622,78 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Raid lifecycle
+  // Raid lifecycle / random events
   // ---------------------------------------------------------------------------
+  function applyRaidEvent(forcedType = null) {
+    if (!world) return;
+    const roll = Math.random();
+    let type = forcedType;
+    if (!type) {
+      if (roll < 0.22) type = 'airdrop';
+      else if (roll < 0.43) type = 'elite';
+      else if (roll < 0.60) type = 'extract';
+      else if (roll < 0.75) type = 'blackout';
+    }
+
+    if (!type) {
+      raid.event = null;
+      return;
+    }
+
+    if (type === 'airdrop') {
+      const room = pick(world.rooms.slice(1, -1));
+      const spot = roomSpot(room);
+      world.containers.push({
+        x: spot.x,
+        y: spot.y,
+        w: 30,
+        h: 24,
+        rarity: 'rare',
+        searched: false,
+        progress: 0,
+        pulse: rand(0, TAU),
+        airdrop: true
+      });
+      raid.event = { type, label: '空投补给已降落', timer: 0 };
+    } else if (type === 'elite') {
+      const rooms = world.rooms.slice(1, -1);
+      for (let i = 0; i < 2; i++) {
+        const room = pick(rooms);
+        const spot = roomSpot(room);
+        const enemy = new Enemy(spot.x, spot.y, 'heavy', room);
+        enemy.elite = true;
+        enemy.maxHp = Math.round(enemy.maxHp * 1.45);
+        enemy.hp = enemy.maxHp;
+        enemy.damage *= 1.2;
+        enemy.xp = Math.round(enemy.xp * 2);
+        enemy.scrap = Math.round(enemy.scrap * 2);
+        enemy.color = '#ffd15c';
+        world.enemies.push(enemy);
+      }
+      raid.event = { type, label: '精英巡逻队出现', timer: 0 };
+    } else if (type === 'extract') {
+      const room = pick(world.rooms.slice(1, -1));
+      const spot = roomSpot(room);
+      world.altExtraction = { x: spot.x, y: spot.y, r: 50, timeLeft: 75, pulse: 0 };
+      raid.event = { type, label: '临时撤离点开启', timer: 75 };
+    } else if (type === 'blackout') {
+      world.blackoutTimer = 35;
+      raid.event = { type, label: '区域断电', timer: 35 };
+    }
+  }
+
+  function updateRaidEvent(dt) {
+    if (!raid.event || raid.event.timer <= 0) return;
+    raid.event.timer = Math.max(0, raid.event.timer - dt);
+    if (raid.event.type === 'extract') {
+      if (world.altExtraction) world.altExtraction.timeLeft = raid.event.timer;
+      if (raid.event.timer <= 0) addLootFeed('临时撤离点已关闭。', true);
+    } else if (raid.event.type === 'blackout') {
+      world.blackoutTimer = raid.event.timer;
+      if (raid.event.timer <= 0) addLootFeed('区域供电恢复。', false);
+    }
+  }
+
   function startRaid() {
     Sound.init();
     if (likelyTouch && window.innerHeight > window.innerWidth) enterLandscapeFullscreen();
@@ -2389,7 +2701,7 @@
     persist();
 
     world = generateWorld();
-    player = new Player(world.spawn.x, world.spawn.y);
+    const risk = riskDef();
     raid = {
       timeLeft: 360,
       xp: 0,
@@ -2400,12 +2712,17 @@
       inventoryOpen: false,
       mapOpen: false,
       bossEngaged: false,
+      risk: save.settings.raidRisk || 'normal',
+      event: null,
       progress: 0,
       interactionType: null,
       searchTarget: null,
+      searchInterruptTimer: 0,
       lastFullWarning: -10,
       startedAt: performance.now()
     };
+    applyRaidEvent();
+    player = new Player(world.spawn.x, world.spawn.y);
     camera = { x: clamp(player.x - VIEW_W / 2, 0, MAP_PW - VIEW_W), y: clamp(player.y - VIEW_H / 2, 0, MAP_PH - VIEW_H), shake: 0 };
     cameraInitialized = true;
     world.shake = 0;
@@ -2429,12 +2746,21 @@
     touch.moveMag = 0;
     touch.aiming = false;
     touch.aimMag = 0;
+    touch.aimPressAt = 0;
+    touch.firing = false;
+    touch.hasAim = false;
+    touch.aimAngle = 0;
+    touch.aimTargetAngle = 0;
     buildFlowField();
     updateHUD();
     updateBackpackHud();
-    addLootFeed('行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。', false);
+    addLootFeed(`${risk.label}行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。`, false);
+    if (raid.event) {
+      addLootFeed(`随机事件：${raid.event.label}${raid.event.timer > 0 ? `（${raid.event.timer}秒）` : ''}`, false);
+      toast(`随机事件：${raid.event.label}`);
+    }
     if (touch.ui) {
-      toast('左摇杆移动，按住右侧瞄准区开火并自动锁定。靠近补给箱站 2 秒自动搜索。');
+      toast('轻触右侧瞄准，长按开火并自动锁定。靠近补给箱站 2 秒自动搜索，移动会打断。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
@@ -2489,7 +2815,8 @@
     el.debriefStats.innerHTML = `
       <div><span>击倒敌人</span><strong>${raid.kills}</strong></div>
       <div><span>${success ? '带回物资' : '损失物资'}</span><strong>${itemUnits}</strong></div>
-      <div><span>${success ? '获得废料' : '获得经验'}</span><strong>${success ? `+${scrapGain}` : `+${xpGain}`}</strong></div>`;
+      <div><span>${success ? '获得废料' : '获得经验'}</span><strong>${success ? `+${scrapGain}` : `+${xpGain}`}</strong></div>
+      <div><span>行动风险</span><strong>${riskDef().label}</strong></div>`;
     el.debriefLoot.innerHTML = '';
     if (success && carried.length) {
       const merged = [];
@@ -2555,6 +2882,7 @@
 
     ctx.drawImage(world.mapCanvas, 0, 0);
     drawExtraction();
+    drawAltExtraction();
     for (const c of world.containers) drawContainer(c);
     for (const p of world.pickups) drawPickup(p);
     for (const bullet of world.bullets) drawBullet(bullet);
@@ -2567,11 +2895,21 @@
     ctx.restore();
 
     // Vignette / atmosphere.
-    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,.56)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (!save.settings.performanceMode) {
+      const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,.56)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+    if (world.blackoutTimer > 0) {
+      const flicker = save.settings.performanceMode ? 0.42 : 0.36 + (Math.sin(world.time * 7) + 1) * 0.06;
+      ctx.fillStyle = `rgba(0,0,0,${flicker})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
 
     drawMinimap();
     drawCrosshair();
@@ -2630,6 +2968,38 @@
     ctx.restore();
   }
 
+  function drawAltExtraction() {
+    const ex = world.altExtraction;
+    if (!ex || ex.timeLeft <= 0) return;
+    const pulse = (Math.sin(world.time * 3.2) + 1) * 0.5;
+    const radius = ex.r + pulse * 6;
+    ctx.save();
+    ctx.translate(ex.x, ex.y);
+    ctx.fillStyle = 'rgba(85,217,255,.12)';
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 18, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(85,217,255,${0.5 + pulse * 0.4})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 6]);
+    ctx.lineDashOffset = -world.time * 18;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(85,217,255,.12)';
+    ctx.fillRect(-24, -24, 48, 48);
+    ctx.strokeStyle = 'rgba(85,217,255,.8)';
+    ctx.strokeRect(-24, -24, 48, 48);
+    ctx.fillStyle = '#55d9ff';
+    ctx.fillRect(-5, -5, 10, 10);
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8be8ff';
+    ctx.fillText(`临时撤离 ${Math.ceil(ex.timeLeft)}s`, 0, -34);
+    ctx.restore();
+  }
+
   function drawContainer(c) {
     ctx.save();
     ctx.translate(Math.round(c.x), Math.round(c.y));
@@ -2648,20 +3018,28 @@
       ctx.strokeStyle = '#2f3d50';
       ctx.strokeRect(-15, -7, 30, 18);
     } else {
+      const accent = c.airdrop ? '#ffd15c' : '#d6ff4d';
+      const accentRgb = c.airdrop ? '255,209,92' : '214,255,77';
       const glow = 0.25 + (Math.sin(world.time * 2 + c.pulse) + 1) * 0.13;
-      ctx.fillStyle = `rgba(214,255,77,${glow * 0.18})`;
+      ctx.fillStyle = `rgba(${accentRgb},${glow * 0.24})`;
       ctx.fillRect(-18, -15, 36, 32);
-      ctx.fillStyle = '#2c3b2b';
+      ctx.fillStyle = c.airdrop ? '#4a3b1d' : '#2c3b2b';
       ctx.fillRect(-15, -9, 30, 20);
-      ctx.fillStyle = '#485b36';
+      ctx.fillStyle = c.airdrop ? '#705a27' : '#485b36';
       ctx.fillRect(-15, -9, 30, 5);
-      ctx.fillStyle = '#d6ff4d';
+      ctx.fillStyle = accent;
       ctx.fillRect(-3, 1, 6, 3);
-      ctx.strokeStyle = 'rgba(214,255,77,.7)';
+      ctx.strokeStyle = `rgba(${accentRgb},.8)`;
       ctx.strokeRect(-15, -9, 30, 20);
-      ctx.fillStyle = '#9ab52e';
+      ctx.fillStyle = c.airdrop ? '#c2a34b' : '#9ab52e';
       ctx.fillRect(-12, -7, 3, 16);
       ctx.fillRect(9, -7, 3, 16);
+      if (c.airdrop) {
+        ctx.fillStyle = '#ffd15c';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('空投', 0, -16);
+      }
     }
 
     if (c.progress > 0 && c.progress < 1) {
@@ -2758,6 +3136,26 @@
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('!', 0, barY - 7);
+    }
+
+    if (!isPlayer && entity.elite) {
+      ctx.strokeStyle = 'rgba(255,209,92,.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, (isBoss ? 28 : 15) + Math.sin(world.time * 5) * 1.5, 0, TAU);
+      ctx.stroke();
+    }
+    if (!isPlayer && entity.shotWindup > 0) {
+      const charge = 1 - entity.shotWindup / (entity.shotWindupMax || 1);
+      ctx.strokeStyle = `rgba(255,91,110,${0.4 + charge * 0.55})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, (isBoss ? 30 : 17) + charge * 7, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = '#ff5b6e';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', 0, barY - 18);
     }
 
     ctx.rotate(entity.angle || 0);
@@ -2906,7 +3304,7 @@
 
     for (const container of world.containers) {
       if (container.searched) continue;
-      g.fillStyle = '#ff9c47';
+      g.fillStyle = container.airdrop ? '#ffd15c' : '#ff9c47';
       g.fillRect(container.x * sx - 3, container.y * sy - 3, 6, 6);
     }
     for (const pickup of world.pickups) {
@@ -2972,6 +3370,22 @@
     g.fillStyle = '#d6ff4d';
     g.fillText(label, labelX, exY);
 
+    if (world.altExtraction && world.altExtraction.timeLeft > 0) {
+      const ax = world.altExtraction.x * sx;
+      const ay = world.altExtraction.y * sy;
+      g.strokeStyle = '#55d9ff';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(ax, ay, 13, 0, TAU);
+      g.stroke();
+      g.fillStyle = '#55d9ff';
+      g.fillRect(ax - 3, ay - 3, 6, 6);
+      g.font = 'bold 11px monospace';
+      g.textBaseline = 'middle';
+      g.fillStyle = '#8be8ff';
+      g.fillText(`临时撤离 ${Math.ceil(world.altExtraction.timeLeft)}s`, ax + 18, ay);
+    }
+
     g.save();
     g.translate(player.x * sx, player.y * sy);
     g.rotate(player.angle);
@@ -3013,7 +3427,7 @@
 
     for (const c of world.containers) {
       if (c.searched) continue;
-      miniCtx.fillStyle = '#ff9c47';
+      miniCtx.fillStyle = c.airdrop ? '#ffd15c' : '#ff9c47';
       miniCtx.fillRect(c.x * sx - 1, c.y * sy - 1, 3, 3);
     }
     for (const p of world.pickups) {
@@ -3027,6 +3441,18 @@
         miniCtx.fillStyle = '#ff5b6e';
         miniCtx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4);
       }
+    }
+
+    if (world.altExtraction && world.altExtraction.timeLeft > 0) {
+      const ax = world.altExtraction.x * sx;
+      const ay = world.altExtraction.y * sy;
+      miniCtx.strokeStyle = '#55d9ff';
+      miniCtx.lineWidth = 1;
+      miniCtx.beginPath();
+      miniCtx.arc(ax, ay, 4, 0, TAU);
+      miniCtx.stroke();
+      miniCtx.fillStyle = '#55d9ff';
+      miniCtx.fillRect(ax - 2, ay - 2, 4, 4);
     }
 
     if (world.boss && !world.boss.dead) {
@@ -3061,7 +3487,7 @@
   // ---------------------------------------------------------------------------
   // Touch controls
   // ---------------------------------------------------------------------------
-  function setupVirtualStick(pad, knob, onMove, onEnd) {
+  function setupVirtualStick(pad, knob, onMove, onEnd, onStart) {
     let pointerId = null;
 
     const move = (event) => {
@@ -3095,6 +3521,7 @@
       Sound.init();
       pad.classList.add('active');
       try { pad.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
+      if (onStart) onStart();
       move(event);
       event.preventDefault();
     });
@@ -3203,14 +3630,19 @@
       touch.aimMag = mag;
       if (!touch.hasAim) {
         touch.aimAngle = player ? player.angle : 0;
+        touch.aimTargetAngle = touch.aimAngle;
         touch.hasAim = true;
       }
       if (mag > 0.16) {
-        touch.aimAngle = Math.atan2(y, x);
+        touch.aimTargetAngle = Math.atan2(y, x);
       }
     }, () => {
       touch.aiming = false;
       touch.aimMag = 0;
+      touch.aimPressAt = 0;
+      touch.firing = false;
+    }, () => {
+      touch.aimPressAt = performance.now();
     });
 
     el.touchReload.addEventListener('pointerdown', (event) => {
@@ -3312,6 +3744,21 @@
   });
 
   el.startRaidBtn.addEventListener('click', startRaid);
+  el.riskPicker.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-risk]');
+    if (!btn) return;
+    save.settings.raidRisk = RISK_DEFS[btn.dataset.risk] ? btn.dataset.risk : 'normal';
+    persist();
+    syncRiskPicker();
+    toast(`行动风险：${riskDef().label} · ${riskDef().hint}`);
+  });
+  el.stashRarityFilter.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-rarity]');
+    if (!btn) return;
+    stashRarityFilter = btn.dataset.rarity;
+    renderStash();
+  });
+  el.sellLowBtn.addEventListener('click', sellLowValue);
   el.fullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
   el.pauseFullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
   el.settingsFullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
@@ -3337,6 +3784,12 @@
     save.settings.autoLock = el.settingAutoLock.checked;
     persist();
   });
+  el.settingPerformanceMode.addEventListener('change', () => {
+    save.settings.performanceMode = el.settingPerformanceMode.checked;
+    persist();
+  });
+  el.exportSaveBtn.addEventListener('click', exportSaveCode);
+  el.importSaveBtn.addEventListener('click', importSaveCode);
   el.settingScreenShake.addEventListener('change', () => {
     save.settings.screenShake = el.settingScreenShake.checked;
     persist();
@@ -3370,6 +3823,16 @@
   });
   el.settingMoveSensitivity.addEventListener('input', () => {
     save.settings.moveSensitivity = clamp(Number(el.settingMoveSensitivity.value) || 1, 0.6, 1.6);
+    persist();
+    syncSettingsUI();
+  });
+  el.settingAimPadSize.addEventListener('input', () => {
+    save.settings.aimPadSize = clamp(Number(el.settingAimPadSize.value) || 100, 70, 120);
+    persist();
+    syncSettingsUI();
+  });
+  el.settingAimSensitivity.addEventListener('input', () => {
+    save.settings.aimSensitivity = clamp(Number(el.settingAimSensitivity.value) || 1, 0.6, 1.6);
     persist();
     syncSettingsUI();
   });
@@ -3424,10 +3887,11 @@
           weapon: player.weaponKey, armor: player.armorKey
         } : null,
         raid: raid ? { ...raid } : null,
-        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, angle: touch.aimAngle },
+        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, firing: touch.firing, angle: touch.aimAngle, aimPressAt: touch.aimPressAt },
         world: world ? {
           spawn: world.spawn,
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
+          altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
           containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0 })),
           enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name } : null,
@@ -3442,12 +3906,31 @@
     touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; },
     touchAim(x, y, mag) {
       touch.aimAngle = Math.atan2(y, x);
+      touch.aimTargetAngle = touch.aimAngle;
       touch.aimMag = mag;
       touch.hasAim = true;
       touch.aiming = mag > 0.16;
+      touch.aimPressAt = performance.now();
     },
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
-    touchAimHold(down) { touch.aiming = !!down; if (!down) touch.aimMag = 0; },
+    forceRaidEvent(type) {
+      if (!world || !raid) return null;
+      world.altExtraction = null;
+      world.blackoutTimer = 0;
+      raid.event = null;
+      applyRaidEvent(type);
+      updateHUD();
+      return raid.event;
+    },
+    addBackpackItem(type) {
+      if (player) addItemToBackpack(createItem(type));
+      updateBackpackHud();
+    },
+    touchAimHold(down) {
+      touch.aiming = !!down;
+      if (down) touch.aimPressAt = performance.now();
+      else { touch.aimMag = 0; touch.aimPressAt = 0; touch.firing = false; }
+    },
     tick() { updateHUD(); }
   };
   renderAllBase();

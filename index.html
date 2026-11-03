@@ -47,6 +47,14 @@
             <div class="supply-box"><span>医疗包</span><strong id="loadoutMeds">2</strong></div>
             <div class="supply-box"><span>背包格</span><strong id="loadoutSlots">8</strong></div>
           </div>
+          <div class="risk-picker-wrap">
+            <div class="risk-picker-label">行动风险 <span id="riskHint">稳定收益</span></div>
+            <div id="riskPicker" class="risk-picker" role="group" aria-label="行动风险">
+              <button type="button" data-risk="normal" class="active">普通<small>稳定</small></button>
+              <button type="button" data-risk="danger">危险<small>更多敌人 · 更好掉落</small></button>
+              <button type="button" data-risk="extreme">极限<small>高压 · 最高收益</small></button>
+            </div>
+          </div>
           <button id="startRaidBtn" class="primary-btn raid-btn">开始行动 <span>▶</span></button>
           <div class="utility-row">
             <button id="fullscreenBtn" class="secondary-btn" type="button">横屏全屏</button>
@@ -63,6 +71,16 @@
           <div class="panel-head">
             <span>仓库</span>
             <span class="panel-tag" id="stashCount">0 / ∞</span>
+          </div>
+          <div class="stash-toolbar">
+            <div id="stashRarityFilter" class="rarity-filter" role="group" aria-label="仓库品质筛选">
+              <button type="button" data-rarity="all" class="active">全部</button>
+              <button type="button" data-rarity="common">普通</button>
+              <button type="button" data-rarity="uncommon">精良</button>
+              <button type="button" data-rarity="rare">稀有</button>
+              <button type="button" data-rarity="epic">史诗</button>
+            </div>
+            <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
           </div>
           <div id="stashGrid" class="stash-grid"></div>
           <div id="stashEmpty" class="empty-state">仓库是空的。带战利品撤离，或去黑市进货。</div>
@@ -133,7 +151,7 @@
 
           <div class="hud-top-center">
             <div id="raidTimer" class="raid-timer">06:00</div>
-            <div class="objective">搜刮物资 · 站在撤离点 3 秒自动撤离</div>
+            <div id="raidObjective" class="objective">搜刮物资 · 站在撤离点 3 秒自动撤离</div>
           </div>
 
           <div id="bossHud" class="boss-hud hidden">
@@ -144,6 +162,7 @@
           <div class="hud-top-right">
             <canvas id="minimap" width="180" height="132"></canvas>
             <div class="minimap-label">战术地图</div>
+            <div id="mapIntel" class="map-intel">首领 -- · 近敌 --</div>
             <button id="hudMapBtn" class="hud-map-btn" type="button">打开地图 <kbd>M</kbd></button>
           </div>
 
@@ -174,7 +193,7 @@
             <button id="touchInventory" class="touch-btn" type="button">背包</button>
           </div>
           <button id="touchPause" class="touch-pause" type="button">II</button>
-          <div id="touchHint" class="touch-hint">左侧按住移动 · 右侧长按开火/拖动瞄准 · 靠近补给箱站2秒搜索</div>
+          <div id="touchHint" class="touch-hint">左侧按住移动 · 右侧轻触瞄准/长按开火 · 靠近补给箱站2秒搜索</div>
         </div>
         <div id="rotateHint" class="rotate-hint">建议横屏游玩</div>
 
@@ -280,6 +299,14 @@
             <span><strong>受伤红屏</strong><small>受到伤害时的红色闪烁</small></span>
             <input id="settingDamageFlash" class="settings-toggle" type="checkbox">
           </label>
+          <label class="settings-row">
+            <span><strong>性能模式</strong><small>减少粒子与动态效果，老手机更流畅</small></span>
+            <input id="settingPerformanceMode" class="settings-toggle" type="checkbox">
+          </label>
+        </div>
+        <div class="settings-actions">
+          <button id="exportSaveBtn" class="secondary-btn" type="button">导出存档</button>
+          <button id="importSaveBtn" class="secondary-btn" type="button">导入存档</button>
         </div>
         </div>
         <div id="settingsTouchPanel" class="settings-panel hidden">
@@ -296,6 +323,20 @@
         <label class="settings-row">
           <span><strong>自动锁定</strong><small>开火时自动瞄准最近的可见敌人</small></span>
           <input id="settingAutoLock" class="settings-toggle" type="checkbox">
+        </label>
+        <label class="settings-row settings-row-stack" for="settingAimPadSize">
+          <div class="settings-row-head">
+            <span><strong>瞄准圈大小</strong><small>调整右侧开火/瞄准区域</small></span>
+            <output id="aimPadSizeValue">100%</output>
+          </div>
+          <input id="settingAimPadSize" class="settings-range" type="range" min="70" max="120" step="5" value="100">
+        </label>
+        <label class="settings-row settings-row-stack" for="settingAimSensitivity">
+          <div class="settings-row-head">
+            <span><strong>瞄准灵敏度</strong><small>越高，拖动后转向越快</small></span>
+            <output id="aimSensitivityValue">标准</output>
+          </div>
+          <input id="settingAimSensitivity" class="settings-range" type="range" min="0.6" max="1.6" step="0.1" value="1">
         </label>
         <label class="settings-row settings-row-stack" for="settingMoveStickSize">
           <div class="settings-row-head">
