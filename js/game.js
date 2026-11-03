@@ -151,6 +151,7 @@
         armor: null
       },
       upgrades: { medkits: 0, ammo: 0 },
+      settings: { sound: true, screenShake: true, floatText: true, damageFlash: true },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
     };
   }
@@ -162,6 +163,7 @@
       ...base,
       ...raw,
       upgrades: { ...base.upgrades, ...(raw.upgrades || {}) },
+      settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
       stash: Array.isArray(raw.stash) ? raw.stash.filter((i) => ITEM_DEFS[i?.type]).map((i) => ({ ...i, id: i.id || uid(), qty: i.qty || 1 })) : []
     };
@@ -290,7 +292,7 @@
   };
 
   function playSound(name, arg) {
-    if (!Sound.ctx) return;
+    if (!Sound.ctx || save.settings.sound === false) return;
     if (name === 'shoot') {
       if (arg === 'shotgun') {
         Sound.noise(0.18, 0.52, 720);
@@ -379,6 +381,18 @@
     statLoot: $('#statLoot'),
     shopList: $('#shopList'),
     resetSaveBtn: $('#resetSaveBtn'),
+    fullscreenBtn: $('#fullscreenBtn'),
+    settingsBtn: $('#settingsBtn'),
+    pauseFullscreenBtn: $('#pauseFullscreenBtn'),
+    pauseSettingsBtn: $('#pauseSettingsBtn'),
+    settingsOverlay: $('#settingsOverlay'),
+    closeSettingsBtn: $('#closeSettingsBtn'),
+    settingsFullscreenBtn: $('#settingsFullscreenBtn'),
+    resetSettingsBtn: $('#resetSettingsBtn'),
+    settingSound: $('#settingSound'),
+    settingScreenShake: $('#settingScreenShake'),
+    settingFloatText: $('#settingFloatText'),
+    settingDamageFlash: $('#settingDamageFlash'),
     hpFill: $('#hpFill'),
     hpText: $('#hpText'),
     armorText: $('#armorText'),
@@ -436,6 +450,82 @@
     touchPause: $('#touchPause'),
     touchHint: $('#touchHint')
   };
+
+  function syncSettingsUI() {
+    el.settingSound.checked = save.settings.sound !== false;
+    el.settingScreenShake.checked = save.settings.screenShake !== false;
+    el.settingFloatText.checked = save.settings.floatText !== false;
+    el.settingDamageFlash.checked = save.settings.damageFlash !== false;
+  }
+
+  function openSettings() {
+    syncSettingsUI();
+    el.settingsOverlay.classList.remove('hidden');
+  }
+
+  function closeSettings() {
+    el.settingsOverlay.classList.add('hidden');
+  }
+
+  function updateFullscreenLabels() {
+    const label = document.fullscreenElement ? '退出全屏' : '横屏全屏';
+    [el.fullscreenBtn, el.pauseFullscreenBtn, el.settingsFullscreenBtn].forEach((btn) => {
+      if (btn) btn.textContent = label;
+    });
+  }
+
+  async function enterLandscapeFullscreen() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (document.fullscreenElement) {
+      try { await document.exitFullscreen(); } catch (err) { /* ignore */ }
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (err) { /* ignore */ }
+      updateFullscreenLabels();
+      toast('已退出全屏。');
+      return;
+    }
+
+    let entered = false;
+    try {
+      const target = document.documentElement;
+      if (target.requestFullscreen) {
+        await target.requestFullscreen({ navigationUI: 'hide' });
+        entered = true;
+      } else if (target.webkitRequestFullscreen) {
+        target.webkitRequestFullscreen();
+        entered = true;
+      }
+    } catch (err) { /* ignore */ }
+
+    let locked = false;
+    try {
+      if (screen.orientation && typeof screen.orientation.lock === 'function') {
+        await screen.orientation.lock('landscape');
+        locked = true;
+      }
+    } catch (err) { /* ignore */ }
+
+    updateFullscreenLabels();
+    if (locked && window.innerWidth > window.innerHeight) {
+      toast('已进入横屏全屏。');
+    } else if (entered) {
+      toast('已进入全屏；请横握手机并开启系统自动旋转。');
+    } else if (isIOS) {
+      toast('iPhone 请用 Safari「分享 → 添加到主屏幕」启动，并关闭竖屏锁定。');
+    } else {
+      toast('浏览器未允许强制横屏，请开启手机自动旋转后横握手机。');
+    }
+  }
+
+  function resetSettings() {
+    save.settings = { sound: true, screenShake: true, floatText: true, damageFlash: true };
+    persist();
+    syncSettingsUI();
+    toast('设置已恢复默认。');
+  }
+
+  document.addEventListener('fullscreenchange', updateFullscreenLabels);
 
   const SHOP = [
     { key: 'w_smg', type: 'w_smg', price: 140, desc: '全自动冲锋枪，弹匣 30 发。' },
@@ -1239,10 +1329,12 @@
   }
 
   function addFloatText(x, y, text, color = '#d6ff4d') {
+    if (save.settings.floatText === false) return;
     world.floatTexts.push({ x, y, text, color, life: 0.8, maxLife: 0.8 });
   }
 
   function showDamageFlash() {
+    if (save.settings.damageFlash === false) return;
     el.damageFlash.style.transition = 'none';
     el.damageFlash.style.opacity = '0.8';
     requestAnimationFrame(() => {
@@ -2178,6 +2270,7 @@
   // ---------------------------------------------------------------------------
   function startRaid() {
     Sound.init();
+    if (likelyTouch && window.innerHeight > window.innerWidth) enterLandscapeFullscreen();
     save.stats.raids += 1;
     persist();
 
@@ -2339,8 +2432,8 @@
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
     if (!world || !player) return;
 
-    const shakeX = (Math.random() - 0.5) * world.shake;
-    const shakeY = (Math.random() - 0.5) * world.shake;
+    const shakeX = save.settings.screenShake === false ? 0 : (Math.random() - 0.5) * world.shake;
+    const shakeY = save.settings.screenShake === false ? 0 : (Math.random() - 0.5) * world.shake;
     const camX = Math.round(camera.x + shakeX);
     const camY = Math.round(camera.y + shakeY);
 
@@ -2971,7 +3064,8 @@
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (mode === 'raid' && raid && raid.mapOpen) closeMap();
+      if (!el.settingsOverlay.classList.contains('hidden')) closeSettings();
+      else if (mode === 'raid' && raid && raid.mapOpen) closeMap();
       else if (mode === 'raid') togglePause();
       else if (mode === 'base' && !el.equipOverlay.classList.contains('hidden')) closeEquipModal();
       return;
@@ -3017,6 +3111,41 @@
   });
 
   el.startRaidBtn.addEventListener('click', startRaid);
+  el.fullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
+  el.pauseFullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
+  el.settingsFullscreenBtn.addEventListener('click', enterLandscapeFullscreen);
+  el.settingsBtn.addEventListener('click', openSettings);
+  el.pauseSettingsBtn.addEventListener('click', openSettings);
+  el.closeSettingsBtn.addEventListener('click', closeSettings);
+  el.resetSettingsBtn.addEventListener('click', resetSettings);
+  el.settingsOverlay.addEventListener('click', (event) => {
+    if (event.target === el.settingsOverlay) closeSettings();
+  });
+  el.settingSound.addEventListener('change', () => {
+    save.settings.sound = el.settingSound.checked;
+    persist();
+    if (save.settings.sound) {
+      Sound.init();
+      if (Sound.master) Sound.master.gain.value = 0.16;
+      playSound('pickup');
+    } else if (Sound.master) {
+      Sound.master.gain.value = 0;
+    }
+  });
+  el.settingScreenShake.addEventListener('change', () => {
+    save.settings.screenShake = el.settingScreenShake.checked;
+    persist();
+  });
+  el.settingFloatText.addEventListener('change', () => {
+    save.settings.floatText = el.settingFloatText.checked;
+    persist();
+  });
+  el.settingDamageFlash.addEventListener('change', () => {
+    save.settings.damageFlash = el.settingDamageFlash.checked;
+    persist();
+  });
+  syncSettingsUI();
+  updateFullscreenLabels();
   el.hudInventoryBtn.addEventListener('click', () => {
     if (mode !== 'raid' || !raid || raid.ended) return;
     if (raid.inventoryOpen) closeInventory();
@@ -3056,6 +3185,7 @@
       return {
         mode,
         save: JSON.parse(JSON.stringify(save)),
+        settings: JSON.parse(JSON.stringify(save.settings)),
         player: player ? {
           x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,

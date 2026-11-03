@@ -48,6 +48,10 @@
             <div class="supply-box"><span>背包格</span><strong id="loadoutSlots">8</strong></div>
           </div>
           <button id="startRaidBtn" class="primary-btn raid-btn">开始行动 <span>▶</span></button>
+          <div class="utility-row">
+            <button id="fullscreenBtn" class="secondary-btn" type="button">横屏全屏</button>
+            <button id="settingsBtn" class="secondary-btn" type="button">设置</button>
+          </div>
           <div class="control-hint">
             <div><kbd>WASD</kbd> 移动　<kbd>鼠标</kbd> 瞄准</div>
             <div><kbd>左键</kbd> 射击　<kbd>R</kbd> 换弹　<kbd>F</kbd> 医疗</div>
@@ -216,6 +220,10 @@
           <div class="overlay-card pause-card">
             <div class="pause-title">行动暂停</div>
             <p>当前进度已暂停。游戏内的仓库和等级存档会在撤离或返回基地时写入。</p>
+            <div class="pause-utility-row">
+              <button id="pauseFullscreenBtn" class="secondary-btn" type="button">横屏全屏</button>
+              <button id="pauseSettingsBtn" class="secondary-btn" type="button">设置</button>
+            </div>
             <button id="resumeBtn" class="primary-btn">继续行动</button>
             <button id="abandonBtn" class="danger-btn">放弃行动并返回基地</button>
           </div>
@@ -241,6 +249,36 @@
           </section>
         </div>
         <p class="overlay-note">装备会立即更新作战准备；进入行动后不能更换。</p>
+      </div>
+    </div>
+
+    <div id="settingsOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card settings-card">
+        <div class="overlay-head">
+          <span>系统设置</span>
+          <button id="closeSettingsBtn" class="ghost-btn small" type="button">关闭</button>
+        </div>
+        <div class="settings-list">
+          <label class="settings-row">
+            <span><strong>音效</strong><small>射击、拾取、受伤等提示音</small></span>
+            <input id="settingSound" class="settings-toggle" type="checkbox">
+          </label>
+          <label class="settings-row">
+            <span><strong>屏幕震动</strong><small>开火和受击时的镜头抖动</small></span>
+            <input id="settingScreenShake" class="settings-toggle" type="checkbox">
+          </label>
+          <label class="settings-row">
+            <span><strong>浮动文字</strong><small>伤害数字、经验与掉落提示</small></span>
+            <input id="settingFloatText" class="settings-toggle" type="checkbox">
+          </label>
+          <label class="settings-row">
+            <span><strong>受伤红屏</strong><small>受到伤害时的红色闪烁</small></span>
+            <input id="settingDamageFlash" class="settings-toggle" type="checkbox">
+          </label>
+        </div>
+        <button id="settingsFullscreenBtn" class="secondary-btn settings-fullscreen-btn" type="button">横屏全屏</button>
+        <button id="resetSettingsBtn" class="ghost-btn settings-reset-btn" type="button">恢复默认设置</button>
+        <p class="overlay-note">横屏未生效时：请开启手机自动旋转，或把游戏添加到主屏幕后从图标启动。</p>
       </div>
     </div>
 

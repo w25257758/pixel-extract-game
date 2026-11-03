@@ -1028,3 +1028,82 @@ body.touch-device .control-hint { opacity: .55; }
   .boss-hud { top: 16%; width: min(320px, 29vw); padding: 5px 7px 6px; }
   .boss-hud-head strong { font-size: 9px; }
 }
+
+/* Utility buttons and settings */
+.utility-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 12px 14px;
+}
+.utility-row .secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 39px;
+  padding: 8px 10px;
+  font-size: 10px;
+}
+.pause-utility-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.pause-utility-row .secondary-btn { width: 100%; }
+.settings-card { width: min(480px, 92%); }
+.settings-list { display: grid; gap: 8px; margin: 14px 0 12px; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 11px;
+  border: 1px solid var(--line-soft);
+  background: #0a1017;
+  cursor: pointer;
+}
+.settings-row span { min-width: 0; }
+.settings-row strong { display: block; color: var(--text); font-size: 11px; letter-spacing: .5px; }
+.settings-row small { display: block; margin-top: 3px; color: var(--dim); font-size: 9px; line-height: 1.5; }
+.settings-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border: 1px solid #3a4a5f;
+  border-radius: 999px;
+  background: #060b11;
+  cursor: pointer;
+}
+.settings-toggle::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6b7a90;
+  transition: transform .16s ease, background .16s ease;
+}
+.settings-toggle:checked {
+  border-color: rgba(214, 255, 77, .65);
+  background: rgba(214, 255, 77, .16);
+}
+.settings-toggle:checked::after {
+  transform: translateX(18px);
+  background: var(--lime);
+}
+.settings-fullscreen-btn { width: 100%; margin: 3px 0 8px; }
+.settings-reset-btn { width: 100%; }
+@media (pointer: coarse) {
+  .utility-row .secondary-btn { min-height: 44px; font-size: 11px; }
+  .settings-row { min-height: 54px; }
+}
+@media (max-width: 680px) {
+  .settings-card { width: 94%; padding: 15px; }
+}
