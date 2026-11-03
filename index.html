@@ -259,6 +259,11 @@
           <span>系统设置</span>
           <button id="closeSettingsBtn" class="ghost-btn small" type="button">关闭</button>
         </div>
+        <div class="settings-tabs" role="tablist" aria-label="设置分类">
+          <button id="settingsTabGeneral" class="active" type="button" role="tab" aria-selected="true">基础</button>
+          <button id="settingsTabTouch" type="button" role="tab" aria-selected="false">触控</button>
+        </div>
+        <div id="settingsGeneralPanel" class="settings-panel">
         <div class="settings-list">
           <label class="settings-row">
             <span><strong>音效</strong><small>射击、拾取、受伤等提示音</small></span>
@@ -276,6 +281,40 @@
             <span><strong>受伤红屏</strong><small>受到伤害时的红色闪烁</small></span>
             <input id="settingDamageFlash" class="settings-toggle" type="checkbox">
           </label>
+        </div>
+        </div>
+        <div id="settingsTouchPanel" class="settings-panel hidden">
+        <div class="settings-section-title">触控设置 <span>仅影响手机触屏</span></div>
+        <div class="settings-row settings-row-stack">
+          <div class="settings-row-head">
+            <span><strong>移动摇杆</strong><small>浮动：左侧按住出现；固定：常驻左下角</small></span>
+          </div>
+          <div id="moveStickModeControl" class="segmented-control" role="group" aria-label="移动摇杆模式">
+            <button type="button" data-value="floating">浮动</button>
+            <button type="button" data-value="fixed">固定</button>
+          </div>
+        </div>
+        <label class="settings-row settings-row-stack" for="settingMoveStickSize">
+          <div class="settings-row-head">
+            <span><strong>摇杆大小</strong><small>调整移动摇杆的直径</small></span>
+            <output id="moveStickSizeValue">100%</output>
+          </div>
+          <input id="settingMoveStickSize" class="settings-range" type="range" min="70" max="150" step="5" value="100">
+        </label>
+        <label class="settings-row settings-row-stack" for="settingMoveZoneWidth">
+          <div class="settings-row-head">
+            <span><strong>移动触发区域</strong><small>浮动模式下可按住移动的屏幕宽度</small></span>
+            <output id="moveZoneWidthValue">50%</output>
+          </div>
+          <input id="settingMoveZoneWidth" class="settings-range" type="range" min="30" max="70" step="5" value="50">
+        </label>
+        <label class="settings-row settings-row-stack" for="settingMoveSensitivity">
+          <div class="settings-row-head">
+            <span><strong>移动灵敏度</strong><small>越高，轻推摇杆移动越快</small></span>
+            <output id="moveSensitivityValue">标准</output>
+          </div>
+          <input id="settingMoveSensitivity" class="settings-range" type="range" min="0.6" max="1.6" step="0.1" value="1">
+        </label>
         </div>
         <button id="settingsFullscreenBtn" class="secondary-btn settings-fullscreen-btn" type="button">横屏全屏</button>
         <button id="resetSettingsBtn" class="ghost-btn settings-reset-btn" type="button">恢复默认设置</button>

@@ -139,6 +139,17 @@
   // ---------------------------------------------------------------------------
   // Save data
   // ---------------------------------------------------------------------------
+  const DEFAULT_SETTINGS = {
+    sound: true,
+    screenShake: true,
+    floatText: true,
+    damageFlash: true,
+    moveStickMode: 'floating',
+    moveStickSize: 100,
+    moveZoneWidth: 50,
+    moveSensitivity: 1
+  };
+
   function defaultSave() {
     return {
       version: 1,
@@ -151,7 +162,7 @@
         armor: null
       },
       upgrades: { medkits: 0, ammo: 0 },
-      settings: { sound: true, screenShake: true, floatText: true, damageFlash: true },
+      settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
     };
   }
@@ -180,6 +191,11 @@
     merged.level = clamp(Number(merged.level) || 1, 1, 99);
     merged.xp = Math.max(0, Number(merged.xp) || 0);
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
+    const touchSettings = merged.settings;
+    touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
+    touchSettings.moveStickSize = clamp(Number(touchSettings.moveStickSize) || 100, 70, 150);
+    touchSettings.moveZoneWidth = clamp(Number(touchSettings.moveZoneWidth) || 50, 30, 70);
+    touchSettings.moveSensitivity = clamp(Number(touchSettings.moveSensitivity) || 1, 0.6, 1.6);
     return merged;
   }
 
@@ -393,6 +409,17 @@
     settingScreenShake: $('#settingScreenShake'),
     settingFloatText: $('#settingFloatText'),
     settingDamageFlash: $('#settingDamageFlash'),
+    settingsTabGeneral: $('#settingsTabGeneral'),
+    settingsTabTouch: $('#settingsTabTouch'),
+    settingsGeneralPanel: $('#settingsGeneralPanel'),
+    settingsTouchPanel: $('#settingsTouchPanel'),
+    moveStickModeControl: $('#moveStickModeControl'),
+    settingMoveStickSize: $('#settingMoveStickSize'),
+    moveStickSizeValue: $('#moveStickSizeValue'),
+    settingMoveZoneWidth: $('#settingMoveZoneWidth'),
+    moveZoneWidthValue: $('#moveZoneWidthValue'),
+    settingMoveSensitivity: $('#settingMoveSensitivity'),
+    moveSensitivityValue: $('#moveSensitivityValue'),
     hpFill: $('#hpFill'),
     hpText: $('#hpText'),
     armorText: $('#armorText'),
@@ -452,11 +479,65 @@
     touchHint: $('#touchHint')
   };
 
+  let activeSettingsTab = 'general';
+
+  function switchSettingsTab(tab) {
+    activeSettingsTab = tab === 'touch' ? 'touch' : 'general';
+    const isTouch = activeSettingsTab === 'touch';
+    el.settingsTabGeneral.classList.toggle('active', !isTouch);
+    el.settingsTabTouch.classList.toggle('active', isTouch);
+    el.settingsTabGeneral.setAttribute('aria-selected', String(!isTouch));
+    el.settingsTabTouch.setAttribute('aria-selected', String(isTouch));
+    el.settingsGeneralPanel.classList.toggle('hidden', isTouch);
+    el.settingsTouchPanel.classList.toggle('hidden', !isTouch);
+  }
+
+  function sensitivityLabel(value) {
+    const v = Number(value);
+    if (v < 0.9) return '低';
+    if (v > 1.1) return '高';
+    return '标准';
+  }
+
+  function applyTouchSettings() {
+    const mode = save.settings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
+    document.body.classList.toggle('move-stick-fixed', mode === 'fixed');
+    document.documentElement.style.setProperty('--move-pad-scale', (save.settings.moveStickSize || 100) / 100);
+    document.documentElement.style.setProperty('--move-zone-width', `${save.settings.moveZoneWidth || 50}%`);
+    if (el.touchHint) {
+      el.touchHint.textContent = mode === 'fixed'
+        ? '拖动左下角摇杆移动 · 右摇杆瞄准开火 · 点地图查看撤离点'
+        : '左侧任意位置按住移动 · 右摇杆瞄准开火 · 点地图查看撤离点';
+    }
+    el.movePad.classList.remove('active');
+    el.moveKnob.style.transform = 'translate(-50%, -50%)';
+    if (mode === 'floating') {
+      el.movePad.style.left = '';
+      el.movePad.style.top = '';
+    } else {
+      el.movePad.style.left = '';
+      el.movePad.style.top = '';
+    }
+    touch.moveX = 0;
+    touch.moveY = 0;
+    touch.moveMag = 0;
+  }
+
   function syncSettingsUI() {
     el.settingSound.checked = save.settings.sound !== false;
     el.settingScreenShake.checked = save.settings.screenShake !== false;
     el.settingFloatText.checked = save.settings.floatText !== false;
     el.settingDamageFlash.checked = save.settings.damageFlash !== false;
+    el.moveStickModeControl.querySelectorAll('button[data-value]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.value === save.settings.moveStickMode);
+    });
+    el.settingMoveStickSize.value = save.settings.moveStickSize;
+    el.moveStickSizeValue.textContent = `${save.settings.moveStickSize}%`;
+    el.settingMoveZoneWidth.value = save.settings.moveZoneWidth;
+    el.moveZoneWidthValue.textContent = `${save.settings.moveZoneWidth}%`;
+    el.settingMoveSensitivity.value = save.settings.moveSensitivity;
+    el.moveSensitivityValue.textContent = `${sensitivityLabel(save.settings.moveSensitivity)} ${Number(save.settings.moveSensitivity).toFixed(1)}x`;
+    applyTouchSettings();
   }
 
   function openSettings() {
@@ -520,7 +601,7 @@
   }
 
   function resetSettings() {
-    save.settings = { sound: true, screenShake: true, floatText: true, damageFlash: true };
+    save.settings = { ...DEFAULT_SETTINGS };
     persist();
     syncSettingsUI();
     toast('设置已恢复默认。');
@@ -1389,8 +1470,10 @@
       if (keys['d'] || keys['arrowright']) dx += 1;
 
       if (touch.ui && touch.moveMag > 0.04) {
-        dx += touch.moveX * touch.moveMag;
-        dy += touch.moveY * touch.moveMag;
+        const moveCurve = 1 / (save.settings.moveSensitivity || 1);
+        const touchMag = Math.min(1, Math.pow(touch.moveMag, moveCurve));
+        dx += touch.moveX * touchMag;
+        dy += touch.moveY * touchMag;
       }
 
       const len = Math.hypot(dx, dy);
@@ -2987,6 +3070,8 @@
 
   function setupFloatingMoveStick() {
     let pointerId = null;
+    let activeTarget = null;
+    const fixedMode = () => save.settings.moveStickMode === 'fixed';
 
     const move = (event) => {
       const rect = el.movePad.getBoundingClientRect();
@@ -3008,7 +3093,13 @@
 
     const end = (event) => {
       if (pointerId !== null && event && event.pointerId !== pointerId) return;
+      const id = pointerId;
+      const target = activeTarget;
       pointerId = null;
+      activeTarget = null;
+      if (target && id !== null) {
+        try { target.releasePointerCapture(id); } catch (err) { /* ignore */ }
+      }
       el.movePad.classList.remove('active');
       el.moveKnob.style.transform = 'translate(-50%, -50%)';
       touch.moveX = 0;
@@ -3016,37 +3107,52 @@
       touch.moveMag = 0;
     };
 
-    el.moveZone.addEventListener('pointerdown', (event) => {
+    const begin = (event, target) => {
       if (pointerId !== null) return;
       if (mode !== 'raid' || !raid || raid.paused || raid.ended) return;
       pointerId = event.pointerId;
+      activeTarget = target;
       enableTouchUI();
       Sound.init();
 
-      const zone = el.moveZone.getBoundingClientRect();
-      const padSize = Math.max(92, Math.min(122, window.innerWidth * 0.13));
-      const half = padSize / 2 + 6;
-      const cx = clamp(event.clientX - zone.left, half, zone.width - half);
-      const cy = clamp(event.clientY - zone.top, half, zone.height - half);
-      el.movePad.style.left = `${cx}px`;
-      el.movePad.style.top = `${cy}px`;
+      if (!fixedMode()) {
+        const zone = el.moveZone.getBoundingClientRect();
+        const baseSize = Math.max(92, Math.min(122, window.innerWidth * 0.13));
+        const padSize = baseSize * ((save.settings.moveStickSize || 100) / 100);
+        const half = padSize / 2 + 6;
+        const cx = clamp(event.clientX - zone.left, half, zone.width - half);
+        const cy = clamp(event.clientY - zone.top, half, zone.height - half);
+        el.movePad.style.left = `${cx}px`;
+        el.movePad.style.top = `${cy}px`;
+      }
+
       el.movePad.classList.add('active');
       el.moveKnob.style.transform = 'translate(-50%, -50%)';
       touch.moveX = 0;
       touch.moveY = 0;
       touch.moveMag = 0;
-      try { el.moveZone.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
-      event.preventDefault();
-    });
-
-    el.moveZone.addEventListener('pointermove', (event) => {
-      if (event.pointerId !== pointerId) return;
+      try { target.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
       move(event);
       event.preventDefault();
-    });
-    el.moveZone.addEventListener('pointerup', end);
-    el.moveZone.addEventListener('pointercancel', end);
-    el.moveZone.addEventListener('lostpointercapture', end);
+    };
+
+    const bindTarget = (target, isPad) => {
+      target.addEventListener('pointerdown', (event) => {
+        if (fixedMode() !== isPad) return;
+        begin(event, target);
+      });
+      target.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== pointerId || target !== activeTarget) return;
+        move(event);
+        event.preventDefault();
+      });
+      target.addEventListener('pointerup', end);
+      target.addEventListener('pointercancel', end);
+      target.addEventListener('lostpointercapture', end);
+    };
+
+    bindTarget(el.moveZone, false);
+    bindTarget(el.movePad, true);
   }
 
   function setupTouchControls() {
@@ -3201,7 +3307,32 @@
     save.settings.damageFlash = el.settingDamageFlash.checked;
     persist();
   });
+  el.settingsTabGeneral.addEventListener('click', () => switchSettingsTab('general'));
+  el.settingsTabTouch.addEventListener('click', () => switchSettingsTab('touch'));
+  el.moveStickModeControl.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-value]');
+    if (!btn) return;
+    save.settings.moveStickMode = btn.dataset.value === 'fixed' ? 'fixed' : 'floating';
+    persist();
+    syncSettingsUI();
+  });
+  el.settingMoveStickSize.addEventListener('input', () => {
+    save.settings.moveStickSize = clamp(Number(el.settingMoveStickSize.value) || 100, 70, 150);
+    persist();
+    syncSettingsUI();
+  });
+  el.settingMoveZoneWidth.addEventListener('input', () => {
+    save.settings.moveZoneWidth = clamp(Number(el.settingMoveZoneWidth.value) || 50, 30, 70);
+    persist();
+    syncSettingsUI();
+  });
+  el.settingMoveSensitivity.addEventListener('input', () => {
+    save.settings.moveSensitivity = clamp(Number(el.settingMoveSensitivity.value) || 1, 0.6, 1.6);
+    persist();
+    syncSettingsUI();
+  });
   syncSettingsUI();
+  switchSettingsTab(activeSettingsTab);
   updateFullscreenLabels();
   el.hudInventoryBtn.addEventListener('click', () => {
     if (mode !== 'raid' || !raid || raid.ended) return;
