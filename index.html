@@ -125,6 +125,7 @@
               <span id="hudScrap">废料 +0</span>
             </div>
             <div class="weapon-hud">
+              <span id="hudWeaponIcon" class="hud-weapon-icon">▰</span>
               <span id="hudWeapon">旧式手枪</span>
               <strong id="hudAmmo">12 / 90</strong>
             </div>
@@ -165,9 +166,12 @@
         <div id="touchControls" class="touch-controls hidden">
           <div id="aimPad" class="touch-pad aim-pad">
             <div id="aimKnob" class="touch-knob"></div>
-            <span class="touch-pad-label">瞄准 / 开火</span>
+            <span class="touch-pad-label">自动锁定 / 开火</span>
           </div>
-          <button id="touchFire" class="touch-fire" type="button">开火</button>
+          <button id="touchFire" class="touch-fire" type="button" aria-pressed="false">
+            <span id="touchFireIcon" class="touch-fire-icon">◎</span>
+            <span id="touchFireLabel">开火</span>
+          </button>
           <div class="touch-actions">
             <button id="touchInteract" class="touch-btn interact" type="button">按住 E</button>
             <button id="touchReload" class="touch-btn" type="button">换弹</button>
@@ -175,7 +179,7 @@
             <button id="touchInventory" class="touch-btn" type="button">背包</button>
           </div>
           <button id="touchPause" class="touch-pause" type="button">II</button>
-          <div id="touchHint" class="touch-hint">左侧任意位置按住移动 · 右摇杆瞄准开火 · 点地图查看撤离点</div>
+          <div id="touchHint" class="touch-hint">左侧按住移动 · 点按开火自动连射 · 长按持续开火 · 点地图查看撤离点</div>
         </div>
         <div id="rotateHint" class="rotate-hint">建议横屏游玩</div>
 
@@ -294,6 +298,10 @@
             <button type="button" data-value="fixed">固定</button>
           </div>
         </div>
+        <label class="settings-row">
+          <span><strong>自动锁定</strong><small>开火时自动瞄准最近的可见敌人</small></span>
+          <input id="settingAutoLock" class="settings-toggle" type="checkbox">
+        </label>
         <label class="settings-row settings-row-stack" for="settingMoveStickSize">
           <div class="settings-row-head">
             <span><strong>摇杆大小</strong><small>调整移动摇杆的直径</small></span>

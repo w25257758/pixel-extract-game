@@ -49,7 +49,7 @@
     dmr: {
       name: '长视者 DMR', code: 'DMR-12', damage: 58, cooldown: 0.52, mag: 8,
       reload: 2.0, spread: 0.008, speed: 1400, range: 1100, auto: false,
-      reserve: 64, color: '#c49cff', desc: '精准半自动步枪，远距离点射非常致命。'
+      reserve: 64, color: '#c49cff', desc: '精准步枪，远距离非常致命；触屏下同样自动连射。'
     },
     shotgun: {
       name: '破门霰弹枪', code: 'SG-12', damage: 16, cooldown: 0.72, mag: 5,
@@ -89,19 +89,19 @@
 
   const ITEM_DEFS = {
     w_pistol: { name: '旧式手枪', icon: '▰', kind: 'weapon', weapon: 'pistol', rarity: 'common', sell: 28, stack: false, desc: '标配副武器。伤害 24，弹匣 12 发。' },
-    w_smg: { name: '蜂鸣冲锋枪', icon: '▰', kind: 'weapon', weapon: 'smg', rarity: 'uncommon', sell: 95, stack: false, desc: '全自动冲锋枪。伤害 15，弹匣 30 发。' },
-    w_rifle: { name: '荒原步枪', icon: '▰', kind: 'weapon', weapon: 'rifle', rarity: 'rare', sell: 220, stack: false, desc: '高伤害自动步枪。伤害 36，弹匣 20 发。' },
-    w_dmr: { name: '长视者 DMR', icon: '▰', kind: 'weapon', weapon: 'dmr', rarity: 'epic', sell: 390, stack: false, desc: '精准半自动步枪。伤害 58，弹匣 8 发。' },
-    w_shotgun: { name: '破门霰弹枪', icon: '▰', kind: 'weapon', weapon: 'shotgun', rarity: 'rare', sell: 150, stack: false, desc: '近距离发射 6 枚弹丸，爆发极高。' },
-    w_lmg: { name: '铁皮轻机枪', icon: '▰', kind: 'weapon', weapon: 'lmg', rarity: 'rare', sell: 270, stack: false, desc: '60 发弹链，持续压制力极强。' },
-    w_rail: { name: '磁轨手枪', icon: '▰', kind: 'weapon', weapon: 'rail', rarity: 'epic', sell: 460, stack: false, desc: '高伤害实验武器，备弹稀少。' },
+    w_smg: { name: '蜂鸣冲锋枪', icon: '⌁', kind: 'weapon', weapon: 'smg', rarity: 'uncommon', sell: 95, stack: false, desc: '全自动冲锋枪。伤害 15，弹匣 30 发。' },
+    w_rifle: { name: '荒原步枪', icon: '╾', kind: 'weapon', weapon: 'rifle', rarity: 'rare', sell: 220, stack: false, desc: '高伤害自动步枪。伤害 36，弹匣 20 发。' },
+    w_dmr: { name: '长视者 DMR', icon: '⌖', kind: 'weapon', weapon: 'dmr', rarity: 'epic', sell: 390, stack: false, desc: '精准半自动步枪。伤害 58，弹匣 8 发。' },
+    w_shotgun: { name: '破门霰弹枪', icon: '≋', kind: 'weapon', weapon: 'shotgun', rarity: 'rare', sell: 150, stack: false, desc: '近距离发射 6 枚弹丸，爆发极高。' },
+    w_lmg: { name: '铁皮轻机枪', icon: '▦', kind: 'weapon', weapon: 'lmg', rarity: 'rare', sell: 270, stack: false, desc: '60 发弹链，持续压制力极强。' },
+    w_rail: { name: '磁轨手枪', icon: 'ϟ', kind: 'weapon', weapon: 'rail', rarity: 'epic', sell: 460, stack: false, desc: '高伤害实验武器，备弹稀少。' },
     w_boss: { name: '终焉协议', icon: '✦', kind: 'weapon', weapon: 'boss', rarity: 'epic', sell: 900, stack: false, boss: true, desc: '首领专属双管能量步枪。每次发射 2 枚高能弹丸，无法从黑市购买。' },
     a_light: { name: '轻型护甲', icon: '▤', kind: 'armor', armor: 'light', rarity: 'uncommon', sell: 55, stack: false, desc: '轻便护甲，减少 12% 伤害。' },
-    a_heavy: { name: '重型护甲', icon: '▤', kind: 'armor', armor: 'heavy', rarity: 'rare', sell: 180, stack: false, desc: '厚重护甲，减少 26% 伤害。' },
-    a_riot: { name: '反应装甲', icon: '▤', kind: 'armor', armor: 'riot', rarity: 'epic', sell: 360, stack: false, desc: '实验型装甲，减少 38% 伤害。' },
-    a_scout: { name: '侦察背心', icon: '▤', kind: 'armor', armor: 'scout', rarity: 'uncommon', sell: 45, stack: false, desc: '减伤 8%，移动速度 +12%。' },
-    a_medic: { name: '战地医疗甲', icon: '▤', kind: 'armor', armor: 'medic', rarity: 'rare', sell: 155, stack: false, desc: '减伤 16%，每次行动多带 1 个医疗包。' },
-    a_ghost: { name: '幽灵纤维甲', icon: '▤', kind: 'armor', armor: 'ghost', rarity: 'epic', sell: 340, stack: false, desc: '减伤 22%，移速 +4%，敌人视野 -28%。' },
+    a_heavy: { name: '重型护甲', icon: '▦', kind: 'armor', armor: 'heavy', rarity: 'rare', sell: 180, stack: false, desc: '厚重护甲，减少 26% 伤害。' },
+    a_riot: { name: '反应装甲', icon: '▣', kind: 'armor', armor: 'riot', rarity: 'epic', sell: 360, stack: false, desc: '实验型装甲，减少 38% 伤害。' },
+    a_scout: { name: '侦察背心', icon: '◈', kind: 'armor', armor: 'scout', rarity: 'uncommon', sell: 45, stack: false, desc: '减伤 8%，移动速度 +12%。' },
+    a_medic: { name: '战地医疗甲', icon: '✚', kind: 'armor', armor: 'medic', rarity: 'rare', sell: 155, stack: false, desc: '减伤 16%，每次行动多带 1 个医疗包。' },
+    a_ghost: { name: '幽灵纤维甲', icon: '◌', kind: 'armor', armor: 'ghost', rarity: 'epic', sell: 340, stack: false, desc: '减伤 22%，移速 +4%，敌人视野 -28%。' },
     scrap: { name: '机械零件', icon: '⚙', kind: 'loot', rarity: 'common', sell: 4, stack: true, desc: '常见的工业废料，黑市会收。' },
     chip: { name: '数据芯片', icon: '▣', kind: 'loot', rarity: 'uncommon', sell: 16, stack: true, desc: '还能读取的旧世界芯片。' },
     relic: { name: '旧世遗物', icon: '◆', kind: 'loot', rarity: 'rare', sell: 42, stack: true, desc: '收藏家愿意为它付个好价钱。' },
@@ -144,6 +144,7 @@
     screenShake: true,
     floatText: true,
     damageFlash: true,
+    autoLock: true,
     moveStickMode: 'floating',
     moveStickSize: 100,
     moveZoneWidth: 50,
@@ -409,6 +410,7 @@
     settingScreenShake: $('#settingScreenShake'),
     settingFloatText: $('#settingFloatText'),
     settingDamageFlash: $('#settingDamageFlash'),
+    settingAutoLock: $('#settingAutoLock'),
     settingsTabGeneral: $('#settingsTabGeneral'),
     settingsTabTouch: $('#settingsTabTouch'),
     settingsGeneralPanel: $('#settingsGeneralPanel'),
@@ -426,6 +428,7 @@
     hudMeds: $('#hudMeds'),
     hudScrap: $('#hudScrap'),
     hudWeapon: $('#hudWeapon'),
+    hudWeaponIcon: $('#hudWeaponIcon'),
     hudAmmo: $('#hudAmmo'),
     hudLevel: $('#hudLevel'),
     raidTimer: $('#raidTimer'),
@@ -471,6 +474,8 @@
     aimPad: $('#aimPad'),
     aimKnob: $('#aimKnob'),
     touchFire: $('#touchFire'),
+    touchFireIcon: $('#touchFireIcon'),
+    touchFireLabel: $('#touchFireLabel'),
     touchInteract: $('#touchInteract'),
     touchReload: $('#touchReload'),
     touchMed: $('#touchMed'),
@@ -506,8 +511,8 @@
     document.documentElement.style.setProperty('--move-zone-width', `${save.settings.moveZoneWidth || 50}%`);
     if (el.touchHint) {
       el.touchHint.textContent = mode === 'fixed'
-        ? '拖动左下角摇杆移动 · 右摇杆瞄准开火 · 点地图查看撤离点'
-        : '左侧任意位置按住移动 · 右摇杆瞄准开火 · 点地图查看撤离点';
+        ? '拖动左下角摇杆移动 · 点按开火自动连射 · 长按持续开火'
+        : '左侧按住移动 · 点按开火自动连射 · 长按持续开火';
     }
     el.movePad.classList.remove('active');
     el.moveKnob.style.transform = 'translate(-50%, -50%)';
@@ -528,6 +533,7 @@
     el.settingScreenShake.checked = save.settings.screenShake !== false;
     el.settingFloatText.checked = save.settings.floatText !== false;
     el.settingDamageFlash.checked = save.settings.damageFlash !== false;
+    el.settingAutoLock.checked = save.settings.autoLock !== false;
     el.moveStickModeControl.querySelectorAll('button[data-value]').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.value === save.settings.moveStickMode);
     });
@@ -652,9 +658,9 @@
       el.loadoutWeapon.innerHTML = `
         <div class="equip-top">
           <div><div class="equip-name">${weaponDef.name}</div><div class="equip-type">主武器 · ${weaponDef.code}</div></div>
-          <div class="equip-icon" style="color:${weaponDef.color}">▰</div>
+          <div class="equip-icon" style="color:${weaponDef.color}">${weaponItem ? defOf(weaponItem).icon : '▰'}</div>
         </div>
-        <div class="equip-stats"><span>伤害 ${weaponDef.damage}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}</div>`;
+        <div class="equip-stats"><span>伤害 ${weaponDef.damage}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}</div>`;
     } else {
       el.loadoutWeapon.className = 'equip-card empty';
       el.loadoutWeapon.innerHTML = '<div class="equip-name">未装备武器</div><div class="equip-desc">去仓库装备一把武器。</div>';
@@ -666,7 +672,7 @@
     el.loadoutArmor.innerHTML = `
       <div class="equip-top">
         <div><div class="equip-name">${armorDef.name}</div><div class="equip-type">护甲 · ${armorItem ? RARITY_LABEL[defOf(armorItem).rarity] : '基础'}</div></div>
-        <div class="equip-icon" style="color:${armorDef.color}">▤</div>
+        <div class="equip-icon" style="color:${armorDef.color}">${armorItem ? defOf(armorItem).icon : '▤'}</div>
       </div>
       <div class="equip-stats"><span>伤害减免 ${Math.round(armorDef.reduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
 
@@ -725,7 +731,7 @@
       const row = document.createElement('div');
       row.className = 'shop-item';
       row.innerHTML = `
-        <div class="shop-icon">${entry.type.startsWith('w_') ? '▰' : entry.type.startsWith('a_') ? '▤' : '✚'}</div>
+        <div class="shop-icon">${entry.type.startsWith('w_') || entry.type.startsWith('a_') ? defOf(entry.type).icon : '✚'}</div>
         <div class="shop-mid">
           <div class="shop-name">${entry.type === 'up_med' ? `医疗腰带 ${level}/${entry.max}` : entry.type === 'up_ammo' ? `弹药挂袋 ${level}/${entry.max}` : defOf(entry.type).name}</div>
           <div class="shop-desc">${entry.desc}</div>
@@ -756,7 +762,7 @@
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
       const pelletText = w.pellets > 1 ? ` · 弹丸 ${w.pellets}` : '';
-      return `伤害 ${w.damage}${pelletText} · 弹匣 ${w.mag} · ${w.auto ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min`;
+      return `伤害 ${w.damage}${pelletText} · 弹匣 ${w.mag} · ${w.auto || likelyTouch ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min`;
     }
     if (def.kind === 'armor') {
       const a = ARMOR_DEFS[def.armor];
@@ -952,7 +958,8 @@
     aimMag: 0,
     aiming: false,
     hasAim: false,
-    fireHeld: false
+    fireHeld: false,
+    autoFire: false
   };
 
   function enableTouchUI() {
@@ -962,7 +969,7 @@
     el.touchControls.classList.remove('hidden');
     const hint = document.querySelector('.control-hint');
     if (hint) {
-      hint.innerHTML = '<div>左摇杆移动 · 右摇杆瞄准/开火</div><div>按住 E 搜索或撤离 · 换弹/医疗/背包按钮</div><div>建议横屏游玩</div>';
+      hint.innerHTML = '<div>左摇杆移动 · 点按开火自动连射 · 长按持续开火</div><div>按住 E 搜索或撤离 · 换弹/医疗/背包按钮</div><div>建议横屏游玩</div>';
     }
   }
 
@@ -1425,6 +1432,27 @@
     });
   }
 
+  function findPlayerLockTarget(maxRange) {
+    if (!world || !player) return null;
+    const valid = (enemy) => enemy && !enemy.dead &&
+      dist2(enemy.x, enemy.y, player.x, player.y) <= maxRange * maxRange &&
+      lineOfSight(player.x, player.y, enemy.x, enemy.y);
+    if (valid(player.lockTarget)) return player.lockTarget;
+    let best = null;
+    let bestScore = Infinity;
+    for (const enemy of world.enemies) {
+      if (!valid(enemy)) continue;
+      let score = dist2(enemy.x, enemy.y, player.x, player.y);
+      if (enemy.isBoss) score *= 0.8;
+      if (enemy.state === 'chase') score *= 0.72;
+      if (score < bestScore) {
+        bestScore = score;
+        best = enemy;
+      }
+    }
+    return best;
+  }
+
   // ---------------------------------------------------------------------------
   // Player
   // ---------------------------------------------------------------------------
@@ -1445,6 +1473,7 @@
       this.hurtCd = 0;
       this.stepCd = 0;
       this.medCd = 0;
+      this.lockTarget = null;
 
       const weaponType = defOf(save.equipped.weapon).weapon || 'pistol';
       this.weaponKey = weaponType;
@@ -1512,7 +1541,13 @@
         if (this.reloadTimer <= 0) this.finishReload();
       }
 
-      const touchWantsShoot = touch.ui && (touch.fireHeld || touch.aiming);
+      const wantsLock = touch.ui && (touch.fireHeld || touch.aiming || touch.autoFire) && save.settings.autoLock !== false;
+      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40) : null;
+      if (this.lockTarget) {
+        this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
+      }
+      const autoFireReady = touch.autoFire && (this.lockTarget || save.settings.autoLock === false);
+      const touchWantsShoot = touch.ui && (touch.fireHeld || touch.aiming || autoFireReady);
       const wantsShoot = touchWantsShoot || (this.weapon.auto ? mouse.down : mouse.semiQueued);
       if (wantsShoot && !this.reloading) {
         if (this.tryShoot()) {
@@ -2178,6 +2213,9 @@
     el.hudMeds.textContent = `医疗包 ×${player.medkits}`;
     el.hudScrap.textContent = `废料 +${raid ? raid.scrap : 0}`;
     el.hudWeapon.textContent = player.weapon.name;
+    const hudWeaponDef = defOf(save.equipped.weapon);
+    el.hudWeaponIcon.textContent = hudWeaponDef.icon || '▰';
+    el.hudWeaponIcon.style.color = player.weapon.color || '#d6ff4d';
     if (player.reloading) {
       el.hudAmmo.textContent = '换弹中…';
     } else {
@@ -2266,7 +2304,7 @@
       const w = WEAPON_DEFS[def.weapon];
       stats.push(`伤害 <b>${w.damage}</b>`);
       stats.push(`弹匣 <b>${w.mag}</b>`);
-      stats.push(w.auto ? '全自动' : '半自动');
+      stats.push(w.auto || likelyTouch ? '全自动' : '半自动');
       stats.push(`射速 <b>${Math.round(60 / w.cooldown)}/min</b>`);
       if (w.pellets > 1) stats.push(`弹丸 <b>${w.pellets}</b>`);
       stats.push(`备弹 <b>${w.reserve}</b>`);
@@ -2398,14 +2436,16 @@
     touch.moveY = 0;
     touch.moveMag = 0;
     touch.fireHeld = false;
+    touch.autoFire = false;
     touch.aiming = false;
     touch.aimMag = 0;
+    updateFireButton();
     buildFlowField();
     updateHUD();
     updateBackpackHud();
     addLootFeed('行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。', false);
     if (touch.ui) {
-      toast('左摇杆移动，右摇杆瞄准并开火。红标首领掉落专属武器。');
+      toast('左摇杆移动，点按开火自动连射，长按持续开火。红标首领掉落专属武器。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
@@ -2531,6 +2571,7 @@
     for (const bullet of world.bullets) drawBullet(bullet);
     for (const enemy of world.enemies) if (!enemy.dead) drawCharacter(enemy, false);
     drawCharacter(player, true);
+    drawLockOn();
     for (const p of world.particles) drawParticle(p);
     for (const t of world.floatTexts) drawFloatText(t);
 
@@ -2814,6 +2855,37 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawLockOn() {
+    const target = player && player.lockTarget;
+    if (!target || target.dead) return;
+    const pulse = 0.5 + 0.5 * Math.sin(world.time * 9);
+    const radius = (target.isBoss ? 30 : 18) + pulse * 3;
+    ctx.save();
+    ctx.translate(Math.round(target.x), Math.round(target.y));
+    ctx.strokeStyle = `rgba(214,255,77,${0.58 + pulse * 0.35})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, TAU);
+    ctx.stroke();
+    const corner = 7;
+    const r = radius + 5;
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sx * r, sy * (r - corner));
+        ctx.lineTo(sx * r, sy * r);
+        ctx.lineTo(sx * (r - corner), sy * r);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = '#d6ff4d';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('LOCK', 0, -r - 5);
+    ctx.textAlign = 'left';
+    ctx.restore();
+  }
+
   function drawCrosshair() {
     if (!mouse.inside || mode !== 'raid' || !raid || raid.paused) return;
     const x = Math.round(mouse.x);
@@ -3047,6 +3119,44 @@
     pad.addEventListener('lostpointercapture', end);
   }
 
+  function updateFireButton() {
+    if (!el.touchFire) return;
+    el.touchFire.classList.toggle('auto', !!touch.autoFire);
+    el.touchFire.setAttribute('aria-pressed', String(!!touch.autoFire));
+    if (el.touchFireLabel) el.touchFireLabel.textContent = touch.autoFire ? '连射中' : '开火';
+    if (el.touchFireIcon) el.touchFireIcon.textContent = touch.autoFire ? '◉' : '◎';
+  }
+
+  function bindFireButton() {
+    let pointerId = null;
+    let downAt = 0;
+    const release = (event) => {
+      if (pointerId !== null && event && event.pointerId !== pointerId) return;
+      const quickTap = pointerId !== null && performance.now() - downAt < 280;
+      pointerId = null;
+      touch.fireHeld = false;
+      if (quickTap) {
+        touch.autoFire = !touch.autoFire;
+        updateFireButton();
+        playSound('pickup');
+        toast(touch.autoFire ? '自动连射已开启：锁定目标后持续射击。' : '自动连射已关闭。');
+      }
+    };
+    el.touchFire.addEventListener('pointerdown', (event) => {
+      if (pointerId !== null) return;
+      pointerId = event.pointerId;
+      downAt = performance.now();
+      enableTouchUI();
+      Sound.init();
+      try { el.touchFire.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
+      touch.fireHeld = true;
+      event.preventDefault();
+    });
+    el.touchFire.addEventListener('pointerup', release);
+    el.touchFire.addEventListener('pointercancel', release);
+    el.touchFire.addEventListener('lostpointercapture', release);
+  }
+
   function bindHoldButton(button, down, up) {
     let pointerId = null;
     const release = (event) => {
@@ -3172,7 +3282,8 @@
       touch.aimMag = 0;
     });
 
-    bindHoldButton(el.touchFire, () => { touch.fireHeld = true; }, () => { touch.fireHeld = false; });
+    bindFireButton();
+    updateFireButton();
     bindHoldButton(el.touchInteract, () => { keys['e'] = true; }, () => { keys['e'] = false; });
 
     el.touchReload.addEventListener('pointerdown', (event) => {
@@ -3295,6 +3406,10 @@
       Sound.master.gain.value = 0;
     }
   });
+  el.settingAutoLock.addEventListener('change', () => {
+    save.settings.autoLock = el.settingAutoLock.checked;
+    persist();
+  });
   el.settingScreenShake.addEventListener('change', () => {
     save.settings.screenShake = el.settingScreenShake.checked;
     persist();
@@ -3374,6 +3489,7 @@
         mode,
         save: JSON.parse(JSON.stringify(save)),
         settings: JSON.parse(JSON.stringify(save.settings)),
+        lockTarget: player && player.lockTarget ? { x: player.lockTarget.x, y: player.lockTarget.y, kind: player.lockTarget.kind, dead: player.lockTarget.dead } : null,
         player: player ? {
           x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,
@@ -3381,7 +3497,7 @@
           weapon: player.weaponKey, armor: player.armorKey
         } : null,
         raid: raid ? { ...raid } : null,
-        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, fireHeld: touch.fireHeld, angle: touch.aimAngle },
+        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, fireHeld: touch.fireHeld, autoFire: touch.autoFire, angle: touch.aimAngle },
         world: world ? {
           spawn: world.spawn,
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
