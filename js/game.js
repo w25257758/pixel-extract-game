@@ -473,10 +473,6 @@
     moveKnob: $('#moveKnob'),
     aimPad: $('#aimPad'),
     aimKnob: $('#aimKnob'),
-    touchFire: $('#touchFire'),
-    touchFireIcon: $('#touchFireIcon'),
-    touchFireLabel: $('#touchFireLabel'),
-    touchInteract: $('#touchInteract'),
     touchReload: $('#touchReload'),
     touchMed: $('#touchMed'),
     touchInventory: $('#touchInventory'),
@@ -511,8 +507,8 @@
     document.documentElement.style.setProperty('--move-zone-width', `${save.settings.moveZoneWidth || 50}%`);
     if (el.touchHint) {
       el.touchHint.textContent = mode === 'fixed'
-        ? '拖动左下角摇杆移动 · 点按开火自动连射 · 长按持续开火'
-        : '左侧按住移动 · 点按开火自动连射 · 长按持续开火';
+        ? '左下摇杆移动 · 右侧长按开火/拖动瞄准 · 靠近补给箱站2秒搜索'
+        : '左侧按住移动 · 右侧长按开火/拖动瞄准 · 靠近补给箱站2秒搜索';
     }
     el.movePad.classList.remove('active');
     el.moveKnob.style.transform = 'translate(-50%, -50%)';
@@ -957,9 +953,7 @@
     aimAngle: 0,
     aimMag: 0,
     aiming: false,
-    hasAim: false,
-    fireHeld: false,
-    autoFire: false
+    hasAim: false
   };
 
   function enableTouchUI() {
@@ -969,7 +963,7 @@
     el.touchControls.classList.remove('hidden');
     const hint = document.querySelector('.control-hint');
     if (hint) {
-      hint.innerHTML = '<div>左摇杆移动 · 点按开火自动连射 · 长按持续开火</div><div>按住 E 搜索或撤离 · 换弹/医疗/背包按钮</div><div>建议横屏游玩</div>';
+      hint.innerHTML = '<div>左摇杆移动 · 按住右侧瞄准区开火 · 拖动瞄准</div><div>靠近补给箱站 2 秒自动搜索 · 换弹/医疗/背包按钮</div><div>建议横屏游玩</div>';
     }
   }
 
@@ -1541,13 +1535,12 @@
         if (this.reloadTimer <= 0) this.finishReload();
       }
 
-      const wantsLock = touch.ui && (touch.fireHeld || touch.aiming || touch.autoFire) && save.settings.autoLock !== false;
+      const wantsLock = touch.ui && touch.aiming && save.settings.autoLock !== false;
       this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40) : null;
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }
-      const autoFireReady = touch.autoFire && (this.lockTarget || save.settings.autoLock === false);
-      const touchWantsShoot = touch.ui && (touch.fireHeld || touch.aiming || autoFireReady);
+      const touchWantsShoot = touch.ui && touch.aiming;
       const wantsShoot = touchWantsShoot || (this.weapon.auto ? mouse.down : mouse.semiQueued);
       if (wantsShoot && !this.reloading) {
         if (this.tryShoot()) {
@@ -2116,11 +2109,13 @@
     const atExit = dist2(player.x, player.y, world.extraction.x, world.extraction.y) < world.extraction.r * world.extraction.r;
     const type = atExit ? 'extract' : nearest ? 'search' : null;
 
-    if (type !== raid.interactionType) {
+    if (type !== raid.interactionType || (type === 'search' && nearest !== raid.searchTarget)) {
       raid.interactionType = type;
+      raid.searchTarget = type === 'search' ? nearest : null;
       raid.progress = 0;
     }
-    if (type !== 'search' || !keys['e']) {
+    if (type !== 'search') {
+      raid.searchTarget = null;
       for (const c of world.containers) {
         if (c.progress > 0 && c.progress < 1) c.progress = 0;
       }
@@ -2132,15 +2127,12 @@
     }
 
     el.interactPrompt.classList.remove('hidden');
-    const duration = type === 'search' ? 1.2 : 3.0;
+    const duration = type === 'search' ? 2.0 : 3.0;
     if (type === 'search') {
-      el.promptText.textContent = '按住 E 搜索补给箱';
-      if (keys['e']) {
-        raid.progress += dt;
-        nearest.progress = clamp(raid.progress / duration, 0, 1);
-      } else {
-        raid.progress = Math.max(0, raid.progress - dt * 2.5);
-      }
+      const remaining = Math.max(0, duration - raid.progress);
+      el.promptText.textContent = `正在搜索补给箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`;
+      raid.progress += dt;
+      nearest.progress = clamp(raid.progress / duration, 0, 1);
     } else {
       const remaining = Math.max(0, duration - raid.progress);
       el.promptText.textContent = `正在撤离 ${remaining.toFixed(1)} 秒 · 请留在区域内`;
@@ -2410,6 +2402,7 @@
       bossEngaged: false,
       progress: 0,
       interactionType: null,
+      searchTarget: null,
       lastFullWarning: -10,
       startedAt: performance.now()
     };
@@ -2428,24 +2421,20 @@
     el.interactPrompt.classList.add('hidden');
     el.lootFeed.innerHTML = '';
     el.damageFlash.style.opacity = '0';
-    keys['e'] = false;
     keys['r'] = false;
     mouse.down = false;
     mouse.semiQueued = false;
     touch.moveX = 0;
     touch.moveY = 0;
     touch.moveMag = 0;
-    touch.fireHeld = false;
-    touch.autoFire = false;
     touch.aiming = false;
     touch.aimMag = 0;
-    updateFireButton();
     buildFlowField();
     updateHUD();
     updateBackpackHud();
     addLootFeed('行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。', false);
     if (touch.ui) {
-      toast('左摇杆移动，点按开火自动连射，长按持续开火。红标首领掉落专属武器。');
+      toast('左摇杆移动，按住右侧瞄准区开火并自动锁定。靠近补给箱站 2 秒自动搜索。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
@@ -3119,65 +3108,6 @@
     pad.addEventListener('lostpointercapture', end);
   }
 
-  function updateFireButton() {
-    if (!el.touchFire) return;
-    el.touchFire.classList.toggle('auto', !!touch.autoFire);
-    el.touchFire.setAttribute('aria-pressed', String(!!touch.autoFire));
-    if (el.touchFireLabel) el.touchFireLabel.textContent = touch.autoFire ? '连射中' : '开火';
-    if (el.touchFireIcon) el.touchFireIcon.textContent = touch.autoFire ? '◉' : '◎';
-  }
-
-  function bindFireButton() {
-    let pointerId = null;
-    let downAt = 0;
-    const release = (event) => {
-      if (pointerId !== null && event && event.pointerId !== pointerId) return;
-      const quickTap = pointerId !== null && performance.now() - downAt < 280;
-      pointerId = null;
-      touch.fireHeld = false;
-      if (quickTap) {
-        touch.autoFire = !touch.autoFire;
-        updateFireButton();
-        playSound('pickup');
-        toast(touch.autoFire ? '自动连射已开启：锁定目标后持续射击。' : '自动连射已关闭。');
-      }
-    };
-    el.touchFire.addEventListener('pointerdown', (event) => {
-      if (pointerId !== null) return;
-      pointerId = event.pointerId;
-      downAt = performance.now();
-      enableTouchUI();
-      Sound.init();
-      try { el.touchFire.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
-      touch.fireHeld = true;
-      event.preventDefault();
-    });
-    el.touchFire.addEventListener('pointerup', release);
-    el.touchFire.addEventListener('pointercancel', release);
-    el.touchFire.addEventListener('lostpointercapture', release);
-  }
-
-  function bindHoldButton(button, down, up) {
-    let pointerId = null;
-    const release = (event) => {
-      if (pointerId !== null && event && event.pointerId !== pointerId) return;
-      pointerId = null;
-      up();
-    };
-    button.addEventListener('pointerdown', (event) => {
-      if (pointerId !== null) return;
-      pointerId = event.pointerId;
-      enableTouchUI();
-      Sound.init();
-      try { button.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
-      down();
-      event.preventDefault();
-    });
-    button.addEventListener('pointerup', release);
-    button.addEventListener('pointercancel', release);
-    button.addEventListener('lostpointercapture', release);
-  }
-
   function setupFloatingMoveStick() {
     let pointerId = null;
     let activeTarget = null;
@@ -3269,22 +3199,19 @@
     setupFloatingMoveStick();
 
     setupVirtualStick(el.aimPad, el.aimKnob, (x, y, mag) => {
+      touch.aiming = true;
+      touch.aimMag = mag;
+      if (!touch.hasAim) {
+        touch.aimAngle = player ? player.angle : 0;
+        touch.hasAim = true;
+      }
       if (mag > 0.16) {
         touch.aimAngle = Math.atan2(y, x);
-        touch.aimMag = mag;
-        touch.hasAim = true;
-        touch.aiming = true;
-      } else {
-        touch.aiming = false;
       }
     }, () => {
       touch.aiming = false;
       touch.aimMag = 0;
     });
-
-    bindFireButton();
-    updateFireButton();
-    bindHoldButton(el.touchInteract, () => { keys['e'] = true; }, () => { keys['e'] = false; });
 
     el.touchReload.addEventListener('pointerdown', (event) => {
       event.preventDefault();
@@ -3497,11 +3424,11 @@
           weapon: player.weaponKey, armor: player.armorKey
         } : null,
         raid: raid ? { ...raid } : null,
-        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, fireHeld: touch.fireHeld, autoFire: touch.autoFire, angle: touch.aimAngle },
+        touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, angle: touch.aimAngle },
         world: world ? {
           spawn: world.spawn,
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
-          containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity })),
+          containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0 })),
           enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name } : null,
           pickups: world.pickups.length
@@ -3519,9 +3446,8 @@
       touch.hasAim = true;
       touch.aiming = mag > 0.16;
     },
-    touchFire(down) { touch.fireHeld = !!down; },
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
-    touchInteract(down) { keys['e'] = !!down; },
+    touchAimHold(down) { touch.aiming = !!down; if (!down) touch.aimMag = 0; },
     tick() { updateHUD(); }
   };
   renderAllBase();

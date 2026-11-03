@@ -591,7 +591,7 @@ kbd {
    Mobile / touch controls
    -------------------------------------------------------------------------- */
 html, body { overscroll-behavior: none; }
-.game-screen, #gameCanvas, .touch-controls, .touch-pad, .touch-btn, .touch-fire, .touch-pause {
+.game-screen, #gameCanvas, .touch-controls, .touch-pad, .touch-btn, .touch-pause {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -689,42 +689,6 @@ body.touch-device.move-stick-fixed .move-pad {
   letter-spacing: .5px;
 }
 
-.touch-fire {
-  position: absolute;
-  right: 3.8%;
-  bottom: 29%;
-  width: clamp(62px, 8.4vw, 82px);
-  aspect-ratio: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 91, 110, .8);
-  background: rgba(255, 91, 110, .16);
-  color: #ffd6db;
-  font-weight: 900;
-  font-size: clamp(10px, 1.2vw, 13px);
-  letter-spacing: .5px;
-  line-height: 1;
-  pointer-events: auto;
-  box-shadow: inset 0 0 18px rgba(255,91,110,.14), 0 0 0 5px rgba(255,91,110,.04);
-}
-.touch-fire-icon { font-size: clamp(19px, 2.2vw, 26px); line-height: 1; }
-.touch-fire:active { background: rgba(255, 91, 110, .35); }
-.touch-fire.auto {
-  border-color: rgba(214, 255, 77, .95);
-  background: rgba(214, 255, 77, .22);
-  color: var(--lime);
-  box-shadow: inset 0 0 22px rgba(214,255,77,.2), 0 0 0 6px rgba(214,255,77,.06);
-  animation: autoFirePulse .9s ease-in-out infinite;
-}
-@keyframes autoFirePulse {
-  0%, 100% { box-shadow: inset 0 0 22px rgba(214,255,77,.16), 0 0 0 6px rgba(214,255,77,.04); }
-  50% { box-shadow: inset 0 0 28px rgba(214,255,77,.3), 0 0 0 11px rgba(214,255,77,.1); }
-}
-
 .touch-actions {
   position: absolute;
   right: 20%;
@@ -745,11 +709,6 @@ body.touch-device.move-stick-fixed .move-pad {
   font-weight: 800;
   letter-spacing: .5px;
   pointer-events: auto;
-}
-.touch-btn.interact {
-  color: var(--lime);
-  border-color: rgba(214, 255, 77, .55);
-  background: rgba(214, 255, 77, .07);
 }
 .touch-btn:active { background: rgba(255,255,255,.12); transform: translateY(1px); }
 .touch-pause {
@@ -797,7 +756,6 @@ body.touch-device.move-stick-fixed .move-pad {
 
 @media (max-height: 520px) {
   .touch-pad { width: clamp(82px, 15vh, 108px); }
-  .touch-fire { width: clamp(52px, 16vh, 68px); bottom: 31%; }
   .touch-actions { bottom: 4%; gap: 4px; }
   .touch-btn { min-height: 32px; min-width: 52px; padding: 5px 7px; font-size: 9px; }
   .touch-pause { top: 34%; width: 32px; height: 32px; }
