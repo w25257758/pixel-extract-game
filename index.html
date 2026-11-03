@@ -1,0 +1,263 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>像素撤离 // PIXEL EXTRACT</title>
+  <meta name="theme-color" content="#080d13">
+  <meta name="application-name" content="像素撤离">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="像素撤离">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/pwa/apple-touch-icon.png">
+  <link rel="icon" href="assets/pwa/favicon.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <main id="baseScreen" class="screen base-screen">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">PX</div>
+          <div>
+            <div class="brand-title">像素撤离</div>
+            <div class="brand-sub">PIXEL EXTRACT // 单机搜打撤</div>
+          </div>
+        </div>
+        <div class="top-stats">
+          <div class="stat-chip"><span>等级</span><strong id="statLevel">1</strong></div>
+          <div class="stat-chip scrap"><span>废料</span><strong id="statScrap">0</strong></div>
+          <div class="stat-chip"><span>行动</span><strong id="statRaids">0</strong></div>
+          <div class="stat-chip"><span>撤离</span><strong id="statExtracts">0</strong></div>
+          <button id="resetSaveBtn" class="ghost-btn small" title="清空存档">重置存档</button>
+        </div>
+      </header>
+
+      <div class="base-layout">
+        <section class="panel loadout-panel">
+          <div class="panel-head">
+            <span>作战准备</span><span class="panel-tag">LOADOUT</span>
+          </div>
+          <div id="loadoutWeapon" class="equip-card"></div>
+          <div id="loadoutArmor" class="equip-card"></div>
+          <button id="changeEquipBtn" class="secondary-btn change-equip-btn" type="button">更换装备</button>
+          <div class="supply-row">
+            <div class="supply-box"><span>医疗包</span><strong id="loadoutMeds">2</strong></div>
+            <div class="supply-box"><span>背包格</span><strong id="loadoutSlots">8</strong></div>
+          </div>
+          <button id="startRaidBtn" class="primary-btn raid-btn">开始行动 <span>▶</span></button>
+          <div class="control-hint">
+            <div><kbd>WASD</kbd> 移动　<kbd>鼠标</kbd> 瞄准</div>
+            <div><kbd>左键</kbd> 射击　<kbd>R</kbd> 换弹　<kbd>F</kbd> 医疗</div>
+            <div><kbd>E</kbd> 搜索　<kbd>Tab</kbd> 背包　<kbd>M</kbd> 地图　<kbd>Esc</kbd> 暂停</div>
+          </div>
+        </section>
+
+        <section class="panel stash-panel">
+          <div class="panel-head">
+            <span>仓库</span>
+            <span class="panel-tag" id="stashCount">0 / ∞</span>
+          </div>
+          <div id="stashGrid" class="stash-grid"></div>
+          <div id="stashEmpty" class="empty-state">仓库是空的。带战利品撤离，或去黑市进货。</div>
+          <div id="itemActions" class="item-actions hidden">
+            <div class="selected-info">
+              <div id="selectedIcon" class="selected-icon">?</div>
+              <div>
+                <div id="selectedName" class="selected-name">物品</div>
+                <div id="selectedDesc" class="selected-desc"></div>
+              </div>
+              <div id="selectedValue" class="selected-value"></div>
+            </div>
+            <div class="action-row">
+              <button id="equipBtn" class="secondary-btn hidden">装备</button>
+              <button id="sellBtn" class="danger-btn">出售</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="right-column">
+          <section class="panel progression-panel">
+            <div class="panel-head"><span>成长档案</span><span class="panel-tag">PROFILE</span></div>
+            <div class="level-row">
+              <div class="level-badge"><span>LV</span><strong id="levelBig">1</strong></div>
+              <div class="xp-wrap">
+                <div class="xp-label"><span>经验</span><span id="xpLabel">0 / 100</span></div>
+                <div class="xp-bar"><div id="xpFill" class="xp-fill"></div></div>
+              </div>
+            </div>
+            <div id="nextPerk" class="next-perk"></div>
+            <div class="stat-grid">
+              <div><span>击倒</span><strong id="statKills">0</strong></div>
+              <div><span>死亡</span><strong id="statDeaths">0</strong></div>
+              <div><span>带回物资</span><strong id="statLoot">0</strong></div>
+            </div>
+          </section>
+
+          <section class="panel shop-panel">
+            <div class="panel-head"><span>黑市</span><span class="panel-tag">SUPPLY</span></div>
+            <div id="shopList" class="shop-list"></div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <section id="gameScreen" class="screen game-screen hidden">
+      <div id="gameFrame" class="game-frame">
+        <canvas id="gameCanvas" width="960" height="600"></canvas>
+        <div class="hud">
+          <div class="hud-top-left">
+            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span></div>
+            <div class="hud-bar-row">
+              <span class="hud-label">HP</span>
+              <div class="hud-bar"><div id="hpFill" class="hud-bar-fill hp"></div></div>
+              <span id="hpText" class="hud-value">100/100</span>
+            </div>
+            <div class="hud-subrow">
+              <span id="armorText">护甲：无</span>
+              <span id="hudMeds">医疗包 ×2</span>
+              <span id="hudScrap">废料 +0</span>
+            </div>
+            <div class="weapon-hud">
+              <span id="hudWeapon">旧式手枪</span>
+              <strong id="hudAmmo">12 / 90</strong>
+            </div>
+          </div>
+
+          <div class="hud-top-center">
+            <div id="raidTimer" class="raid-timer">06:00</div>
+            <div class="objective">搜刮物资 · 站在撤离点 3 秒自动撤离</div>
+          </div>
+
+          <div id="bossHud" class="boss-hud hidden">
+            <div class="boss-hud-head"><span>BOSS</span><strong id="bossName">终焉守卫</strong></div>
+            <div class="boss-bar"><div id="bossFill"></div></div>
+          </div>
+
+          <div class="hud-top-right">
+            <canvas id="minimap" width="180" height="132"></canvas>
+            <div class="minimap-label">战术地图</div>
+            <button id="hudMapBtn" class="hud-map-btn" type="button">打开地图 <kbd>M</kbd></button>
+          </div>
+
+          <div id="interactPrompt" class="interact-prompt hidden">
+            <span id="promptText">按住 E 搜索</span>
+            <div class="prompt-bar"><div id="promptBarFill"></div></div>
+          </div>
+
+          <div id="lootFeed" class="loot-feed"></div>
+
+          <div class="backpack-hud">
+            <button id="hudInventoryBtn" class="hud-inventory-btn" type="button"><span>▦</span> 打开背包 <kbd>Tab</kbd></button>
+            <div class="backpack-label">背包 <span id="backpackCount">0/8</span></div>
+            <div id="backpackHud" class="backpack-slots"></div>
+          </div>
+
+          <div id="damageFlash" class="damage-flash"></div>
+        </div>
+
+        <div id="touchControls" class="touch-controls hidden">
+          <div id="movePad" class="touch-pad move-pad">
+            <div id="moveKnob" class="touch-knob"></div>
+            <span class="touch-pad-label">移动</span>
+          </div>
+          <div id="aimPad" class="touch-pad aim-pad">
+            <div id="aimKnob" class="touch-knob"></div>
+            <span class="touch-pad-label">瞄准 / 开火</span>
+          </div>
+          <button id="touchFire" class="touch-fire" type="button">开火</button>
+          <div class="touch-actions">
+            <button id="touchInteract" class="touch-btn interact" type="button">按住 E</button>
+            <button id="touchReload" class="touch-btn" type="button">换弹</button>
+            <button id="touchMed" class="touch-btn" type="button">医疗</button>
+            <button id="touchInventory" class="touch-btn" type="button">背包</button>
+          </div>
+          <button id="touchPause" class="touch-pause" type="button">II</button>
+          <div id="touchHint" class="touch-hint">左摇杆移动 · 右摇杆瞄准开火 · 点地图查看撤离点</div>
+        </div>
+        <div id="rotateHint" class="rotate-hint">建议横屏游玩</div>
+
+        <div id="mapOverlay" class="overlay hidden">
+          <div class="overlay-card map-card">
+            <div class="overlay-head">
+              <span>战术地图</span>
+              <button id="closeMapBtn" class="ghost-btn small" type="button">关闭 [M]</button>
+            </div>
+            <canvas id="fullMapCanvas" width="780" height="520"></canvas>
+            <div class="map-legend">
+              <span><i class="map-dot player"></i>你</span>
+              <span><i class="map-dot exit"></i>撤离点</span>
+              <span><i class="map-dot loot"></i>未搜索补给箱</span>
+              <span><i class="map-dot enemy"></i>附近敌人</span>
+              <span><i class="map-dot boss"></i>首领</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="inventoryOverlay" class="overlay hidden">
+          <div class="overlay-card inventory-card">
+            <div class="overlay-head">
+              <span>战术背包</span>
+              <button id="closeInventoryBtn" class="ghost-btn small">关闭 [Tab]</button>
+            </div>
+            <div class="inventory-loadout" id="inventoryLoadout"></div>
+            <div class="inventory-section-title">搜刮物资 <span>点击物品查看详情</span></div>
+            <div class="inventory-body">
+              <div id="inventoryGrid" class="inventory-grid"></div>
+              <div id="inventoryDetail" class="inventory-detail hidden"></div>
+            </div>
+            <p class="overlay-note">撤离后，背包中的物资会进入仓库。死亡则全部丢失。</p>
+          </div>
+        </div>
+
+        <div id="pauseOverlay" class="overlay hidden">
+          <div class="overlay-card pause-card">
+            <div class="pause-title">行动暂停</div>
+            <p>当前进度已暂停。游戏内的仓库和等级存档会在撤离或返回基地时写入。</p>
+            <button id="resumeBtn" class="primary-btn">继续行动</button>
+            <button id="abandonBtn" class="danger-btn">放弃行动并返回基地</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="equipOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card equip-modal-card">
+        <div class="overlay-head">
+          <span>更换装备</span>
+          <button id="closeEquipBtn" class="ghost-btn small" type="button">关闭</button>
+        </div>
+        <div id="equippedSummary" class="equipped-summary"></div>
+        <div class="equip-columns">
+          <section class="equip-column">
+            <div class="equip-col-title">武器 <span>从仓库选择</span></div>
+            <div id="weaponChoices" class="equip-choice-list"></div>
+          </section>
+          <section class="equip-column">
+            <div class="equip-col-title">护甲 <span>从仓库选择</span></div>
+            <div id="armorChoices" class="equip-choice-list"></div>
+          </section>
+        </div>
+        <p class="overlay-note">装备会立即更新作战准备；进入行动后不能更换。</p>
+      </div>
+    </div>
+
+    <div id="debriefOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card debrief-card">
+        <div id="debriefTag" class="debrief-tag">行动结束</div>
+        <h2 id="debriefTitle">成功撤离</h2>
+        <p id="debriefSub">你带着战利品回到了基地。</p>
+        <div id="debriefStats" class="debrief-stats"></div>
+        <div id="debriefLoot" class="debrief-loot"></div>
+        <button id="debriefCloseBtn" class="primary-btn">返回基地</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>

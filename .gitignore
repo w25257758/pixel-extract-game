@@ -1,0 +1,28 @@
+﻿# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Local browser profiles and test artifacts
+.edge-*
+boss-*.png
+inventory-*.png
+preview-*.png
+zh-shots/
+shot-zh.mjs
+test-zh.mjs
+translate_css.py
+translate_js.py
+
+# Generated deployment artifacts
+像素撤离-公网部署/
+像素撤离-公网部署包.zip
+
+# Unrelated legacy assets (keep assets/pwa for PWA icons)
+assets/css/
+assets/fonts/
+assets/img/
+assets/js/
+
+# Local notes
+dishwhale-persona.md
