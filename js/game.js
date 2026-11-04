@@ -12,6 +12,8 @@
   const dist2 = (x1, y1, x2, y2) => (x1 - x2) ** 2 + (y1 - y2) ** 2;
   const TAU = Math.PI * 2;
   const AUTO_LOCK_CONE = Math.PI * 0.42;
+  const VISION_RADIUS = 360;
+  const REVEAL_RADIUS_TILES = 8;
 
   const TILE = 32;
   const MAP_W = 52;
@@ -489,6 +491,7 @@
     hpText: $('#hpText'),
     armorText: $('#armorText'),
     hudMeds: $('#hudMeds'),
+    hudKeys: $('#hudKeys'),
     hudScrap: $('#hudScrap'),
     hudWeapon: $('#hudWeapon'),
     hudWeaponIcon: $('#hudWeaponIcon'),
@@ -1455,6 +1458,60 @@
     return true;
   }
 
+  function isPointVisible(x, y, radius = VISION_RADIUS) {
+    if (!world || !player) return false;
+    return dist2(x, y, player.x, player.y) <= radius * radius && lineOfSight(player.x, player.y, x, y);
+  }
+
+  function isExploredPoint(x, y) {
+    if (!world || !world.explored) return false;
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return false;
+    return world.explored[ty * MAP_W + tx] === 1;
+  }
+
+  function revealTile(tx, ty) {
+    if (!world || !world.explored || tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return;
+    const idx = ty * MAP_W + tx;
+    if (world.explored[idx]) return;
+    world.explored[idx] = 1;
+    if (world.fogMini) {
+      const fg = world.fogMini.getContext('2d');
+      fg.clearRect(tx * 4, ty * 4, 4, 4);
+    }
+  }
+
+  function revealExplored() {
+    if (!world || !player) return;
+    const ptx = Math.floor(player.x / TILE);
+    const pty = Math.floor(player.y / TILE);
+    const r = REVEAL_RADIUS_TILES;
+    for (let ty = pty - r; ty <= pty + r; ty++) {
+      for (let tx = ptx - r; tx <= ptx + r; tx++) {
+        if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+        const cx = tx * TILE + TILE / 2;
+        const cy = ty * TILE + TILE / 2;
+        if (dist2(cx, cy, player.x, player.y) > (r * TILE) ** 2) continue;
+        if (!lineOfSight(player.x, player.y, cx, cy)) continue;
+        revealTile(tx, ty);
+      }
+    }
+  }
+
+  function updateExploration(dt) {
+    if (!world || !player) return;
+    world.revealTimer = Math.max(0, (world.revealTimer || 0) - dt);
+    if (world.revealTimer <= 0) {
+      world.revealTimer = 0.12;
+      revealExplored();
+    }
+    const last = world.trail[world.trail.length - 1];
+    if (!last || dist2(last.x, last.y, player.x, player.y) > 26 * 26) {
+      world.trail.push({ x: player.x, y: player.y });
+    }
+  }
+
   function segmentHitsCircle(x1, y1, x2, y2, cx, cy, r) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -1625,14 +1682,55 @@
       enemies.push(new Enemy(spot.x, spot.y, kind, room));
     }
 
-    const bossRooms = rooms.slice(1, -1);
-    const bossRoom = bossRooms.length
-      ? bossRooms.reduce((best, room) => (room.w * room.h > best.w * best.h ? room : best), bossRooms[0])
-      : rooms[Math.max(1, rooms.length - 2)];
-    let bossSpot = centerOfRoom(bossRoom);
-    if (!canStandOnTiles(tiles, bossSpot.x, bossSpot.y, 16)) bossSpot = roomSpot(bossRoom);
-    const bossEnemy = new Enemy(bossSpot.x, bossSpot.y, 'boss', bossRoom);
-    enemies.push(bossEnemy);
+    const bossFloor = floor % 5 === 0;
+    let bossRoom = null;
+    let bossEnemy = null;
+    if (bossFloor) {
+      const bossRooms = rooms.slice(1, -1);
+      bossRoom = bossRooms.length
+        ? bossRooms.reduce((best, room) => (room.w * room.h > best.w * best.h ? room : best), bossRooms[0])
+        : rooms[Math.max(1, rooms.length - 2)];
+      let bossSpot = centerOfRoom(bossRoom);
+      if (!canStandOnTiles(tiles, bossSpot.x, bossSpot.y, 16)) bossSpot = roomSpot(bossRoom);
+      bossEnemy = new Enemy(bossSpot.x, bossSpot.y, 'boss', bossRoom);
+      enemies.push(bossEnemy);
+    }
+
+    // One locked key room per floor. Its guardian always drops the key.
+    const keyRooms = rooms.slice(1, -1).filter((room) => room !== bossRoom);
+    const keyRoom = keyRooms.length ? pick(keyRooms) : rooms[Math.max(1, rooms.length - 2)];
+    let keySpot = centerOfRoom(keyRoom);
+    if (!canStandOnTiles(tiles, keySpot.x, keySpot.y, 20)) keySpot = roomSpot(keyRoom);
+    const keyChest = {
+      x: keySpot.x,
+      y: keySpot.y,
+      w: 38,
+      h: 28,
+      rarity: 'rare',
+      searched: false,
+      progress: 0,
+      pulse: rand(0, TAU),
+      vault: true,
+      locked: true
+    };
+    containers.push(keyChest);
+
+    let guardSpot = roomSpot(keyRoom);
+    let guardTries = 0;
+    while ((!canStandOnTiles(tiles, guardSpot.x, guardSpot.y, 12) || dist2(guardSpot.x, guardSpot.y, keySpot.x, keySpot.y) < 55 * 55) && guardTries < 30) {
+      guardSpot = roomSpot(keyRoom);
+      guardTries++;
+    }
+    const keyGuard = new Enemy(guardSpot.x, guardSpot.y, 'heavy', keyRoom);
+    keyGuard.elite = true;
+    keyGuard.carriesKey = true;
+    keyGuard.maxHp = Math.round(keyGuard.maxHp * 1.55);
+    keyGuard.hp = keyGuard.maxHp;
+    keyGuard.damage *= 1.15;
+    keyGuard.xp = Math.round(keyGuard.xp * 2);
+    keyGuard.scrap = Math.round(keyGuard.scrap * 2);
+    keyGuard.color = '#ffd15c';
+    enemies.push(keyGuard);
 
     const worldObj = {
       tiles,
@@ -1642,6 +1740,12 @@
       containers,
       enemies,
       boss: bossEnemy,
+      keyRoom: { x: keyRoom.x * TILE, y: keyRoom.y * TILE, w: keyRoom.w * TILE, h: keyRoom.h * TILE },
+      keyChest,
+      explored: new Uint8Array(MAP_W * MAP_H),
+      fogMini: buildFogCanvas(),
+      trail: [],
+      revealTimer: 0,
       pickups: [],
       bullets: [],
       particles: [],
@@ -1765,6 +1869,17 @@
     return c;
   }
 
+  function buildFogCanvas() {
+    const scale = 4;
+    const c = document.createElement('canvas');
+    c.width = MAP_W * scale;
+    c.height = MAP_H * scale;
+    const g = c.getContext('2d');
+    g.fillStyle = '#03070b';
+    g.fillRect(0, 0, c.width, c.height);
+    return c;
+  }
+
   function buildFlowField() {
     if (!world || !player) return;
     const size = MAP_W * MAP_H;
@@ -1861,7 +1976,7 @@
     if (!world || !player) return null;
     const valid = (enemy) => enemy && !enemy.dead &&
       dist2(enemy.x, enemy.y, player.x, player.y) <= maxRange * maxRange &&
-      lineOfSight(player.x, player.y, enemy.x, enemy.y);
+      isPointVisible(enemy.x, enemy.y);
     const angleDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     if (!nearestOnly && valid(player.lockTarget)) {
       const currentAngle = Math.atan2(player.lockTarget.y - player.y, player.lockTarget.x - player.x);
@@ -2138,6 +2253,7 @@
       this.shotWindupMax = 0;
       this.winding = false;
       this.elite = false;
+      this.carriesKey = false;
 
       const statTable = {
         grunt: { hp: 46, speed: 73, vision: 335, range: 320, damage: 8, cooldown: 0.95, xp: 18, scrap: 3, color: '#d65b64' },
@@ -2344,6 +2460,19 @@
         return;
       }
 
+      if (this.carriesKey) {
+        world.pickups.push({
+          x: this.x,
+          y: this.y,
+          type: 'key',
+          amount: 1,
+          life: 999,
+          bob: rand(0, TAU)
+        });
+        addFloatText(this.x, this.y - 46, '钥匙已掉落', '#ffd15c');
+        addLootFeed('钥匙守卫掉落了 🔑', true);
+      }
+
       // Enemies sometimes drop field supplies or a piece of loot.
       const roll = Math.random();
       if (roll < 0.28) {
@@ -2422,6 +2551,13 @@
 
   function rollLootItem(quality = 'common') {
     const r = Math.random();
+    if (quality === 'vault') {
+      if (r < 0.08) return 'core';
+      if (r < 0.18) return 'relic';
+      if (r < 0.42) return pick(['w_rifle', 'w_lmg', 'a_heavy', 'a_medic']);
+      if (r < 0.62) return pick(['w_dmr', 'w_rail', 'a_ghost', 'a_riot']);
+      return pick(['chip', 'core', 'relic']);
+    }
     if (quality === 'rare') {
       if (r < 0.14) return 'scrap';
       if (r < 0.34) return 'chip';
@@ -2439,13 +2575,23 @@
   }
 
   function lootContainer(container) {
+    if (container.locked) {
+      if ((raid.keys || 0) <= 0) {
+        addLootFeed('钥匙房宝箱需要 🔑 ×1', true);
+        updateHUD();
+        return;
+      }
+      raid.keys -= 1;
+      container.locked = false;
+      addLootFeed('已消耗 🔑 ×1，钥匙房宝箱开启。', false);
+    }
     container.searched = true;
     playSound('open');
-    const count = randInt(1, 3);
+    const count = container.vault ? randInt(3, 4) : randInt(1, 3);
     let got = 0;
     const names = [];
     for (let i = 0; i < count; i++) {
-      const type = rollLootItem(container.rarity);
+      const type = rollLootItem(container.vault ? 'vault' : container.rarity);
       const item = createItem(type, 1);
       if (addItemToBackpack(item)) {
         got++;
@@ -2456,12 +2602,12 @@
         break;
       }
     }
-    if (Math.random() < 0.32) {
-      const ammo = randInt(18, 34);
+    if (Math.random() < 0.32 || container.vault) {
+      const ammo = randInt(container.vault ? 32 : 18, container.vault ? 58 : 34);
       player.reserve += ammo;
       addLootFeed(`获得弹药 +${ammo}`, false);
     }
-    if (Math.random() < 0.18 && player.medkits < 8) {
+    if ((Math.random() < 0.18 || container.vault) && player.medkits < 8) {
       player.medkits += 1;
       addLootFeed('获得医疗包 +1', false);
     }
@@ -2491,6 +2637,13 @@
         addLootFeed(`拾取弹药 +${p.amount}`, false);
         playSound('pickup');
         world.pickups.splice(i, 1);
+      } else if (p.type === 'key') {
+        raid.keys = (raid.keys || 0) + (p.amount || 1);
+        addLootFeed(`拾取 🔑 ×${p.amount || 1}`, false);
+        addFloatText(p.x, p.y - 24, '🔑 +1', '#ffd15c');
+        playSound('pickup');
+        world.pickups.splice(i, 1);
+        updateHUD();
       } else if (p.type === 'med') {
         if (player.medkits >= 8) continue;
         player.medkits += p.amount;
@@ -2672,6 +2825,13 @@
     el.interactPrompt.classList.remove('hidden');
     const duration = type === 'search' ? 2.0 : 3.0;
     if (type === 'search') {
+      if (nearest.locked && (raid.keys || 0) <= 0) {
+        raid.progress = 0;
+        nearest.progress = 0;
+        el.promptText.textContent = '🔑 钥匙房宝箱 · 需要 1 把钥匙';
+        el.promptBarFill.style.width = '0%';
+        return;
+      }
       if (raid.searchInterruptTimer > 0) {
         raid.progress = 0;
         nearest.progress = 0;
@@ -2686,7 +2846,9 @@
         el.promptText.textContent = '换弹中 · 搜索暂停';
       } else {
         const remaining = Math.max(0, duration - raid.progress);
-        el.promptText.textContent = `正在搜索补给箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`;
+        el.promptText.textContent = nearest.locked
+          ? `正在解锁钥匙房宝箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`
+          : `正在搜索补给箱 ${remaining.toFixed(1)} 秒 · 请留在旁边`;
         raid.progress += dt;
         nearest.progress = clamp(raid.progress / duration, 0, 1);
       }
@@ -2730,6 +2892,7 @@
     world.shake = Math.max(0, world.shake - dt * 18);
 
     player.update(dt);
+    updateExploration(dt);
     if (raidTutorialState.active && raidTutorialState.step === 0 &&
       dist2(player.x, player.y, raidTutorialState.startX, raidTutorialState.startY) > 48 * 48) {
       advanceRaidTutorial(0);
@@ -2772,6 +2935,7 @@
     if (el.lowHpVignette) el.lowHpVignette.classList.toggle('active', player.hp > 0 && hpPct <= 30);
     el.armorText.textContent = `护甲：${player.armor.name}`;
     el.hudMeds.textContent = `医疗包 ×${player.medkits}`;
+    if (el.hudKeys) el.hudKeys.textContent = `🔑 ×${raid ? (raid.keys || 0) : 0}`;
     el.hudScrap.textContent = `废料 +${raid ? raid.scrap : 0}`;
     el.hudWeapon.textContent = player.weapon.name;
     const hudWeaponDef = defOf(save.equipped.weapon);
@@ -2801,22 +2965,36 @@
       el.aimPad.classList.toggle('firing', !!(touch.ui && touch.aiming && touch.firing));
     }
     if (raid) {
-      el.raidObjective.textContent = `${riskDef().label} · F${raid.floor} · 撤离点：深入或返回`;
+      const bossFloor = raid.floor % 5 === 0;
+      const nextBossFloor = raid.floor + (5 - (raid.floor % 5));
+      el.raidObjective.textContent = `${riskDef().label} · F${raid.floor} · ${bossFloor ? '首领层' : `下个首领 F${nextBossFloor}`} · 撤离/下层`;
     }
-    if (world && world.boss) {
-      const bossD = Math.hypot(world.boss.x - player.x, world.boss.y - player.y);
-      const bossAngle = Math.atan2(world.boss.y - player.y, world.boss.x - player.x);
-      const dirs = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
-      const dir = dirs[(Math.round((bossAngle + Math.PI * 2) / (Math.PI / 4)) % 8)];
+    if (world && raid) {
       let nearestD = Infinity;
       let chasing = 0;
       for (const enemy of world.enemies) {
-        if (enemy.dead) continue;
+        if (enemy.dead || !isPointVisible(enemy.x, enemy.y)) continue;
         if (enemy.state === 'chase') chasing += 1;
         nearestD = Math.min(nearestD, Math.hypot(enemy.x - player.x, enemy.y - player.y));
       }
+      let bossText;
+      if (world.boss) {
+        if (world.boss.dead) {
+          bossText = '首领 已击倒';
+        } else if (isPointVisible(world.boss.x, world.boss.y)) {
+          const bossD = Math.hypot(world.boss.x - player.x, world.boss.y - player.y);
+          const bossAngle = Math.atan2(world.boss.y - player.y, world.boss.x - player.x);
+          const dirs = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
+          const dir = dirs[(Math.round((bossAngle + Math.PI * 2) / (Math.PI / 4)) % 8)];
+          bossText = `首领 ${dir} ${Math.round(bossD / TILE)}格`;
+        } else {
+          bossText = raid.bossEngaged ? '首领 交战中' : '首领 未定位';
+        }
+      } else {
+        bossText = `下个首领 F${raid.floor + (5 - (raid.floor % 5))}`;
+      }
       const nearText = nearestD === Infinity ? '--' : `${Math.round(nearestD / TILE)}格`;
-      el.mapIntel.textContent = `首领 ${dir} ${world.boss.dead ? '已击倒' : `${Math.round(bossD / TILE)}格`} · 近敌 ${nearText} · 交火 ${chasing}`;
+      el.mapIntel.textContent = `${bossText} · 近敌 ${nearText} · 交火 ${chasing}`;
     }
 
     if (raid) {
@@ -2852,6 +3030,7 @@
       <div>护甲<strong>${player.armor.name}</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
+      <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
       <div>背包占用<strong>${player.backpack.length} / ${player.capacity}</strong></div>
       <div>携带估值<strong>+${totalValue}</strong></div>`;
     el.inventoryGrid.innerHTML = '';
@@ -2993,10 +3172,9 @@
     const roll = Math.random();
     let type = forcedType;
     if (!type) {
-      if (roll < 0.22) type = 'airdrop';
-      else if (roll < 0.43) type = 'elite';
-      else if (roll < 0.60) type = 'extract';
-      else if (roll < 0.75) type = 'blackout';
+      if (roll < 0.22) type = 'elite';
+      else if (roll < 0.42) type = 'extract';
+      else if (roll < 0.59) type = 'blackout';
     }
 
     if (!type) {
@@ -3004,22 +3182,7 @@
       return;
     }
 
-    if (type === 'airdrop') {
-      const room = pick(world.rooms.slice(1, -1));
-      const spot = roomSpot(room);
-      world.containers.push({
-        x: spot.x,
-        y: spot.y,
-        w: 30,
-        h: 24,
-        rarity: 'rare',
-        searched: false,
-        progress: 0,
-        pulse: rand(0, TAU),
-        airdrop: true
-      });
-      raid.event = { type, label: '空投补给已降落', timer: 0 };
-    } else if (type === 'elite') {
+    if (type === 'elite') {
       const rooms = world.rooms.slice(1, -1);
       for (let i = 0; i < 2; i++) {
         const room = pick(rooms);
@@ -3119,8 +3282,12 @@
     if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
     resetRaidInputs();
     buildFlowField();
+    updateExploration(0);
     hudAccumulator = 0;
     lastMinimapDraw = -1;
+    addLootFeed(world.boss
+      ? `F${raid.floor} 首领层：${world.boss.name} 已出现。`
+      : `F${raid.floor}：击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。`, !!world.boss);
     updateHUD();
     updateBackpackHud();
     if (isFirstFloor) startRaidTutorial();
@@ -3142,6 +3309,7 @@
       pendingPerks: 0,
       perks: {},
       scrap: 0,
+      keys: 0,
       kills: 0,
       paused: false,
       ended: false,
@@ -3170,17 +3338,17 @@
     el.damageFlash.style.opacity = '0';
     beginFloor(true);
     const risk = riskDef();
-    addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，找到绿色撤离点。`, false);
+    addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，寻找钥匙房宝箱。`, false);
     if (raid.event) {
       addLootFeed(`随机事件：${raid.event.label}${raid.event.timer > 0 ? `（${raid.event.timer}秒）` : ''}`, false);
       toast(`随机事件：${raid.event.label}`);
     }
     if (touch.ui) {
-      toast('轻触右侧瞄准，长按开火并自动锁定。等级只在本次行动中提升，返回基地后重置。');
+      toast('轻触右侧瞄准，长按开火自动锁定。击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
-      toast('行动开始：本局从 LV.1 开始，升级后选择成长。撤离点可选继续下一层或返回基地。');
+      toast('行动开始：本局从 LV.1 开始；首领每 5 层出现，金色守卫掉落钥匙。');
     }
     lastTime = performance.now();
   }
@@ -3312,16 +3480,19 @@
     ctx.drawImage(world.mapCanvas, 0, 0);
     drawExtraction();
     drawAltExtraction();
-    for (const c of world.containers) drawContainer(c);
-    for (const p of world.pickups) drawPickup(p);
+    drawKeyRoom();
+    for (const c of world.containers) if (isPointVisible(c.x, c.y)) drawContainer(c);
+    for (const p of world.pickups) if (isPointVisible(p.x, p.y)) drawPickup(p);
     for (const bullet of world.bullets) drawBullet(bullet);
-    for (const enemy of world.enemies) if (!enemy.dead) drawCharacter(enemy, false);
+    for (const enemy of world.enemies) if (!enemy.dead && isPointVisible(enemy.x, enemy.y)) drawCharacter(enemy, false);
     drawCharacter(player, true);
     drawLockOn();
     for (const p of world.particles) drawParticle(p);
     for (const t of world.floatTexts) drawFloatText(t);
 
     ctx.restore();
+
+    drawFogOfWar(camX, camY);
 
     // Vignette / atmosphere. Cache the gradient instead of rebuilding it every frame.
     if (!save.settings.performanceMode) {
@@ -3347,6 +3518,36 @@
       drawMinimap();
     }
     drawCrosshair();
+  }
+
+  function drawFogOfWar(camX, camY) {
+    const px = player.x - camX;
+    const py = player.y - camY;
+    const fog = ctx.createRadialGradient(px, py, VISION_RADIUS * 0.24, px, py, VISION_RADIUS);
+    fog.addColorStop(0, 'rgba(3,7,11,0)');
+    fog.addColorStop(0.62, 'rgba(3,7,11,.08)');
+    fog.addColorStop(0.84, 'rgba(3,7,11,.55)');
+    fog.addColorStop(1, 'rgba(3,7,11,.94)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  }
+
+  function drawKeyRoom() {
+    const room = world.keyRoom;
+    if (!room) return;
+    const pulse = (Math.sin(world.time * 2.2) + 1) * 0.5;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,209,92,${0.12 + pulse * 0.08})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 9]);
+    ctx.strokeRect(room.x + 8, room.y + 8, room.w - 16, room.h - 16);
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(255,209,92,${0.18 + pulse * 0.08})`;
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('KEY ROOM // 钥匙房', room.x + room.w / 2, room.y + 22);
+    ctx.textAlign = 'left';
+    ctx.restore();
   }
 
   function drawExtraction() {
@@ -3439,7 +3640,7 @@
     ctx.translate(Math.round(c.x), Math.round(c.y));
     ctx.fillStyle = 'rgba(0,0,0,.3)';
     ctx.beginPath();
-    ctx.ellipse(0, 12, 18, 6, 0, 0, TAU);
+    ctx.ellipse(0, 12, c.vault ? 22 : 18, c.vault ? 7 : 6, 0, 0, TAU);
     ctx.fill();
 
     if (c.searched) {
@@ -3449,38 +3650,45 @@
       ctx.fillRect(-15, -7, 30, 4);
       ctx.fillStyle = '#1a2432';
       ctx.fillRect(-11, -11, 22, 5);
-      ctx.strokeStyle = '#2f3d50';
+      ctx.strokeStyle = c.vault ? 'rgba(255,209,92,.35)' : '#2f3d50';
       ctx.strokeRect(-15, -7, 30, 18);
     } else {
-      const accent = c.airdrop ? '#ffd15c' : '#d6ff4d';
-      const accentRgb = c.airdrop ? '255,209,92' : '214,255,77';
+      const accent = c.vault ? '#ffd15c' : '#d6ff4d';
+      const accentRgb = c.vault ? '255,209,92' : '214,255,77';
       const glow = 0.25 + (Math.sin(world.time * 2 + c.pulse) + 1) * 0.13;
-      ctx.fillStyle = `rgba(${accentRgb},${glow * 0.24})`;
-      ctx.fillRect(-18, -15, 36, 32);
-      ctx.fillStyle = c.airdrop ? '#4a3b1d' : '#2c3b2b';
+      ctx.fillStyle = `rgba(${accentRgb},${glow * (c.vault ? 0.36 : 0.24)})`;
+      ctx.fillRect(c.vault ? -21 : -18, c.vault ? -17 : -15, c.vault ? 42 : 36, c.vault ? 36 : 32);
+      ctx.fillStyle = c.vault ? '#4a3b1d' : '#2c3b2b';
       ctx.fillRect(-15, -9, 30, 20);
-      ctx.fillStyle = c.airdrop ? '#705a27' : '#485b36';
+      ctx.fillStyle = c.vault ? '#705a27' : '#485b36';
       ctx.fillRect(-15, -9, 30, 5);
       ctx.fillStyle = accent;
       ctx.fillRect(-3, 1, 6, 3);
-      ctx.strokeStyle = `rgba(${accentRgb},.8)`;
+      ctx.strokeStyle = `rgba(${accentRgb},.9)`;
       ctx.strokeRect(-15, -9, 30, 20);
-      ctx.fillStyle = c.airdrop ? '#c2a34b' : '#9ab52e';
+      ctx.fillStyle = c.vault ? '#c2a34b' : '#9ab52e';
       ctx.fillRect(-12, -7, 3, 16);
       ctx.fillRect(9, -7, 3, 16);
-      if (c.airdrop) {
+      if (c.vault) {
+        ctx.strokeStyle = '#ffd15c';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, -1, 4, 0, TAU);
+        ctx.stroke();
         ctx.fillStyle = '#ffd15c';
+        ctx.fillRect(-1, 2, 2, 5);
         ctx.font = 'bold 9px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('空投', 0, -16);
+        ctx.fillText(c.locked ? '🔑 钥匙箱' : '钥匙箱', 0, -15);
+        ctx.textAlign = 'left';
       }
     }
 
     if (c.progress > 0 && c.progress < 1) {
       ctx.fillStyle = '#070b10';
-      ctx.fillRect(-17, -20, 34, 4);
-      ctx.fillStyle = '#d6ff4d';
-      ctx.fillRect(-17, -20, 34 * c.progress, 4);
+      ctx.fillRect(-17, -22, 34, 4);
+      ctx.fillStyle = c.vault ? '#ffd15c' : '#d6ff4d';
+      ctx.fillRect(-17, -22, 34 * c.progress, 4);
     }
     ctx.restore();
   }
@@ -3489,15 +3697,27 @@
     const bounce = Math.sin(p.bob) * 3;
     ctx.save();
     ctx.translate(Math.round(p.x), Math.round(p.y + bounce));
-    const color = p.bossDrop ? '#ffd15c' : p.type === 'ammo' ? '#d6c27a' : p.type === 'med' ? '#74f0a0' : defOf(p.item).rarity === 'epic' ? '#c084ff' : '#55d9ff';
+    const color = p.type === 'key' ? '#ffd15c' : p.bossDrop ? '#ffd15c' : p.type === 'ammo' ? '#d6c27a' : p.type === 'med' ? '#74f0a0' : defOf(p.item).rarity === 'epic' ? '#c084ff' : '#55d9ff';
     ctx.fillStyle = `${color}22`;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = color;
-    ctx.fillRect(-5, -5, 10, 10);
-    ctx.fillStyle = '#0a1016';
-    ctx.fillRect(-2, -2, 4, 4);
+    if (p.type === 'key') {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(-4, -2, 3.5, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fillRect(-1, -1, 9, 2.5);
+      ctx.fillRect(5, 0, 2.5, 4);
+      ctx.fillRect(2, 0, 2.5, 3);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(-5, -5, 10, 10);
+      ctx.fillStyle = '#0a1016';
+      ctx.fillRect(-2, -2, 4, 4);
+    }
     ctx.restore();
   }
 
@@ -3573,11 +3793,17 @@
     }
 
     if (!isPlayer && entity.elite) {
-      ctx.strokeStyle = 'rgba(255,209,92,.8)';
+      ctx.strokeStyle = entity.carriesKey ? 'rgba(255,209,92,.95)' : 'rgba(255,209,92,.8)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, (isBoss ? 28 : 15) + Math.sin(world.time * 5) * 1.5, 0, TAU);
       ctx.stroke();
+      if (entity.carriesKey) {
+        ctx.fillStyle = '#ffd15c';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('KEY', 0, barY - (isBoss ? 20 : 18));
+      }
     }
     if (!isPlayer && entity.shotWindup > 0) {
       const charge = 1 - entity.shotWindup / (entity.shotWindupMax || 1);
@@ -3723,6 +3949,23 @@
     ctx.fillRect(x - 1, y - 1, 2, 2);
   }
 
+  function drawExplorationTrail(g, sx, sy, width) {
+    const trail = world.trail || [];
+    if (trail.length < 2) return;
+    g.save();
+    g.strokeStyle = 'rgba(85,217,255,.58)';
+    g.lineWidth = width;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(trail[0].x * sx, trail[0].y * sy);
+    for (let i = 1; i < trail.length; i++) g.lineTo(trail[i].x * sx, trail[i].y * sy);
+    g.stroke();
+    g.fillStyle = '#55d9ff';
+    g.fillRect(trail[0].x * sx - 2, trail[0].y * sy - 2, 4, 4);
+    g.restore();
+  }
+
   function drawFullMap() {
     if (!world || !el.fullMapCanvas) return;
     const c = el.fullMapCanvas;
@@ -3735,27 +3978,29 @@
     g.fillStyle = '#060a0f';
     g.fillRect(0, 0, W, H);
     g.drawImage(world.mini, 0, 0, W, H);
+    g.drawImage(world.fogMini, 0, 0, W, H);
+    drawExplorationTrail(g, sx, sy, 2.5);
 
     for (const container of world.containers) {
-      if (container.searched) continue;
-      g.fillStyle = container.airdrop ? '#ffd15c' : '#ff9c47';
-      g.fillRect(container.x * sx - 3, container.y * sy - 3, 6, 6);
+      if (container.searched || !isExploredPoint(container.x, container.y)) continue;
+      g.fillStyle = container.vault ? '#ffd15c' : '#ff9c47';
+      const size = container.vault ? 8 : 6;
+      g.fillRect(container.x * sx - size / 2, container.y * sy - size / 2, size, size);
     }
     for (const pickup of world.pickups) {
-      g.fillStyle = pickup.bossDrop ? '#ffd15c' : pickup.type === 'item' ? '#55d9ff' : '#9fb6d1';
+      if (!isExploredPoint(pickup.x, pickup.y)) continue;
+      g.fillStyle = pickup.type === 'key' || pickup.bossDrop ? '#ffd15c' : pickup.type === 'item' ? '#55d9ff' : '#9fb6d1';
       g.fillRect(pickup.x * sx - 2, pickup.y * sy - 2, 4, 4);
     }
     for (const enemy of world.enemies) {
-      if (enemy.dead || enemy.isBoss) continue;
-      const near = dist2(enemy.x, enemy.y, player.x, player.y) < 290 * 290;
-      if (enemy.state !== 'chase' && !near) continue;
+      if (enemy.dead || enemy.isBoss || !isPointVisible(enemy.x, enemy.y)) continue;
       g.fillStyle = '#ff5b6e';
       g.beginPath();
       g.arc(enemy.x * sx, enemy.y * sy, 4, 0, TAU);
       g.fill();
     }
 
-    if (world.boss && !world.boss.dead) {
+    if (world.boss && !world.boss.dead && isPointVisible(world.boss.x, world.boss.y)) {
       const bx = world.boss.x * sx;
       const by = world.boss.y * sy;
       g.fillStyle = '#ff3e6c';
@@ -3804,7 +4049,8 @@
     g.fillStyle = '#d6ff4d';
     g.fillText(label, labelX, exY);
 
-    if (world.altExtraction && world.altExtraction.timeLeft > 0) {
+    if (world.altExtraction && world.altExtraction.timeLeft > 0 &&
+      (isExploredPoint(world.altExtraction.x, world.altExtraction.y) || isPointVisible(world.altExtraction.x, world.altExtraction.y))) {
       const ax = world.altExtraction.x * sx;
       const ay = world.altExtraction.y * sy;
       g.strokeStyle = '#55d9ff';
@@ -3839,9 +4085,12 @@
     const H = el.minimap.height;
     miniCtx.fillStyle = '#060a0f';
     miniCtx.fillRect(0, 0, W, H);
+    miniCtx.imageSmoothingEnabled = false;
     miniCtx.drawImage(world.mini, 0, 0, W, H);
+    miniCtx.drawImage(world.fogMini, 0, 0, W, H);
     const sx = W / MAP_PW;
     const sy = H / MAP_PH;
+    drawExplorationTrail(miniCtx, sx, sy, 1.2);
 
     const ex = world.extraction;
     const exX = ex.x * sx;
@@ -3860,24 +4109,23 @@
     miniCtx.textAlign = 'left';
 
     for (const c of world.containers) {
-      if (c.searched) continue;
-      miniCtx.fillStyle = c.airdrop ? '#ffd15c' : '#ff9c47';
-      miniCtx.fillRect(c.x * sx - 1, c.y * sy - 1, 3, 3);
+      if (c.searched || !isExploredPoint(c.x, c.y)) continue;
+      miniCtx.fillStyle = c.vault ? '#ffd15c' : '#ff9c47';
+      miniCtx.fillRect(c.x * sx - 1, c.y * sy - 1, c.vault ? 5 : 3, c.vault ? 5 : 3);
     }
     for (const p of world.pickups) {
-      miniCtx.fillStyle = p.bossDrop ? '#ffd15c' : p.type === 'item' ? '#55d9ff' : '#9fb6d1';
+      if (!isExploredPoint(p.x, p.y)) continue;
+      miniCtx.fillStyle = p.type === 'key' || p.bossDrop ? '#ffd15c' : p.type === 'item' ? '#55d9ff' : '#9fb6d1';
       miniCtx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2);
     }
     for (const e of world.enemies) {
-      if (e.dead || e.isBoss) continue;
-      const d2 = dist2(e.x, e.y, player.x, player.y);
-      if (e.state === 'chase' || d2 < 290 * 290) {
-        miniCtx.fillStyle = '#ff5b6e';
-        miniCtx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4);
-      }
+      if (e.dead || e.isBoss || !isPointVisible(e.x, e.y)) continue;
+      miniCtx.fillStyle = '#ff5b6e';
+      miniCtx.fillRect(e.x * sx - 2, e.y * sy - 2, 4, 4);
     }
 
-    if (world.altExtraction && world.altExtraction.timeLeft > 0) {
+    if (world.altExtraction && world.altExtraction.timeLeft > 0 &&
+      (isExploredPoint(world.altExtraction.x, world.altExtraction.y) || isPointVisible(world.altExtraction.x, world.altExtraction.y))) {
       const ax = world.altExtraction.x * sx;
       const ay = world.altExtraction.y * sy;
       miniCtx.strokeStyle = '#55d9ff';
@@ -3889,7 +4137,7 @@
       miniCtx.fillRect(ax - 2, ay - 2, 4, 4);
     }
 
-    if (world.boss && !world.boss.dead) {
+    if (world.boss && !world.boss.dead && isPointVisible(world.boss.x, world.boss.y)) {
       const bx = world.boss.x * sx;
       const by = world.boss.y * sy;
       miniCtx.fillStyle = '#ff3e6c';
@@ -4354,10 +4602,15 @@
           spawn: world.spawn,
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
           altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
-          containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0 })),
-          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name })),
+          containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0, locked: !!c.locked, vault: !!c.vault })),
+          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, carriesKey: !!e.carriesKey, elite: !!e.elite })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name } : null,
-          pickups: world.pickups.length
+          bossPresent: !!world.boss,
+          keyChest: world.keyChest ? { x: world.keyChest.x, y: world.keyChest.y, locked: !!world.keyChest.locked, searched: !!world.keyChest.searched } : null,
+          exploredCount: world.explored ? world.explored.reduce((sum, v) => sum + v, 0) : 0,
+          trailLength: world.trail ? world.trail.length : 0,
+          visibleEnemies: world.enemies.filter((e) => !e.dead && isPointVisible(e.x, e.y)).length,
+          pickups: world.pickups.map((p) => ({ x: p.x, y: p.y, type: p.type, amount: p.amount || 0 }))
         } : null
       };
     },
@@ -4375,6 +4628,8 @@
       touch.aimPressAt = performance.now();
     },
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
+    damageEnemy(index, amount = 9999) { const enemy = world && world.enemies[index]; if (enemy && !enemy.dead) enemy.takeDamage(amount, 0); },
+    grantKeys(count = 1) { if (raid && !raid.ended) { raid.keys = (raid.keys || 0) + Math.max(0, Math.floor(count)); updateHUD(); } },
     forceRaidEvent(type) {
       if (!world || !raid) return null;
       world.altExtraction = null;

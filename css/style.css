@@ -393,7 +393,7 @@ kbd {
 .hud-xp-bar { height: 6px; }
 .hud-bar-fill.xp { background: linear-gradient(90deg, #8bab2d, #d6ff4d); }
 .hud-value { color: var(--text); font-size: .75em; min-width: 56px; text-align: right; }
-.hud-subrow { display: flex; gap: 12px; margin-top: 6px; color: var(--dim); font-size: .68em; }
+.hud-subrow { display: flex; flex-wrap: wrap; gap: 4px 9px; margin-top: 6px; color: var(--dim); font-size: .68em; }
 .weapon-hud { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.08); color: var(--dim); font-size: .72em; }
 .weapon-hud strong { color: var(--lime); font-size: 1.4em; letter-spacing: 1px; }
 .hud-weapon-icon { flex: 0 0 auto; color: var(--lime); font-size: 1.35em; line-height: 1; }
@@ -1088,12 +1088,27 @@ body.touch-device.move-stick-fixed .move-pad {
 .map-dot.player { background: #ffffff; }
 .map-dot.exit { background: #d6ff4d; box-shadow: 0 0 6px rgba(214,255,77,.8); }
 .map-dot.loot { background: #ff9c47; }
+.map-dot.key { background: #ffd15c; box-shadow: 0 0 6px rgba(255,209,92,.8); }
+.map-dot.path { background: #55d9ff; border-radius: 0; }
 .map-dot.enemy { background: #ff5b6e; }
 .map-dot.boss { background: #ff3e6c; box-shadow: 0 0 7px rgba(255,62,108,.85); }
 @media (pointer: coarse) {
   .hud-map-btn { min-height: 30px; margin-top: 4px; font-size: 9px; }
   .hud-map-btn kbd { display: none; }
   .map-card canvas { max-height: 62vh; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .map-card { padding: 12px 14px; }
+  .map-card .overlay-head { padding-bottom: 7px; }
+  .map-card canvas { max-height: 54vh; }
+  .map-legend { gap: 4px 10px; margin-top: 6px; font-size: 8px; }
+}
+@media (orientation: landscape) and (max-height: 340px) {
+  .map-card { padding: 8px 10px; }
+  .map-card .overlay-head { padding-bottom: 5px; }
+  .map-card canvas { max-height: 50vh; }
+  .map-legend { gap: 3px 8px; margin-top: 4px; font-size: 7px; }
+  .map-dot { width: 6px; height: 6px; }
 }
 /* Boss HUD */
 .boss-hud {
@@ -2114,4 +2129,17 @@ body.touch-device.move-stick-fixed .move-pad {
   .perk-choice-name { font-size: 11px; }
   .perk-choice-desc { font-size: 7px; }
   .perk-choice-rank { padding-top: 4px; font-size: 8px; }
+}
+
+@media (orientation: landscape) and (max-width: 680px) {
+  .inventory-card { width: 96%; padding: 10px 12px; }
+  .inventory-body { grid-template-columns: minmax(0, 1.1fr) minmax(190px, .9fr); gap: 7px; }
+  .inventory-loadout { grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 7px 0; }
+  .inventory-loadout > div { padding: 4px 5px; font-size: 7px; }
+  .inventory-loadout strong { margin-top: 2px; font-size: 9px; }
+  .inventory-grid { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 4px; }
+  .inventory-detail { padding: 8px; }
+  .inventory-detail-desc { margin-top: 5px; padding-top: 5px; font-size: 8px; line-height: 1.45; }
+  .inventory-detail-stats { gap: 4px; margin-top: 5px; }
+  .inventory-detail-stats span { padding: 2px 4px; font-size: 7px; }
 }
