@@ -114,6 +114,33 @@
     rainbow: { label: '彩色', color: '#ffd15c', bonus: 50, desc: '虹彩背包装备，提供 50 个额外物资格。' }
   };
 
+  const CHARACTER_DEFS = {
+    pioneer: {
+      id: 'pioneer', name: '开拓者', code: 'PIONEER', role: '初始角色 / 生存自愈', color: '#d6ff4d',
+      skill: { type: 'heal', name: '应急治疗', short: '治疗', cd: 10, desc: '立即恢复 10% 最大生命值。生命值已满时不会进入冷却。' },
+      passive: { name: '求生本能', desc: '生命值低于 35% 时，受到的伤害降低 20%。' }
+    },
+    sniper: {
+      id: 'sniper', name: '狙击兵', code: 'SNIPER', role: '远程 / 穿透', color: '#58c7ff',
+      skill: { type: 'snipe', name: '猎杀协议', short: '猎杀', cd: 12, desc: '锁定一名可见敌人；1.5 秒后发射一枚造成 7 倍武器伤害的狙击弹，无视防御与墙体。' },
+      passive: { name: '贯穿弹', desc: '你的所有子弹都可以穿透敌人，不会在命中首个目标后消失。' }
+    },
+    assault: {
+      id: 'assault', name: '突击兵', code: 'ASSAULT', role: '爆发 / 射速', color: '#ff9c47',
+      skill: { type: 'overdrive', name: '火力过载', short: '过载', cd: 16, desc: '4 秒内射速提高 45%。' },
+      passive: { name: '快速换弹', desc: '换弹时间减少 20%。' }
+    },
+    juggernaut: {
+      id: 'juggernaut', name: '重装兵', code: 'JUGGER', role: '防御 / 护盾', color: '#c59cff',
+      skill: { type: 'shield', name: '应急护盾', short: '护盾', cd: 18, desc: '获得 60 点护盾，持续 8 秒；护盾会优先吸收伤害。' },
+      passive: { name: '重型装甲', desc: '受到的伤害降低 12%。' }
+    }
+  };
+  const CHARACTER_IDS = Object.keys(CHARACTER_DEFS);
+  function currentCharacterDef() {
+    return CHARACTER_DEFS[save.character] || CHARACTER_DEFS.pioneer;
+  }
+
   const ITEM_DEFS = {
     w_pistol: { name: '旧式手枪', icon: '▰', kind: 'weapon', weapon: 'pistol', rarity: 'common', sell: 28, stack: false, desc: '标配副武器。伤害 24，弹匣 12 发。' },
     w_smg: { name: '蜂鸣冲锋枪', icon: '⌁', kind: 'weapon', weapon: 'smg', rarity: 'uncommon', sell: 95, stack: false, desc: '全自动冲锋枪。伤害 15，弹匣 30 发。' },
@@ -386,7 +413,8 @@
 
   function defaultSave() {
     return {
-      version: 5,
+      version: 6,
+      character: 'pioneer',
       scrap: 80,
       stash: [],
       equipped: {
@@ -407,6 +435,7 @@
     const merged = {
       ...base,
       ...raw,
+      character: CHARACTER_DEFS[raw.character] ? raw.character : 'pioneer',
       upgrades: { ...base.upgrades, ...(raw.upgrades || {}) },
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
@@ -438,7 +467,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 5;
+    merged.version = 6;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
@@ -738,6 +767,10 @@
     hudWeapon: $('#hudWeapon'),
     hudWeaponIcon: $('#hudWeaponIcon'),
     hudAmmo: $('#hudAmmo'),
+    hudCharacterName: $('#hudCharacterName'),
+    hudDashCd: $('#hudDashCd'),
+    hudSkillCd: $('#hudSkillCd'),
+    hudShield: $('#hudShield'),
     hudLevel: $('#hudLevel'),
     hudFloor: $('#hudFloor'),
     hudLockState: $('#hudLockState'),
@@ -795,6 +828,12 @@
     openShopBtn: $('#openShopBtn'),
     openEnhanceBtn: $('#openEnhanceBtn'),
     openTranscendBtn: $('#openTranscendBtn'),
+    openCharacterBtn: $('#openCharacterBtn'),
+    baseCharacterSummary: $('#baseCharacterSummary'),
+    manageCharacterPanel: $('#manageCharacterPanel'),
+    characterList: $('#characterList'),
+    characterDetail: $('#characterDetail'),
+    characterCurrentTag: $('#characterCurrentTag'),
     equipOverlay: $('#equipOverlay'),
     closeEquipBtn: $('#closeEquipBtn'),
     equipWindowTitle: $('#equipWindowTitle'),
@@ -836,6 +875,8 @@
     aimKnob: $('#aimKnob'),
     touchReload: $('#touchReload'),
     touchMed: $('#touchMed'),
+    touchDash: $('#touchDash'),
+    touchSkill: $('#touchSkill'),
     touchInventory: $('#touchInventory'),
     touchPause: $('#touchPause'),
     touchHint: $('#touchHint')
@@ -1029,6 +1070,7 @@
 
   let selectedStashId = null;
   let selectedInventoryItemId = null;
+  let characterViewId = save.character || 'pioneer';
   let stashRarityFilter = 'all';
   let enhanceTargetSlot = 'weapon';
   let toastTimer = 0;
@@ -1724,7 +1766,8 @@
     stash: { title: '仓库', note: '仓库物资会即时保存；出售物品可以获得废料。' },
     shop: { title: '黑市', note: '使用废料购买武器、护甲和永久补给。' },
     enhance: { title: '强化台', note: '强化石由敌人掉落；强化失败会消耗 1 颗强化石，装备等级不会下降。' },
-    transcend: { title: '蜕变熔炉', note: '投入仓库物品会按出售价值增加蜕变进度；蜕变会永久提升角色属性。' }
+    transcend: { title: '蜕变熔炉', note: '投入仓库物品会按出售价值增加蜕变进度；蜕变会永久提升角色属性。' },
+    character: { title: '角色', note: '选择出战角色；主动技能、被动和通用冲刺会在下一次行动中生效。' }
   };
 
   function openEquipModal(view = 'equip') {
@@ -1735,6 +1778,7 @@
     renderShop();
     renderEnhance();
     renderTranscend();
+    renderCharacterPanel();
     if (el.equipWindowTitle) el.equipWindowTitle.textContent = MANAGE_VIEWS[selected].title;
     if (el.manageNote) el.manageNote.textContent = MANAGE_VIEWS[selected].note;
     if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', selected !== 'equip');
@@ -1742,6 +1786,7 @@
     if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', selected !== 'shop');
     if (el.manageEnhancePanel) el.manageEnhancePanel.classList.toggle('hidden', selected !== 'enhance');
     if (el.manageTranscendPanel) el.manageTranscendPanel.classList.toggle('hidden', selected !== 'transcend');
+    if (el.manageCharacterPanel) el.manageCharacterPanel.classList.toggle('hidden', selected !== 'character');
     el.equipOverlay.classList.remove('hidden');
   }
 
@@ -1779,6 +1824,62 @@
     if (el.riskHint) el.riskHint.textContent = risk.hint;
   }
 
+  function renderCharacterPanel() {
+    if (!el.characterList || !el.characterDetail) return;
+    const current = currentCharacterDef();
+    characterViewId = CHARACTER_DEFS[characterViewId] ? characterViewId : current.id;
+    if (el.characterCurrentTag) el.characterCurrentTag.textContent = `当前：${current.name}`;
+    if (el.baseCharacterSummary) el.baseCharacterSummary.textContent = current.name;
+    el.characterList.innerHTML = '';
+    for (const id of CHARACTER_IDS) {
+      const def = CHARACTER_DEFS[id];
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = `character-row${id === characterViewId ? ' active' : ''}${id === current.id ? ' current' : ''}`;
+      row.innerHTML = `<strong style="color:${def.color}">${def.name}</strong><span>${def.role}</span><span>${def.skill.name} · ${def.skill.cd}s</span>${id === current.id ? '<em>出战中</em>' : ''}`;
+      row.addEventListener('click', () => {
+        characterViewId = id;
+        renderCharacterPanel();
+      });
+      el.characterList.appendChild(row);
+    }
+    const def = CHARACTER_DEFS[characterViewId] || current;
+    const isCurrent = def.id === current.id;
+    el.characterDetail.innerHTML = `
+      <div class="character-detail-head">
+        <div><h4 style="color:${def.color}">${def.name}</h4><span>${def.code} · ${def.role}</span></div>
+        <span>${isCurrent ? '当前出战角色' : '点击下方按钮切换'}</span>
+      </div>
+      <div class="character-skill-block">
+        <b>主动技能 · ${def.skill.name} <em>CD ${def.skill.cd}s</em></b>
+        <p>${def.skill.desc}</p>
+      </div>
+      <div class="character-skill-block character-passive">
+        <b>被动 · ${def.passive.name}</b>
+        <p>${def.passive.desc}</p>
+      </div>
+      <div class="character-skill-block">
+        <b>通用技能 · 战术冲刺 <em>CD 4s</em></b>
+        <p>向方向键/移动摇杆方向快速位移一小段距离，并获得短暂无敌，可闪避子弹、冲撞和范围重击。</p>
+      </div>
+      ${isCurrent
+        ? '<div class="character-selected-note">该角色已在行动中出战。</div>'
+        : '<button id="characterSelectBtn" class="primary-btn compact character-select-btn" type="button">设为当前角色</button>'}`;
+    const selectBtn = $('#characterSelectBtn');
+    if (selectBtn) selectBtn.addEventListener('click', () => selectCharacter(def.id));
+  }
+
+  function selectCharacter(id) {
+    if (!CHARACTER_DEFS[id]) return;
+    save.character = id;
+    characterViewId = id;
+    persist();
+    renderAllBase();
+    renderCharacterPanel();
+    playSound('pickup');
+    toast(`已选择角色：${CHARACTER_DEFS[id].name}`);
+  }
+
   function renderAllBase() {
     syncRiskPicker();
     renderLoadout();
@@ -1786,6 +1887,7 @@
     renderShop();
     renderEnhance();
     renderTranscend();
+    renderCharacterPanel();
     renderProgress();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
     if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石`;
@@ -1799,6 +1901,7 @@
   el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
   el.openEnhanceBtn.addEventListener('click', () => openEquipModal('enhance'));
   el.openTranscendBtn.addEventListener('click', () => openEquipModal('transcend'));
+  if (el.openCharacterBtn) el.openCharacterBtn.addEventListener('click', () => openEquipModal('character'));
   if (el.transcendBtn) el.transcendBtn.addEventListener('click', performTranscend);
   if (el.transcendBulkBtn) el.transcendBulkBtn.addEventListener('click', bulkConvertTranscendCommon);
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
@@ -1955,7 +2058,7 @@
     el.touchControls.classList.remove('hidden');
     const hint = document.querySelector('.control-hint');
     if (hint) {
-      hint.innerHTML = '<div>左摇杆移动 · 按住右侧瞄准区开火 · 拖动瞄准</div><div>靠近补给箱站 2 秒自动搜索 · 换弹/医疗/背包按钮</div><div>建议横屏游玩</div>';
+      hint.innerHTML = '<div>左摇杆移动 · 按住右侧瞄准区开火 · 拖动瞄准</div><div>冲刺按钮闪避 · 技能按钮释放角色主动技能</div><div>靠近补给箱站 2 秒自动搜索 · 换弹/医疗/背包按钮</div>';
     }
   }
 
@@ -2319,6 +2422,7 @@
       pickups: [],
       bullets: [],
       hazards: [],
+      beams: [],
       particles: [],
       floatTexts: [],
       mapCanvas: buildMapCanvas(tiles, stage),
@@ -2578,6 +2682,26 @@
     return best;
   }
 
+  function findNearestVisibleEnemy(maxRange = 1000) {
+    if (!world || !player) return null;
+    let best = null;
+    let bestD = maxRange * maxRange;
+    for (const enemy of world.enemies) {
+      if (!enemy || enemy.dead || !isPointVisible(enemy.x, enemy.y)) continue;
+      const d = dist2(enemy.x, enemy.y, player.x, player.y);
+      if (d < bestD) {
+        bestD = d;
+        best = enemy;
+      }
+    }
+    return best;
+  }
+
+  function spawnBeam(x1, y1, x2, y2, color = '#8bd3ff', width = 3, life = 0.24) {
+    if (!world) return;
+    world.beams.push({ x1, y1, x2, y2, color, width, life, maxLife: life });
+  }
+
   // ---------------------------------------------------------------------------
   // Player
   // ---------------------------------------------------------------------------
@@ -2601,6 +2725,18 @@
       this.stepCd = 0;
       this.medCd = 0;
       this.lockTarget = null;
+      this.char = currentCharacterDef();
+      this.charId = this.char.id;
+      this.activeCd = 0;
+      this.activeCdMax = this.char.skill.cd;
+      this.dashCd = 0;
+      this.dashTimer = 0;
+      this.dashInvuln = 0;
+      this.dashAngle = 0;
+      this.overdriveTimer = 0;
+      this.shield = 0;
+      this.shieldTimer = 0;
+      this.sniperLock = null;
 
       const weaponItem = save.equipped.weapon;
       const weaponType = defOf(weaponItem).weapon || 'pistol';
@@ -2633,6 +2769,14 @@
     }
 
     update(dt) {
+      this.dashCd = Math.max(0, this.dashCd - dt);
+      this.activeCd = Math.max(0, this.activeCd - dt);
+      this.overdriveTimer = Math.max(0, this.overdriveTimer - dt);
+      this.dashInvuln = Math.max(0, this.dashInvuln - dt);
+      if (this.shieldTimer > 0) {
+        this.shieldTimer = Math.max(0, this.shieldTimer - dt);
+        if (this.shieldTimer <= 0) this.shield = 0;
+      }
       let dx = 0;
       let dy = 0;
       if (keys['w'] || keys['arrowup']) dy -= 1;
@@ -2653,8 +2797,19 @@
 
       const len = Math.hypot(dx, dy);
       const moveStrength = Math.min(1, len);
-      this.moving = len > 0.04;
-      if (len > 0.04) {
+      this.moving = len > 0.04 || this.dashTimer > 0;
+      if (this.dashTimer > 0) {
+        // Universal dash: fixed short displacement with a brief dodge window.
+        this.dashTimer = Math.max(0, this.dashTimer - dt);
+        const dashSpeed = 760;
+        moveWithCollision(this, Math.cos(this.dashAngle) * dashSpeed * dt, Math.sin(this.dashAngle) * dashSpeed * dt);
+        this.dashInvuln = Math.max(this.dashInvuln, 0.08);
+        this.walkPhase += dt * 22;
+        if (Math.random() < 0.65) {
+          addParticle(this.x - Math.cos(this.dashAngle) * 10, this.y - Math.sin(this.dashAngle) * 10,
+            this.char.color || '#d6ff4d', 1, 30, 2, 0.28);
+        }
+      } else if (len > 0.04) {
         const nx = dx / len;
         const ny = dy / len;
         const sprint = keys['shift'] ? 1.4 : 1;
@@ -2698,6 +2853,18 @@
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }
+      if (this.sniperLock) {
+        const target = this.sniperLock.target;
+        if (!target || target.dead) {
+          this.sniperLock = null;
+          addLootFeed('猎杀目标已消失，狙击取消。', false);
+        } else {
+          this.sniperLock.timer -= dt;
+          this.lockTarget = target;
+          this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+          if (this.sniperLock.timer <= 0) this.fireSniperShot();
+        }
+      }
       const holdSeconds = touch.aiming && touch.aimPressAt ? (performance.now() - touch.aimPressAt) / 1000 : 0;
       const touchWantsShoot = touch.ui && touch.aiming && holdSeconds >= 0.15;
       touch.firing = touchWantsShoot && !this.reloading;
@@ -2736,11 +2903,13 @@
           owner: 'player',
           color: this.weapon.color,
           life: this.weapon.range / this.weapon.speed,
-          maxLife: this.weapon.range / this.weapon.speed
+          maxLife: this.weapon.range / this.weapon.speed,
+          pierce: this.charId === 'sniper',
+          hitEnemies: []
         });
       }
       this.mag -= 1;
-      this.fireCd = this.weapon.cooldown;
+      this.fireCd = this.weapon.cooldown * (this.overdriveTimer > 0 ? 0.69 : 1);
       world.shake = Math.max(world.shake, this.weapon.shake || 2.1);
       addParticle(muzzleX, muzzleY, '#ffd875', pellets > 1 ? 6 : 3, 90, 2, 0.16);
       addParticle(muzzleX, muzzleY, this.weapon.color, 2, 45, 2, 0.12);
@@ -2762,7 +2931,8 @@
     startReload() {
       if (this.reloading || this.mag >= this.weapon.mag || this.reserve <= 0) return;
       this.reloading = true;
-      this.reloadTimer = this.weapon.reload * Math.max(0.55, 1 - perkRank('quickhands') * 0.07);
+      const charReload = this.charId === 'assault' ? 0.8 : 1;
+      this.reloadTimer = this.weapon.reload * charReload * Math.max(0.55, 1 - perkRank('quickhands') * 0.07);
       playSound('reload');
       updateHUD();
     }
@@ -2793,23 +2963,122 @@
 
     takeDamage(amount, sourceAngle = null) {
       if (this.hurtCd > 0 || mode !== 'raid' || raid.ended) return;
+      if (this.dashInvuln > 0) {
+        addFloatText(this.x, this.y - 26, '闪避', '#7ee8d2');
+        return;
+      }
       this.hurtCd = 0.075;
-      const finalDamage = Math.max(1, amount * (1 - this.armor.reduction) * (1 - perkRank('bulwark') * 0.03));
-      this.hp -= finalDamage;
-      world.shake = Math.max(world.shake, 6);
+      let finalDamage = Math.max(1, amount * (1 - this.armor.reduction) * (1 - perkRank('bulwark') * 0.03));
+      if (this.charId === 'pioneer' && this.hp / this.maxHp <= 0.35) finalDamage *= 0.8;
+      if (this.charId === 'juggernaut') finalDamage *= 0.88;
+      let shieldAbsorb = 0;
+      if (this.shield > 0) {
+        shieldAbsorb = Math.min(this.shield, finalDamage);
+        this.shield -= shieldAbsorb;
+        finalDamage -= shieldAbsorb;
+        addFloatText(this.x, this.y - 28, `护盾 -${Math.round(shieldAbsorb)}`, '#8bd3ff');
+      }
+      world.shake = Math.max(world.shake, shieldAbsorb > 0 ? 4 : 6);
       showDamageFlash();
       if (Number.isFinite(sourceAngle)) showDamageDirection(sourceAngle);
       playSound('hurt');
-      addParticle(this.x, this.y, '#ff5b6e', 5, 60, 2, 0.4);
+      addParticle(this.x, this.y, shieldAbsorb > 0 ? '#58a6ff' : '#ff5b6e', 5, 60, 2, 0.4);
       if (raid && raid.interactionType === 'search' && raid.progress > 0.05) {
         raid.searchInterruptTimer = 0.9;
         addFloatText(this.x, this.y - 24, '搜索被打断', '#ffad45');
       }
+      if (finalDamage > 0) this.hp -= finalDamage;
       updateHUD();
       if (this.hp <= 0) {
         this.hp = 0;
         endRaid(false, '你被击倒了，携带的物资全部丢失。');
       }
+    }
+
+    tryDash() {
+      if (!raid || raid.ended || raid.paused || this.dashCd > 0) return false;
+      let dx = 0;
+      let dy = 0;
+      if (keys['w'] || keys['arrowup']) dy -= 1;
+      if (keys['s'] || keys['arrowdown']) dy += 1;
+      if (keys['a'] || keys['arrowleft']) dx -= 1;
+      if (keys['d'] || keys['arrowright']) dx += 1;
+      if (touch.ui && touch.moveMag > 0.12) {
+        dx += touch.moveX;
+        dy += touch.moveY;
+      }
+      const len = Math.hypot(dx, dy);
+      this.dashAngle = len > 0.05 ? Math.atan2(dy, dx) : this.angle;
+      this.dashTimer = 0.18;
+      this.dashInvuln = 0.34;
+      this.dashCd = 4;
+      this.lockTarget = null;
+      addParticle(this.x, this.y, this.char.color || '#d6ff4d', 9, 90, 2, 0.4);
+      playSound('reload');
+      addLootFeed('冲刺 · 短暂无敌', false);
+      updateHUD();
+      return true;
+    }
+
+    useCharacterSkill() {
+      if (!raid || raid.ended || raid.paused || this.activeCd > 0) return false;
+      const skill = this.char.skill;
+      if (skill.type === 'heal') {
+        if (this.hp >= this.maxHp - 0.5) {
+          toast('生命值已满，应急治疗未消耗冷却。');
+          return false;
+        }
+        const amount = this.maxHp * 0.1;
+        this.hp = Math.min(this.maxHp, this.hp + amount);
+        this.activeCd = skill.cd;
+        addParticle(this.x, this.y, '#7bf5a8', 12, 75, 3, 0.65);
+        addFloatText(this.x, this.y - 32, `+${Math.round(amount)} HP`, '#7bf5a8');
+        addLootFeed(`应急治疗：生命 +${Math.round(amount)}`, false);
+        playSound('pickup');
+      } else if (skill.type === 'snipe') {
+        const target = findNearestVisibleEnemy(1000);
+        if (!target) {
+          toast('没有可见的锁定目标。');
+          return false;
+        }
+        this.activeCd = skill.cd;
+        this.sniperLock = { target, timer: 1.5, total: 1.5 };
+        this.lockTarget = target;
+        addLootFeed(`猎杀协议锁定：${target.name || target.kind}`, true);
+        playSound('reload');
+      } else if (skill.type === 'overdrive') {
+        this.activeCd = skill.cd;
+        this.overdriveTimer = 4;
+        addParticle(this.x, this.y, '#ffad45', 10, 80, 3, 0.5);
+        addLootFeed('火力过载：4 秒射速 +45%', false);
+        playSound('reload');
+      } else if (skill.type === 'shield') {
+        this.activeCd = skill.cd;
+        this.shield = 60;
+        this.shieldTimer = 8;
+        addParticle(this.x, this.y, '#58a6ff', 12, 70, 3, 0.6);
+        addLootFeed('应急护盾：60 点护盾 / 8 秒', false);
+        playSound('pickup');
+      }
+      updateHUD();
+      return true;
+    }
+
+    fireSniperShot() {
+      const lock = this.sniperLock;
+      this.sniperLock = null;
+      if (!lock || !lock.target || lock.target.dead) return;
+      const target = lock.target;
+      const angle = Math.atan2(target.y - this.y, target.x - this.x);
+      const damage = this.weapon.damage * this.damageMultiplier * 7;
+      spawnBeam(this.x, this.y, target.x, target.y, '#58c7ff', 4, 0.32);
+      addParticle(this.x + Math.cos(angle) * 20, this.y + Math.sin(angle) * 20, '#8bd3ff', 8, 120, 2, 0.35);
+      addParticle(target.x, target.y, '#bfeaff', 14, 110, 3, 0.65);
+      target.takeDamage(damage, angle, { ignoreDefense: true, characterSkill: true });
+      addFloatText(target.x, target.y - 38, '猎杀 · 7×', '#8bd3ff');
+      world.shake = Math.max(world.shake, 6);
+      playSound('shoot', 'dmr');
+      updateHUD();
     }
 
     heal(amount) {
@@ -2828,6 +3097,7 @@
       this.room = room;
       this.isBoss = kind === 'boss';
       this.r = this.isBoss ? 16 : 9;
+      this.defense = this.isBoss ? 0.18 : kind === 'heavy' ? 0.22 : 0;
       this.dead = false;
       this.angle = rand(0, TAU);
       this.walkPhase = 0;
@@ -3252,15 +3522,16 @@
       playSound('enemyShoot');
     }
 
-    takeDamage(amount, hitAngle) {
+    takeDamage(amount, hitAngle, options = {}) {
       if (this.dead) return;
-      this.hp -= amount;
+      const perHit = options.ignoreDefense ? amount : amount * (1 - (this.defense || 0));
+      this.hp -= perHit;
       this.hitFlash = 0.12;
       this.state = 'chase';
       this.alertTimer = 4;
       this.lastSeen = { x: player.x, y: player.y };
       addParticle(this.x, this.y, '#ff6d78', 5, 75, 2, 0.4);
-      addFloatText(this.x + rand(-6, 6), this.y - 18, `-${Math.round(amount)}`, '#ff9aa4');
+      addFloatText(this.x + rand(-6, 6), this.y - 18, `-${Math.round(perHit)}`, options.characterSkill ? '#8bd3ff' : '#ff9aa4');
       playSound('hit');
       showHitMarker(this.hp <= 0);
       if (this.hp <= 0) this.die();
@@ -3677,13 +3948,19 @@
 
       if (b.owner === 'player') {
         let hit = false;
+        if (!b.hitEnemies) b.hitEnemies = [];
         for (const enemy of world.enemies) {
           if (enemy.dead) continue;
+          if (b.pierce && b.hitEnemies.includes(enemy)) continue;
           if (segmentHitsCircle(b.prevX, b.prevY, b.x, b.y, enemy.x, enemy.y, enemy.r + 2)) {
             enemy.takeDamage(b.damage, Math.atan2(b.vy, b.vx));
             world.shake = Math.max(world.shake, 2.4);
-            hit = true;
-            break;
+            if (b.pierce) {
+              b.hitEnemies.push(enemy);
+            } else {
+              hit = true;
+              break;
+            }
           }
         }
         if (hit) {
@@ -3695,6 +3972,14 @@
           world.bullets.splice(i, 1);
         }
       }
+    }
+  }
+
+  function updateBeams(dt) {
+    for (let i = world.beams.length - 1; i >= 0; i--) {
+      const beam = world.beams[i];
+      beam.life -= dt;
+      if (beam.life <= 0) world.beams.splice(i, 1);
     }
   }
 
@@ -3893,6 +4178,7 @@
     for (const enemy of world.enemies) enemy.update(dt);
     updateBullets(dt);
     updateHazards(dt);
+    updateBeams(dt);
     if (raid.ended) return;
     updatePickups(dt);
     updateParticles(dt);
@@ -3949,6 +4235,38 @@
       el.hudLockState.textContent = autoLock ? (locked ? '锁定' : '索敌 ON') : '索敌 OFF';
       el.hudLockState.classList.toggle('active', locked);
       el.hudLockState.classList.toggle('off', !autoLock);
+    }
+    if (el.hudCharacterName) {
+      el.hudCharacterName.textContent = player.char.name;
+      el.hudCharacterName.style.color = player.char.color;
+    }
+    const dashReady = player.dashCd <= 0;
+    if (el.hudDashCd) {
+      el.hudDashCd.textContent = dashReady ? '冲刺 就绪' : `冲刺 ${player.dashCd.toFixed(1)}s`;
+      el.hudDashCd.classList.toggle('cooling', !dashReady);
+    }
+    const skill = player.char.skill;
+    const skillLocked = player.sniperLock && player.sniperLock.target && !player.sniperLock.target.dead;
+    const skillReady = player.activeCd <= 0;
+    if (el.hudSkillCd) {
+      el.hudSkillCd.textContent = skillLocked
+        ? `${skill.short} ${Math.max(0, player.sniperLock.timer).toFixed(1)}s`
+        : skillReady ? `${skill.short} 就绪` : `${skill.short} ${player.activeCd.toFixed(1)}s`;
+      el.hudSkillCd.classList.toggle('cooling', !skillReady && !skillLocked);
+    }
+    if (el.hudShield) {
+      el.hudShield.textContent = player.shield > 0 ? `护盾 ${Math.ceil(player.shield)}` : '';
+      el.hudShield.classList.toggle('hidden', player.shield <= 0);
+    }
+    if (el.touchDash) {
+      el.touchDash.textContent = dashReady ? '冲刺' : `冲刺 ${player.dashCd.toFixed(1)}`;
+      el.touchDash.classList.toggle('cooling', !dashReady);
+    }
+    if (el.touchSkill) {
+      el.touchSkill.textContent = skillLocked
+        ? `${skill.short} ${Math.max(0, player.sniperLock.timer).toFixed(1)}`
+        : skillReady ? skill.short : `${skill.short} ${player.activeCd.toFixed(1)}`;
+      el.touchSkill.classList.toggle('cooling', !skillReady && !skillLocked);
     }
     if (el.hudXpFill && raid) {
       const need = raidXpToNext(raid.level);
@@ -4036,6 +4354,7 @@
     if (!player) return;
     const totalValue = player.backpack.reduce((sum, item) => sum + itemSellValue(item), 0);
     el.inventoryLoadout.innerHTML = `
+      <div>角色<strong style="color:${player.char.color}">${player.char.name} · ${player.char.skill.name}</strong></div>
       <div>主武器<strong>${save.equipped.weapon ? itemName(save.equipped.weapon) : player.weapon.name}</strong></div>
       <div>护甲<strong>${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}</strong></div>
       <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}${player.packPlus ? ` · 强化+${player.packPlus}` : ''}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
@@ -4270,6 +4589,10 @@
       player.x = world.spawn.x;
       player.y = world.spawn.y;
       player.lockTarget = null;
+      player.sniperLock = null;
+      player.dashTimer = 0;
+      player.dashInvuln = 0;
+      player.overdriveTimer = 0;
       player.reloading = false;
       player.reloadTimer = 0;
       player.fireCd = 0;
@@ -4371,11 +4694,11 @@
       toast(`随机事件：${raid.event.label}`);
     }
     if (touch.ui) {
-      toast('轻触右侧瞄准，长按开火自动锁定。击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。');
+      toast('轻触右侧瞄准，长按开火自动锁定；冲刺可闪避，技能按钮释放角色主动技能。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
-      toast('行动开始：本局从 LV.1 开始；每 5 层出现不同首领，金色守卫掉落钥匙。');
+      toast('行动开始：Space 冲刺闪避，Q 释放角色技能；每 5 层出现不同首领。');
     }
     lastTime = performance.now();
   }
@@ -4512,6 +4835,7 @@
     for (const p of world.pickups) if (isPointVisible(p.x, p.y)) drawPickup(p);
     drawHazards();
     drawEnemyTelegraphs();
+    drawBeams();
     for (const bullet of world.bullets) drawBullet(bullet);
     for (const enemy of world.enemies) if (!enemy.dead && isPointVisible(enemy.x, enemy.y)) drawCharacter(enemy, false);
     drawCharacter(player, true);
@@ -4920,6 +5244,26 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawBeams() {
+    if (!world || !world.beams.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const beam of world.beams) {
+      const alpha = clamp(beam.life / beam.maxLife, 0, 1);
+      ctx.strokeStyle = beam.color;
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.lineWidth = beam.width * (0.6 + alpha * 0.7);
+      ctx.beginPath();
+      ctx.moveTo(beam.x1, beam.y1);
+      ctx.lineTo(beam.x2, beam.y2);
+      ctx.stroke();
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.lineWidth = beam.width * 3;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawCharacter(entity, isPlayer) {
     const bob = Math.sin(entity.walkPhase || 0) * 2;
     const isBoss = !isPlayer && entity.isBoss;
@@ -4933,12 +5277,13 @@
     ctx.fill();
 
     // Overhead health bar. Drawn before the rotation so it always stays level.
+    const playerColor = isPlayer ? (entity.char?.color || '#d6ff4d') : '#d6ff4d';
     const hpPct = clamp(entity.hp / entity.maxHp, 0, 1);
     const barW = isPlayer ? 40 : isBoss ? 64 : 32;
     const barH = isPlayer ? 5 : isBoss ? 6 : 4;
     const barY = isPlayer ? -30 : isBoss ? -44 : -28;
     let barColor;
-    if (hpPct > 0.55) barColor = isPlayer ? '#d6ff4d' : '#e45363';
+    if (hpPct > 0.55) barColor = isPlayer ? playerColor : '#e45363';
     else if (hpPct > 0.28) barColor = '#ffad45';
     else barColor = Math.sin(world.time * 14) > 0 ? '#ff5b6e' : '#ff9aa4';
 
@@ -4956,11 +5301,25 @@
 
     if (isPlayer) {
       // A faint player ring helps readability in corridors.
-      ctx.strokeStyle = 'rgba(214,255,77,.22)';
+      ctx.strokeStyle = `${playerColor}38`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(0, 0, 16, 0, TAU);
       ctx.stroke();
+      if (player.shield > 0) {
+        ctx.strokeStyle = 'rgba(88,166,255,.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 20 + Math.sin(world.time * 8) * 1.5, 0, TAU);
+        ctx.stroke();
+      }
+      if (player.dashInvuln > 0) {
+        ctx.strokeStyle = 'rgba(126,232,210,.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 23, 0, TAU);
+        ctx.stroke();
+      }
     } else if (isBoss) {
       ctx.strokeStyle = 'rgba(255,62,108,.42)';
       ctx.lineWidth = 2;
@@ -5017,14 +5376,14 @@
       // Torso.
       ctx.fillStyle = '#41556e';
       ctx.fillRect(-6, -9, 13, 18);
-      ctx.fillStyle = '#d6ff4d';
+      ctx.fillStyle = playerColor;
       ctx.fillRect(-4, -7, 3, 12);
       ctx.fillStyle = '#28384a';
       ctx.fillRect(-6, 5, 13, 4);
       // Head.
       ctx.fillStyle = '#b9c8d9';
       ctx.fillRect(4, -7, 9, 9);
-      ctx.fillStyle = '#d6ff4d';
+      ctx.fillStyle = playerColor;
       ctx.fillRect(9, -5, 3, 3);
       // Weapon.
       ctx.fillStyle = '#111820';
@@ -5147,6 +5506,16 @@
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('LOCK', 0, -r - 5);
+    if (player.sniperLock && player.sniperLock.target === target) {
+      const pct = clamp(1 - player.sniperLock.timer / player.sniperLock.total, 0, 1);
+      ctx.strokeStyle = '#58c7ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + 4, -Math.PI / 2, -Math.PI / 2 + TAU * pct);
+      ctx.stroke();
+      ctx.fillStyle = '#8bd3ff';
+      ctx.fillText(`${Math.max(0, player.sniperLock.timer).toFixed(1)}s`, 0, r + 14);
+    }
     ctx.textAlign = 'left';
     ctx.restore();
   }
@@ -5570,6 +5939,16 @@
       touch.aimPressAt = performance.now();
     });
 
+    el.touchDash.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      Sound.init();
+      if (player && raid && !raid.paused && !raid.ended) player.tryDash();
+    });
+    el.touchSkill.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      Sound.init();
+      if (player && raid && !raid.paused && !raid.ended) player.useCharacterSkill();
+    });
     el.touchReload.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       Sound.init();
@@ -5629,13 +6008,15 @@
       return;
     }
     if (mode === 'raid') {
-      if (['w', 'a', 's', 'd', 'e', 'r', 'f', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      if (['w', 'a', 's', 'd', 'e', 'r', 'f', 'q', ' ', 'shift', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
         e.preventDefault();
       }
       keys[k] = true;
       if (!e.repeat && player && raid && !raid.paused && !raid.ended) {
         if (k === 'f') player.useMedkit();
         if (k === 'r') player.startReload();
+        if (k === ' ') player.tryDash();
+        if (k === 'q') player.useCharacterSkill();
       }
     }
   });
@@ -5814,6 +6195,12 @@
           x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp, speed: player.speed,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,
           backpack: JSON.parse(JSON.stringify(player.backpack)),
+          charId: player.charId, charName: player.char.name, charSkill: player.char.skill.name, charPassive: player.char.passive.name,
+          activeCd: player.activeCd, activeCdMax: player.activeCdMax, dashCd: player.dashCd, dashInvuln: player.dashInvuln,
+          shield: player.shield, shieldTimer: player.shieldTimer, overdriveTimer: player.overdriveTimer,
+          sniperLock: player.sniperLock && player.sniperLock.target && !player.sniperLock.target.dead
+            ? { timer: player.sniperLock.timer, target: { x: player.sniperLock.target.x, y: player.sniperLock.target.y, kind: player.sniperLock.target.kind, name: player.sniperLock.target.name } }
+            : null,
           weapon: player.weaponKey, armor: player.armorKey, pack: player.packKey, capacity: player.capacity,
           weaponPlus: player.weaponPlus, armorPlus: player.armorPlus, packPlus: player.packPlus,
           damageMultiplier: player.damageMultiplier, weaponDamage: player.weapon.damage * player.damageMultiplier,
@@ -5831,6 +6218,7 @@
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
+          beams: world.beams.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, life: b.life, color: b.color })),
           bulletCount: world.bullets.length,
           bulletTypes: world.bullets.reduce((acc, b) => { const key = b.kind || b.owner; acc[key] = (acc[key] || 0) + 1; return acc; }, {}),
           bossPresent: !!world.boss,
@@ -5848,6 +6236,9 @@
     setKey(key, down) { keys[key.toLowerCase()] = !!down; },
     teleport(x, y) { if (player) { player.x = x; player.y = y; } },
     hurt(amount, sourceAngle = null) { if (player) player.takeDamage(amount, sourceAngle); },
+    dash() { if (player) player.tryDash(); return this.snapshot(); },
+    characterSkill() { if (player) player.useCharacterSkill(); return this.snapshot(); },
+    chooseCharacter(id) { selectCharacter(id); return this.snapshot(); },
     enableTouch() { enableTouchUI(); },
     touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; touch.moveTargetMag = mag; },
     touchAim(x, y, mag) {
@@ -5862,6 +6253,12 @@
     jumpFloor(floor) { if (raid && !raid.ended) { raid.floor = Math.max(1, Math.floor(Number(floor) || 1)); beginFloor(false); return this.snapshot(); } },
     bossAttack(type = 'barrage') { if (world && world.boss && !world.boss.dead) { if (type === 'slam') { world.boss.spawnBossHazards(); } else if (type === 'fan') { world.boss.fireBossFan(); } else { world.boss.barrageWaves = world.boss.bossVariant.ringWaves; world.boss.barrageTimer = 0; } return this.snapshot(); } },
     spawnEnemy(kind = 'grunt') { if (world && player) { const room = world.rooms[1] || world.rooms[0]; const e = new Enemy(player.x + 70, player.y + 30, kind, room); e.state = 'chase'; e.alertTimer = 12; e.lastSeen = { x: player.x, y: player.y }; world.enemies.push(e); return this.snapshot(); } },
+    spawnEnemyAt(kind = 'grunt', dx = 80, dy = 0) { if (world && player) { const room = world.rooms[1] || world.rooms[0]; const e = new Enemy(player.x + Number(dx), player.y + Number(dy), kind, room); e.state = 'chase'; e.alertTimer = 12; e.lastSeen = { x: player.x, y: player.y }; world.enemies.push(e); return this.snapshot(); } },
+    clearEnemies() { if (world) { for (const e of world.enemies) { if (!e.isBoss) { e.dead = true; e.hp = 0; } } } return this.snapshot(); },
+    setAim(angle = 0) { if (player) player.angle = Number(angle) || 0; return this.snapshot(); },
+    setHp(hp = 1) { if (player) { player.hp = clamp(Number(hp) || 0, 0, player.maxHp); updateHUD(); } return this.snapshot(); },
+    shoot() { if (player) player.tryShoot(); return this.snapshot(); },
+    setEnemyHp(index, hp = 1000) { const e = world && world.enemies[index]; if (e && !e.dead) { e.maxHp = Math.max(e.maxHp, Number(hp) || 0); e.hp = clamp(Number(hp) || 0, 0, e.maxHp); } return this.snapshot(); },
     damageEnemy(index, amount = 9999) { const enemy = world && world.enemies[index]; if (enemy && !enemy.dead) enemy.takeDamage(amount, 0); },
     grantKeys(count = 1) { if (raid && !raid.ended) { raid.keys = (raid.keys || 0) + Math.max(0, Math.floor(count)); updateHUD(); } },
     grantStone(type = 'stone_white', count = 1) {

@@ -11,18 +11,18 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v27
-- Save key: localStorage pixel_extract_save_v1, schema version 5
-- Latest maintenance: six stage sectors, six enemy archetypes, six boss variants and fully reworked enemy/boss attacks (see git log)
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v28
+- Save key: localStorage pixel_extract_save_v1, schema version 6
+- Latest maintenance: four playable characters with universal dash, unique active skills and passives (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
 - Top-left shows only the PX mark, base title and subtitle. There is no base level or XP bar.
-- Manage center directly shows five entry cards in a 3x2 grid: equipment, stash, black market, enhancement, transcendence.
+- Manage center directly shows six entry cards in a 3x2 grid: character, equipment, stash, black market, enhancement, transcendence.
 - Each card opens its own independent window. No tabs, no extra manage-window entry.
-- All five windows fit without vertical scrolling at tested sizes; item/stone lists scroll internally when needed.
+- All six windows fit without vertical scrolling at tested sizes; item/stone lists and character detail scroll internally when needed.
 - The old progression panel was removed and must not be re-added.
-- In-raid HUD shows run level, floor, XP, HP, ammo, keys and backpack. The Tab inventory shows the equipped backpack name and live capacity.
+- In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
 - The transcendence window shows level, current value progress / next threshold, permanent bonuses, item conversion list and bulk common-loot conversion.
@@ -37,6 +37,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Backpacks are a separate equipment drop: white/green/blue/purple/red/rainbow grant +8/+16/+24/+32/+40/+50 capacity on top of the base 8 slots.
 - Enemies drop enhancement stones by chance; stones are six quality levels with 30/45/60/75/90/100% success rates.
 - Level-up growth is a focused, paused 3-choice modal. Perks are run-only and disappear when the run ends.
+- Four characters: Pioneer (heal 10% / low-HP damage reduction), Sniper (1.5s lock, 7x defense-and-wall-ignoring shot / piercing bullets), Assault (4s fire-rate overdrive / faster reload), Juggernaut (60 shield / 12% damage reduction).
+- Universal Space dash: short directional displacement, 4s CD, brief invulnerability; touch dash button and Q active skill mirror it.
 - Debrief, perk-choice and extraction-choice cards fit without scrolling at 932x430, 667x375 and 568x320.
 
 ## Must keep
@@ -48,6 +50,10 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Every new run starts at level 1. Base level/XP/permanent perks must not return.
 - Keep risk picker, random events, stash filter/sell-common, save export/import and touch settings.
 - Keep bosses exclusive to every fifth floor; key guardian must always drop one key; locked chest must consume exactly one key.
+- Keep the four playable characters, their exact active/passive effects, save-persisted character selection and universal 4s dash with brief invulnerability.
+- Keep Sniper active at 1.5s lock / 7x weapon damage / ignore defense / ignore walls, and keep its passive bullets piercing all enemies.
+- Keep heavy/boss defense and ensure Sniper active ignores it; normal bullets must still be reduced by defense.
+- Keep character HUD/touch cooldown displays and the six-card 3x2 manage grid.
 - Keep enemy attacks distinct and telegraphed: burst, charge, fan, sniper line, mortar circle and radial barrage. Do not collapse them back to one generic shot.
 - Keep boss full-map barrages blocked by walls and keep targeted slam zones telegraphed for roughly 1.5 seconds with large damage on failure to dodge.
 - Keep six stage palettes and stage-specific enemy pools; HUD objective must show the current stage name.
@@ -94,12 +100,15 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Verified thresholds 1000/1250/1563/1954/2442/3052, v4 -> v5 migration, bulk conversion, +20 HP / +4% damage / +2% reduction at level 2, and 3x2 manage grid + transcendence panel no-scroll at all three test sizes.
 - Added six floor sectors with distinct map palettes and enemy pools, six enemy attack archetypes, and six boss variants with full-map barrage, telegraphed slam and suppression fan attacks.
 - Verified F1/F5/F10/F15/F20/F25/F30 stage and boss rotation, all six enemy attack types, boss slam hit for 69 damage at F5 vs zero when dodging, barrage bullet count collapsing from 47 to 7 within 1.8s due to walls/lifetime, and 568x320 boss HUD/objective no overflow.
+- Added character system and save schema v6: four selectable characters, active skills, passives, universal dash, enemy defense, sniper lock beams and HUD/touch cooldowns.
+- Verified Pioneer heal 50->60 HP with 10s CD, dash displacement 139px with 4s CD and 100% dodge of a 999 hit, Pioneer low-HP passive 30 damage -> 24, Juggernaut 60 shield and 12% passive, Assault 4s overdrive, Sniper 1000 HP heavy taking exactly 168 (7x24, ignoring 22% defense), and Sniper bullets damaging two aligned enemies with one shot.
+- Verified character panel at 932x430 and 568x320, six base cards, save character selection, and no JS errors.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -108,6 +117,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - enemy stone drop, enhancement success/failure, stone consumption and +10 cap
   - transcendence conversion, 1000/1250 thresholds, permanent stat application and save persistence
   - stage/boss rotation, telegraphs, wall-blocked boss barrage and slam dodge/damage behavior
+  - character selection persistence, v5->v6 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
 
 ## Release
 1. Edit and test locally.

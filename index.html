@@ -62,6 +62,7 @@
           <div class="control-hint">
             <div><kbd>WASD</kbd> 移动　<kbd>鼠标</kbd> 瞄准</div>
             <div><kbd>左键</kbd> 射击　<kbd>R</kbd> 换弹　<kbd>F</kbd> 医疗</div>
+            <div><kbd>Space</kbd> 冲刺闪避　<kbd>Q</kbd> 角色主动技能</div>
             <div>靠近补给箱停留 2 秒自动搜索　<kbd>Tab</kbd> 背包　<kbd>M</kbd> 地图　<kbd>Esc</kbd> 暂停</div>
             <div>撤离点停留 3 秒：继续下一层，或返回基地结算</div>
           </div>
@@ -112,6 +113,12 @@
                 <span class="manage-entry-desc">投入物品价值永久成长</span>
                 <span class="manage-entry-meta" id="baseTranscendSummary">Lv.0 · 0/1000</span>
               </button>
+              <button id="openCharacterBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">CH</span>
+                <span class="manage-entry-title">角色</span>
+                <span class="manage-entry-desc">主动技能 / 被动 / 冲刺</span>
+                <span class="manage-entry-meta" id="baseCharacterSummary">开拓者</span>
+              </button>
             </div>
           </div>
         </section>
@@ -145,6 +152,12 @@
               <span id="hudWeaponIcon" class="hud-weapon-icon">▰</span>
               <span id="hudWeapon">旧式手枪</span>
               <strong id="hudAmmo">12 / 90</strong>
+            </div>
+            <div class="character-hud">
+              <span id="hudCharacterName" class="char-name">开拓者</span>
+              <span id="hudDashCd">冲刺 就绪</span>
+              <span id="hudSkillCd">治疗 就绪</span>
+              <span id="hudShield" class="hidden">护盾 0</span>
             </div>
           </div>
 
@@ -199,6 +212,8 @@
             <span class="touch-pad-label">长按开火 · 拖动瞄准</span>
           </div>
           <div class="touch-actions">
+            <button id="touchDash" class="touch-btn skill-btn" type="button">冲刺</button>
+            <button id="touchSkill" class="touch-btn skill-btn" type="button">技能</button>
             <button id="touchReload" class="touch-btn" type="button">换弹</button>
             <button id="touchMed" class="touch-btn" type="button">医疗</button>
             <button id="touchInventory" class="touch-btn" type="button">背包</button>
@@ -365,6 +380,17 @@
               <div class="enhance-col-title">仓库物品价值 <span id="transcendStashValue">0</span></div>
               <div id="transcendItemList" class="transcend-item-list"></div>
             </section>
+          </div>
+        </div>
+
+        <div id="manageCharacterPanel" class="manage-panel hidden">
+          <div class="manage-subhead">
+            <span>角色档案</span>
+            <span id="characterCurrentTag" class="panel-tag">当前：开拓者</span>
+          </div>
+          <div class="character-layout">
+            <div id="characterList" class="character-list"></div>
+            <section id="characterDetail" class="character-detail"></section>
           </div>
         </div>
 
