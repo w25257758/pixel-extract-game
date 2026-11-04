@@ -1580,11 +1580,13 @@ body.touch-device.move-stick-fixed .move-pad {
     line-height: 1.3;
   }
   .equipped-summary { margin: 6px 0; gap: 5px; }
+  .equipped-summary { grid-template-columns: 1fr 1fr; }
   .equipped-slot { padding: 6px 8px; }
   .equipped-slot-label { font-size: 7px; }
   .equipped-slot-name { margin-top: 2px; font-size: 11px; }
   .equipped-slot-stats { margin-top: 3px; font-size: 7px; line-height: 1.4; }
   .equip-columns { gap: 6px; }
+  .equip-columns { grid-template-columns: 1fr 1fr; }
   .equip-col-title { padding: 6px 8px; font-size: 9px; }
   .equip-choice-list { max-height: none; padding: 5px; }
   .equip-choice { padding: 6px; }
