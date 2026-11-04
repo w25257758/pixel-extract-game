@@ -1857,13 +1857,13 @@
     });
   }
 
-  function findPlayerLockTarget(maxRange, aimAngle = player ? player.angle : 0) {
+  function findPlayerLockTarget(maxRange, aimAngle = player ? player.angle : 0, nearestOnly = false) {
     if (!world || !player) return null;
     const valid = (enemy) => enemy && !enemy.dead &&
       dist2(enemy.x, enemy.y, player.x, player.y) <= maxRange * maxRange &&
       lineOfSight(player.x, player.y, enemy.x, enemy.y);
     const angleDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-    if (valid(player.lockTarget)) {
+    if (!nearestOnly && valid(player.lockTarget)) {
       const currentAngle = Math.atan2(player.lockTarget.y - player.y, player.lockTarget.x - player.x);
       if (angleDiff(currentAngle, aimAngle) < 0.58) return player.lockTarget;
     }
@@ -1874,11 +1874,13 @@
       const d = Math.sqrt(dist2(enemy.x, enemy.y, player.x, player.y));
       const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
       const diff = angleDiff(enemyAngle, aimAngle);
-      if (diff > AUTO_LOCK_CONE) continue;
-      let score = d * (1 + diff * 1.85);
-      if (diff < Math.PI / 3) score *= 0.72;
-      if (enemy.isBoss) score *= 0.82;
-      if (enemy.state === 'chase') score *= 0.8;
+      if (!nearestOnly && diff > AUTO_LOCK_CONE) continue;
+      let score = nearestOnly ? d : d * (1 + diff * 1.85);
+      if (!nearestOnly) {
+        if (diff < Math.PI / 3) score *= 0.72;
+        if (enemy.isBoss) score *= 0.82;
+        if (enemy.state === 'chase') score *= 0.8;
+      }
       if (score < bestScore) {
         bestScore = score;
         best = enemy;
@@ -1984,8 +1986,9 @@
       }
 
       const lockAimAngle = touch.ui && touch.hasAim ? touch.aimAngle : this.angle;
+      const mobileNearestLock = touch.ui;
       const wantsLock = save.settings.autoLock !== false && (touch.ui ? touch.aiming : (mouse.down || mouse.semiQueued));
-      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 60, lockAimAngle) : null;
+      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 60, lockAimAngle, mobileNearestLock) : null;
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }

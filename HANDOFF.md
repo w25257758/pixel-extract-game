@@ -11,7 +11,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v20
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v21
 - Save key: localStorage pixel_extract_save_v1
 - Latest maintenance: run-only leveling, in-raid perk choices, multi-floor extraction choice (see git log)
 
@@ -29,13 +29,13 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Must keep
 - No separate fire button.
 - Aim pad: light touch aims, hold about 0.15s fires, drag to aim.
-- Touch aim (and desktop hold-fire) auto-locks the nearest visible enemy in front; HUD shows 索敌 ON / 锁定 / 索敌 OFF.
+- Mobile touch aim auto-locks the nearest visible enemy in weapon range regardless of facing; desktop hold-fire keeps the 75-degree front cone. HUD shows 索敌 ON / 锁定 / 索敌 OFF.
 - Stand near a container for 2 seconds to auto-search; moving, damage or reload interrupts.
 - Stay in extraction zone for 3 seconds, then choose continue to the next floor or return to base.
 - Every new run starts at level 1. Base level/XP/permanent perks must not return.
 - Keep risk picker, random events, stash filter/sell-common, save export/import and touch settings.
 - Keep the base one-screen on mobile landscape; do not add scrolling panels.
-- Keep auto-lock restricted to enemies in front of the aim direction (75-degree cone).
+- Mobile auto-lock must choose the nearest visible enemy in weapon range even when the player is moving backwards. Desktop auto-lock keeps the 75-degree front cone.
 - Keep level-up choices as an in-raid compact modal, not a base progression panel.
 - Continuing to the next floor keeps the current run's level, perks, HP, ammo and backpack.
 - Enemy HP, damage, count and rare-loot chance scale with floor depth.
@@ -48,7 +48,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Kills and loot grant run XP; level-ups open a paused 3-choice perk modal. Perk effects apply to the current run only.
 - Extraction now opens a choice card: continue to the next floor with the current run, or return to base and settle loot.
 - Floor scaling raises enemy count, HP, damage and rare-loot chance without using a persistent player level.
-- Auto-lock now also works while holding fire on desktop, has a HUD state indicator, and keeps the 75-degree front-cone restriction.
+- Auto-lock now works on desktop hold-fire with the front cone, while mobile touch lock chooses the nearest visible enemy regardless of facing; HUD shows state.
 - Compacted debrief/perk cards and added a compact extraction-choice card.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
