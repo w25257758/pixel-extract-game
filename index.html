@@ -100,6 +100,12 @@
                 <span class="manage-entry-desc">购买武器与补给</span>
                 <span class="manage-entry-meta"><strong id="baseScrap">0</strong> 废料</span>
               </button>
+              <button id="openEnhanceBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">EN</span>
+                <span class="manage-entry-title">强化</span>
+                <span class="manage-entry-desc">消耗强化石提升装备</span>
+                <span class="manage-entry-meta" id="baseEnhanceSummary">0 颗强化石</span>
+              </button>
             </div>
           </div>
         </section>
@@ -331,6 +337,24 @@
             <span id="shopScrap" class="panel-tag">废料 0</span>
           </div>
           <div id="shopList" class="shop-list"></div>
+        </div>
+
+        <div id="manageEnhancePanel" class="manage-panel hidden">
+          <div class="manage-subhead">
+            <span>强化台</span>
+            <span id="enhanceStoneCount" class="panel-tag">强化石 0 颗</span>
+          </div>
+          <div class="enhance-layout">
+            <section class="enhance-target-col">
+              <div class="enhance-col-title">选择装备 <span>+0 ~ +10</span></div>
+              <div id="enhanceTargets" class="enhance-target-list"></div>
+            </section>
+            <section class="enhance-action-col">
+              <div class="enhance-col-title">选择强化石 <span id="enhanceChanceHint">成功率由强化石决定</span></div>
+              <div id="enhanceTargetSummary" class="enhance-target-summary"></div>
+              <div id="enhanceStoneList" class="enhance-stone-list"></div>
+            </section>
+          </div>
         </div>
 
         <p id="manageNote" class="overlay-note">装备会立即更新作战准备；进入行动后不能更换。</p>

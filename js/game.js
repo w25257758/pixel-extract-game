@@ -90,6 +90,13 @@
     ghost: { name: '幽灵纤维甲', reduction: 0.22, speedBonus: 0.04, stealth: 0.72, color: '#a98cff', desc: '减少 22% 伤害，移速 +4%，敌人视野降低 28%。' }
   };
 
+  const MAX_ENHANCE = 10;
+  const ENHANCE_RULES = {
+    weapon: { perLevel: 0.05, label: '伤害' },
+    armor: { perLevel: 0.015, label: '减伤' },
+    pack: { perLevel: 1, label: '容量' }
+  };
+
   const PACK_QUALITIES = {
     white: { label: '白色', color: '#e8edf2', bonus: 8, desc: '基础背包装备，提供 8 个额外物资格。' },
     green: { label: '绿色', color: '#6fe29a', bonus: 16, desc: '加固背包装备，提供 16 个额外物资格。' },
@@ -120,6 +127,12 @@
     p_purple: { name: '紫色背包', icon: '▦', kind: 'pack', pack: 'purple', rarity: 'epic', sell: 360, stack: false, desc: '紫色品质背包装备。容量 +32。' },
     p_red: { name: '红色背包', icon: '▧', kind: 'pack', pack: 'red', rarity: 'legendary', sell: 720, stack: false, desc: '红色品质背包装备。容量 +40。' },
     p_rainbow: { name: '彩色背包', icon: '◈', kind: 'pack', pack: 'rainbow', rarity: 'mythic', sell: 1200, stack: false, desc: '彩色品质背包装备。容量 +50。' },
+    stone_white: { name: '白色强化石', icon: '◇', kind: 'stone', stoneLevel: 1, success: 0.30, rarity: 'common', sell: 12, stack: true, desc: '强化石 Lv.1。强化成功概率 30%。' },
+    stone_green: { name: '绿色强化石', icon: '◈', kind: 'stone', stoneLevel: 2, success: 0.45, rarity: 'uncommon', sell: 28, stack: true, desc: '强化石 Lv.2。强化成功概率 45%。' },
+    stone_blue: { name: '蓝色强化石', icon: '◆', kind: 'stone', stoneLevel: 3, success: 0.60, rarity: 'rare', sell: 65, stack: true, desc: '强化石 Lv.3。强化成功概率 60%。' },
+    stone_purple: { name: '紫色强化石', icon: '✦', kind: 'stone', stoneLevel: 4, success: 0.75, rarity: 'epic', sell: 140, stack: true, desc: '强化石 Lv.4。强化成功概率 75%。' },
+    stone_red: { name: '红色强化石', icon: '✧', kind: 'stone', stoneLevel: 5, success: 0.90, rarity: 'legendary', sell: 300, stack: true, desc: '强化石 Lv.5。强化成功概率 90%。' },
+    stone_rainbow: { name: '彩色强化石', icon: '✺', kind: 'stone', stoneLevel: 6, success: 1.00, rarity: 'mythic', sell: 600, stack: true, desc: '强化石 Lv.6。强化必定成功。' },
     scrap: { name: '机械零件', icon: '⚙', kind: 'loot', rarity: 'common', sell: 4, stack: true, desc: '常见的工业废料，黑市会收。' },
     fiber: { name: '纤维束', icon: '≋', kind: 'loot', rarity: 'common', sell: 6, stack: true, desc: '从废弃织物和线缆中抽出的纤维。' },
     circuit: { name: '废旧电路', icon: '▦', kind: 'loot', rarity: 'common', sell: 9, stack: true, desc: '烧毁的线路板，仍有回收价值。' },
@@ -150,6 +163,11 @@
     uncommon: ['chip', 'battery', 'w_smg', 'a_light', 'a_scout'],
     rare: ['relic', 'lens', 'drone_core', 'medal', 'w_rifle', 'w_shotgun', 'w_lmg', 'a_heavy', 'a_medic'],
     epic: ['core', 'quantum', 'phase', 'w_dmr', 'w_rail', 'a_riot', 'a_ghost']
+  };
+  const STONE_TIER_WEIGHTS = {
+    normal: { white: 58, green: 27, blue: 11, purple: 3.2, red: 0.7, rainbow: 0.1 },
+    elite: { white: 25, green: 32, blue: 25, purple: 12, red: 4.5, rainbow: 1.5 },
+    boss: { white: 0, green: 10, blue: 30, purple: 38, red: 17, rainbow: 5 }
   };
   const PACK_TIER_WEIGHTS = {
     common: { white: 72, green: 22, blue: 5, purple: 0.8, red: 0.15, rainbow: 0.05 },
@@ -182,19 +200,23 @@
     return list.slice().sort((a, b) => {
       const da = defOf(a);
       const db = defOf(b);
-      const kindOrder = { weapon: 0, armor: 1, pack: 2, loot: 3 };
+      const kindOrder = { weapon: 0, armor: 1, pack: 2, stone: 3, loot: 4 };
       const kindDiff = (kindOrder[da.kind] ?? 3) - (kindOrder[db.kind] ?? 3);
       if (kindDiff) return kindDiff;
       const rarityDiff = (RARITY_ORDER[db.rarity] || 0) - (RARITY_ORDER[da.rarity] || 0);
       if (rarityDiff) return rarityDiff;
+      const plusDiff = enhanceLevel(b) - enhanceLevel(a);
+      if (plusDiff) return plusDiff;
       const valueDiff = (db.sell || 0) - (da.sell || 0);
       if (valueDiff) return valueDiff;
       return da.name.localeCompare(db.name, 'zh-CN');
     });
   }
 
-  function createItem(type, qty = 1) {
-    return { id: uid(), type, qty };
+  function createItem(type, qty = 1, plus = 0) {
+    const item = { id: uid(), type, qty };
+    if (plus > 0) item.plus = plus;
+    return item;
   }
 
   function defOf(itemOrType) {
@@ -202,8 +224,35 @@
     return ITEM_DEFS[type] || ITEM_DEFS.scrap;
   }
 
-  function itemName(item) { return defOf(item).name; }
-  function itemSellValue(item) { return defOf(item).sell * (item.qty || 1); }
+  function enhanceLevel(item) {
+    const def = defOf(item);
+    if (!item || !['weapon', 'armor', 'pack'].includes(def.kind)) return 0;
+    return clamp(Math.floor(Number(item.plus) || 0), 0, MAX_ENHANCE);
+  }
+
+  function normalizeItemInstance(item) {
+    if (!item || !ITEM_DEFS[item.type]) return null;
+    const def = ITEM_DEFS[item.type];
+    const normalized = { ...item, id: item.id || uid(), qty: item.qty || 1 };
+    if (['weapon', 'armor', 'pack'].includes(def.kind)) {
+      normalized.plus = enhanceLevel(item);
+    } else {
+      delete normalized.plus;
+    }
+    return normalized;
+  }
+
+  function itemName(item) {
+    const def = defOf(item);
+    const plus = enhanceLevel(item);
+    return `${def.name}${plus ? ` +${plus}` : ''}`;
+  }
+
+  function itemSellValue(item) {
+    const def = defOf(item);
+    const plus = enhanceLevel(item);
+    return Math.round(def.sell * (item.qty || 1) * (1 + plus * 0.12));
+  }
 
   function addItemToArray(list, item) {
     const def = defOf(item);
@@ -241,7 +290,7 @@
 
   function defaultSave() {
     return {
-      version: 3,
+      version: 4,
       scrap: 80,
       stash: [],
       equipped: {
@@ -264,22 +313,22 @@
       upgrades: { ...base.upgrades, ...(raw.upgrades || {}) },
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
-      stash: Array.isArray(raw.stash) ? raw.stash.filter((i) => ITEM_DEFS[i?.type]).map((i) => ({ ...i, id: i.id || uid(), qty: i.qty || 1 })) : []
+      stash: Array.isArray(raw.stash) ? raw.stash.map(normalizeItemInstance).filter(Boolean) : []
     };
     if (!raw.equipped || !ITEM_DEFS[raw.equipped.weapon?.type]) {
       merged.equipped.weapon = createItem('w_pistol');
     } else {
-      merged.equipped.weapon = { ...raw.equipped.weapon, id: raw.equipped.weapon.id || uid(), qty: 1 };
+      merged.equipped.weapon = { ...normalizeItemInstance(raw.equipped.weapon), qty: 1 };
     }
     if (raw.equipped && ITEM_DEFS[raw.equipped.armor?.type]) {
-      merged.equipped.armor = { ...raw.equipped.armor, id: raw.equipped.armor.id || uid(), qty: 1 };
+      merged.equipped.armor = { ...normalizeItemInstance(raw.equipped.armor), qty: 1 };
     } else {
       merged.equipped.armor = null;
     }
     if (raw.equipped && raw.equipped.pack === null) {
       merged.equipped.pack = null;
     } else if (raw.equipped && defOf(raw.equipped.pack).kind === 'pack' && ITEM_DEFS[raw.equipped.pack?.type]) {
-      merged.equipped.pack = { ...raw.equipped.pack, id: raw.equipped.pack.id || uid(), qty: 1 };
+      merged.equipped.pack = { ...normalizeItemInstance(raw.equipped.pack), qty: 1 };
     } else {
       merged.equipped.pack = createItem('p_white');
     }
@@ -288,7 +337,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 3;
+    merged.version = 4;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
@@ -328,14 +377,19 @@
     if (!def) return 0;
     return clamp(Math.floor(Number(raid?.perks?.[key]) || 0), 0, def.max);
   }
+  function packCapacityBonus(item) {
+    if (!item) return 0;
+    const quality = PACK_QUALITIES[defOf(item).pack];
+    return (quality?.bonus || 0) + enhanceLevel(item);
+  }
+
   function equippedPackDef() {
     const pack = save.equipped?.pack;
     return pack ? PACK_QUALITIES[defOf(pack).pack] || null : null;
   }
 
   function backpackCapacity() {
-    const packBonus = equippedPackDef()?.bonus || 0;
-    return 8 + packBonus + perkRank('scavenger');
+    return 8 + packCapacityBonus(save.equipped?.pack) + perkRank('scavenger');
   }
   function startingMedkits() { return 2 + save.upgrades.medkits; }
 
@@ -611,6 +665,7 @@
     openEquipBtn: $('#openEquipBtn'),
     openStashBtn: $('#openStashBtn'),
     openShopBtn: $('#openShopBtn'),
+    openEnhanceBtn: $('#openEnhanceBtn'),
     equipOverlay: $('#equipOverlay'),
     closeEquipBtn: $('#closeEquipBtn'),
     equipWindowTitle: $('#equipWindowTitle'),
@@ -622,9 +677,16 @@
     manageEquipPanel: $('#manageEquipPanel'),
     manageStashPanel: $('#manageStashPanel'),
     manageShopPanel: $('#manageShopPanel'),
+    manageEnhancePanel: $('#manageEnhancePanel'),
+    enhanceTargets: $('#enhanceTargets'),
+    enhanceTargetSummary: $('#enhanceTargetSummary'),
+    enhanceStoneList: $('#enhanceStoneList'),
+    enhanceChanceHint: $('#enhanceChanceHint'),
+    enhanceStoneCount: $('#enhanceStoneCount'),
     shopScrap: $('#shopScrap'),
     baseStashCount: $('#baseStashCount'),
     baseScrap: $('#baseScrap'),
+    baseEnhanceSummary: $('#baseEnhanceSummary'),
     baseEquipSummary: $('#baseEquipSummary'),
     touchControls: $('#touchControls'),
     moveZone: $('#moveZone'),
@@ -828,6 +890,7 @@
   let selectedStashId = null;
   let selectedInventoryItemId = null;
   let stashRarityFilter = 'all';
+  let enhanceTargetSlot = 'weapon';
   let toastTimer = 0;
 
   function toast(message) {
@@ -948,13 +1011,15 @@
     const weaponDef = weaponItem ? WEAPON_DEFS[defOf(weaponItem).weapon] : null;
     if (weaponDef) {
       const rpm = Math.round(60 / weaponDef.cooldown);
+      const plus = enhanceLevel(weaponItem);
+      const damage = Math.round(weaponDef.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel));
       el.loadoutWeapon.className = 'equip-card';
       el.loadoutWeapon.innerHTML = `
         <div class="equip-top">
-          <div><div class="equip-name">${weaponDef.name}</div><div class="equip-type">主武器 · ${weaponDef.code}</div></div>
+          <div><div class="equip-name">${itemName(weaponItem)}</div><div class="equip-type">主武器 · ${weaponDef.code}${plus ? ` · 强化 +${plus}` : ''}</div></div>
           <div class="equip-icon" style="color:${weaponDef.color}">${weaponItem ? defOf(weaponItem).icon : '▰'}</div>
         </div>
-        <div class="equip-stats"><span>伤害 ${weaponDef.damage}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}</div>`;
+        <div class="equip-stats"><span>伤害 ${damage}${plus ? ` (${weaponDef.damage}+${plus * 5}%)` : ''}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}</div>`;
     } else {
       el.loadoutWeapon.className = 'equip-card empty';
       el.loadoutWeapon.innerHTML = '<div class="equip-name">未装备武器</div><div class="equip-desc">去仓库装备一把武器。</div>';
@@ -962,26 +1027,30 @@
 
     const armorItem = save.equipped.armor;
     const armorDef = ARMOR_DEFS[armorItem ? defOf(armorItem).armor : 'none'];
+    const armorPlus = enhanceLevel(armorItem);
+    const armorReduction = Math.min(0.75, armorDef.reduction + armorPlus * ENHANCE_RULES.armor.perLevel);
     el.loadoutArmor.className = 'equip-card';
     el.loadoutArmor.innerHTML = `
       <div class="equip-top">
-        <div><div class="equip-name">${armorDef.name}</div><div class="equip-type">护甲 · ${armorItem ? RARITY_LABEL[defOf(armorItem).rarity] : '基础'}</div></div>
+        <div><div class="equip-name">${armorItem ? itemName(armorItem) : armorDef.name}</div><div class="equip-type">护甲 · ${armorItem ? RARITY_LABEL[defOf(armorItem).rarity] : '基础'}${armorPlus ? ` · 强化 +${armorPlus}` : ''}</div></div>
         <div class="equip-icon" style="color:${armorDef.color}">${armorItem ? defOf(armorItem).icon : '▤'}</div>
       </div>
-      <div class="equip-stats"><span>伤害减免 ${Math.round(armorDef.reduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
+      <div class="equip-stats"><span>伤害减免 ${Math.round(armorReduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
 
     const packItem = save.equipped.pack;
     const packDef = packItem ? PACK_QUALITIES[defOf(packItem).pack] : null;
+    const packPlus = enhanceLevel(packItem);
     if (el.loadoutPack) {
-      el.loadoutPack.textContent = packDef ? `${packDef.label} +${packDef.bonus}` : '未装备';
+      el.loadoutPack.textContent = packDef ? `${packDef.label} +${packDef.bonus + packPlus}` : '未装备';
       el.loadoutPack.style.color = packDef ? packDef.color : 'var(--dim)';
       el.loadoutPack.classList.toggle('rainbow-text', !!packItem && defOf(packItem).pack === 'rainbow');
+      el.loadoutPack.title = packDef ? `${packDef.name}${packPlus ? ` · 强化 +${packPlus}` : ''}` : '';
     }
     el.loadoutMeds.textContent = startingMedkits() + (armorDef.medkitBonus || 0);
     el.loadoutSlots.textContent = backpackCapacity();
     if (el.baseEquipSummary) {
-      const packText = packDef ? ` · 背包 +${packDef.bonus}` : '';
-      el.baseEquipSummary.textContent = weaponDef ? `武器 · ${weaponDef.name}${packText}` : `未装备武器${packText}`;
+      const packText = packDef ? ` · 背包 +${packDef.bonus + packPlus}` : '';
+      el.baseEquipSummary.textContent = weaponDef ? `武器 · ${itemName(weaponItem)}${packText}` : `未装备武器${packText}`;
     }
   }
 
@@ -1009,10 +1078,10 @@
       slot.type = 'button';
       slot.className = `stash-slot rarity-${def.rarity} ${selectedStashId === item.id ? 'selected' : ''}`;
       slot.dataset.id = item.id;
-      slot.title = `${def.name} · ${def.desc}`;
+      slot.title = `${itemName(item)} · ${def.desc}`;
       slot.innerHTML = `
         <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
-        <span class="slot-name">${def.name}</span>
+        <span class="slot-name">${itemName(item)}</span>
         ${item.qty > 1 ? `<span class="slot-qty">×${item.qty}</span>` : ''}`;
       slot.addEventListener('click', () => {
         selectedStashId = item.id;
@@ -1030,7 +1099,7 @@
     el.itemActions.classList.remove('hidden');
     el.selectedIcon.textContent = def.icon;
     el.selectedIcon.style.color = choiceIconColor(def);
-    el.selectedName.textContent = `${def.name}${selected.qty > 1 ? ` ×${selected.qty}` : ''}`;
+    el.selectedName.textContent = `${itemName(selected)}${selected.qty > 1 ? ` ×${selected.qty}` : ''}`;
     el.selectedDesc.textContent = `${def.desc} · ${RARITY_LABEL[def.rarity]}`;
     el.selectedValue.textContent = `出售 +${itemSellValue(selected)}`;
     el.equipBtn.classList.toggle('hidden', !['weapon', 'armor', 'pack'].includes(def.kind));
@@ -1038,7 +1107,7 @@
   }
 
   function sellLowValue() {
-    const lowValue = save.stash.filter((item) => defOf(item).rarity === 'common');
+    const lowValue = save.stash.filter((item) => defOf(item).rarity === 'common' && defOf(item).kind !== 'stone');
     if (!lowValue.length) {
       toast('仓库里没有普通品质物资。');
       return;
@@ -1095,22 +1164,28 @@
 
   function gearStatsText(item) {
     const def = defOf(item);
+    const plus = enhanceLevel(item);
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
+      const damage = Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel));
       const pelletText = w.pellets > 1 ? ` · 弹丸 ${w.pellets}` : '';
-      return `伤害 ${w.damage}${pelletText} · 弹匣 ${w.mag} · ${w.auto || likelyTouch ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min`;
+      return `伤害 ${damage}${plus ? ` (强化 +${plus})` : ''}${pelletText} · 弹匣 ${w.mag} · ${w.auto || likelyTouch ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min`;
     }
     if (def.kind === 'armor') {
       const a = ARMOR_DEFS[def.armor];
+      const reduction = Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel);
       const extras = [];
       if (a.speedBonus) extras.push(`移速 +${Math.round(a.speedBonus * 100)}%`);
       if (a.medkitBonus) extras.push(`医疗包 +${a.medkitBonus}`);
       if (a.stealth) extras.push(`敌人视野 -${Math.round((1 - a.stealth) * 100)}%`);
-      return `伤害减免 ${Math.round(a.reduction * 100)}%${extras.length ? ` · ${extras.join(' · ')}` : ''} · ${RARITY_LABEL[def.rarity]}`;
+      return `伤害减免 ${Math.round(reduction * 100)}%${plus ? ` (强化 +${plus})` : ''}${extras.length ? ` · ${extras.join(' · ')}` : ''} · ${RARITY_LABEL[def.rarity]}`;
     }
     if (def.kind === 'pack') {
       const pack = PACK_QUALITIES[def.pack];
-      return `背包装备 · ${pack.label}品质 · 容量 +${pack.bonus}`;
+      return `背包装备 · ${pack.label}品质 · 容量 +${pack.bonus + plus}${plus ? ` (强化 +${plus})` : ''}`;
+    }
+    if (def.kind === 'stone') {
+      return `强化石 Lv.${def.stoneLevel} · 成功率 ${Math.round(def.success * 100)}% · ${RARITY_LABEL[def.rarity]}`;
     }
     return def.desc;
   }
@@ -1120,9 +1195,10 @@
     if (def.kind === 'weapon') {
       const next = WEAPON_DEFS[def.weapon];
       if (!save.equipped.weapon) return '<span class="compare up">当前武器槽为空 · 可直接装备</span>';
-      const current = WEAPON_DEFS[defOf(save.equipped.weapon).weapon];
-      const nextDps = next.damage * (next.pellets || 1) / next.cooldown;
-      const currentDps = current.damage * (current.pellets || 1) / current.cooldown;
+      const currentItem = save.equipped.weapon;
+      const current = WEAPON_DEFS[defOf(currentItem).weapon];
+      const nextDps = next.damage * (1 + enhanceLevel(item) * ENHANCE_RULES.weapon.perLevel) * (next.pellets || 1) / next.cooldown;
+      const currentDps = current.damage * (1 + enhanceLevel(currentItem) * ENHANCE_RULES.weapon.perLevel) * (current.pellets || 1) / current.cooldown;
       const pct = Math.round((nextDps / currentDps - 1) * 100);
       if (Math.abs(pct) <= 2) return '<span class="compare">DPS 与当前武器基本持平</span>';
       return `<span class="compare ${pct > 0 ? 'up' : 'down'}">DPS ${pct > 0 ? '+' : ''}${pct}% · 对比当前武器</span>`;
@@ -1130,8 +1206,11 @@
     if (def.kind === 'armor') {
       const next = ARMOR_DEFS[def.armor];
       if (!save.equipped.armor) return '<span class="compare up">当前没有护甲 · 可直接装备</span>';
-      const current = ARMOR_DEFS[defOf(save.equipped.armor).armor];
-      const diff = Math.round((next.reduction - current.reduction) * 100);
+      const currentItem = save.equipped.armor;
+      const current = ARMOR_DEFS[defOf(currentItem).armor];
+      const nextReduction = Math.min(0.75, next.reduction + enhanceLevel(item) * ENHANCE_RULES.armor.perLevel);
+      const currentReduction = Math.min(0.75, current.reduction + enhanceLevel(currentItem) * ENHANCE_RULES.armor.perLevel);
+      const diff = Math.round((nextReduction - currentReduction) * 100);
       const extras = [];
       if (next.speedBonus) extras.push(`移速 +${Math.round(next.speedBonus * 100)}%`);
       if (next.medkitBonus) extras.push(`医疗包 +${next.medkitBonus}`);
@@ -1142,8 +1221,9 @@
     if (def.kind === 'pack') {
       const next = PACK_QUALITIES[def.pack];
       if (!save.equipped.pack) return '<span class="compare up">当前没有背包装备 · 可直接装备</span>';
-      const current = PACK_QUALITIES[defOf(save.equipped.pack).pack];
-      const diff = next.bonus - current.bonus;
+      const currentItem = save.equipped.pack;
+      const current = PACK_QUALITIES[defOf(currentItem).pack];
+      const diff = (next.bonus + enhanceLevel(item)) - (current.bonus + enhanceLevel(currentItem));
       if (diff === 0) return '<span class="compare">容量与当前背包相同</span>';
       return `<span class="compare ${diff > 0 ? 'up' : 'down'}">容量 ${diff > 0 ? '+' : ''}${diff} · 对比当前背包</span>`;
     }
@@ -1164,7 +1244,7 @@
     renderAllBase();
     renderEquipModal();
     playSound('reload');
-    toast(`已装备：${def.name}`);
+    toast(`已装备：${itemName(item)}`);
   }
 
   function equipSelected() {
@@ -1211,7 +1291,7 @@
       row.innerHTML = `
         <div class="equip-choice-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</div>
         <div class="equip-choice-mid">
-          <div class="equip-choice-name">${def.name}</div>
+          <div class="equip-choice-name">${itemName(item)}</div>
           <div class="equip-choice-stats">${gearStatsText(item)}</div>
           <div class="gear-compare-row">${gearCompareText(item)}</div>
         </div>
@@ -1234,7 +1314,7 @@
         <div class="equipped-slot-top">
           <span class="equipped-slot-label">当前武器</span>
         </div>
-        <div class="equipped-slot-name">${weaponDef ? weaponDef.name : '未装备'}</div>
+        <div class="equipped-slot-name">${weaponDef ? itemName(weapon) : '未装备'}</div>
         <div class="equipped-slot-stats">${weapon ? gearStatsText(weapon) : '没有武器装备。'}</div>
       </div>
       <div class="equipped-slot">
@@ -1242,7 +1322,7 @@
           <span class="equipped-slot-label">当前护甲</span>
           ${armor ? '<button class="mini-ghost" type="button" data-unequip="armor">卸下</button>' : ''}
         </div>
-        <div class="equipped-slot-name">${armorDef ? armorDef.name : '无护甲'}</div>
+        <div class="equipped-slot-name">${armorDef ? itemName(armor) : '无护甲'}</div>
         <div class="equipped-slot-stats">${armor ? gearStatsText(armor) : '没有护甲，受到完整伤害。'}</div>
       </div>
       <div class="equipped-slot">
@@ -1250,7 +1330,7 @@
           <span class="equipped-slot-label">背包装备</span>
           ${pack ? '<button class="mini-ghost" type="button" data-unequip="pack">卸下</button>' : ''}
         </div>
-        <div class="equipped-slot-name" style="${packQuality ? `color:${packQuality.color}` : ''}">${packDef ? packDef.name : '未装备背包'}</div>
+        <div class="equipped-slot-name" style="${packQuality ? `color:${packQuality.color}` : ''}">${packDef ? itemName(pack) : '未装备背包'}</div>
         <div class="equipped-slot-stats">${pack ? gearStatsText(pack) : '没有背包装备，仅保留基础容量。'}</div>
       </div>`;
     el.equippedSummary.querySelectorAll('[data-unequip]').forEach((btn) => {
@@ -1261,10 +1341,141 @@
     renderEquipChoices('pack', el.packChoices);
   }
 
+  function stoneItemsInStash() {
+    return sortItemList(save.stash.filter((item) => defOf(item).kind === 'stone'));
+  }
+
+  function totalStoneCount() {
+    return save.stash.reduce((sum, item) => sum + (defOf(item).kind === 'stone' ? (item.qty || 1) : 0), 0);
+  }
+
+  function enhanceEffectText(item, level) {
+    const def = defOf(item);
+    if (def.kind === 'weapon') {
+      const w = WEAPON_DEFS[def.weapon];
+      const damage = Math.round(w.damage * (1 + level * ENHANCE_RULES.weapon.perLevel));
+      return `伤害 ${damage}`;
+    }
+    if (def.kind === 'armor') {
+      const a = ARMOR_DEFS[def.armor];
+      const reduction = Math.min(0.75, a.reduction + level * ENHANCE_RULES.armor.perLevel);
+      return `减伤 ${Math.round(reduction * 100)}%`;
+    }
+    if (def.kind === 'pack') {
+      const pack = PACK_QUALITIES[def.pack];
+      return `容量 +${pack.bonus + level * ENHANCE_RULES.pack.perLevel}`;
+    }
+    return '';
+  }
+
+  function renderEnhance() {
+    if (!el.enhanceTargets || !el.enhanceTargetSummary || !el.enhanceStoneList) return;
+    const slots = [
+      ['weapon', '武器'],
+      ['armor', '护甲'],
+      ['pack', '背包']
+    ];
+    el.enhanceTargets.innerHTML = '';
+    for (const [slot, label] of slots) {
+      const item = save.equipped[slot];
+      const def = item ? defOf(item) : null;
+      const plus = item ? enhanceLevel(item) : 0;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `enhance-target ${enhanceTargetSlot === slot ? 'selected' : ''} ${item ? '' : 'empty'}`;
+      button.dataset.slot = slot;
+      button.innerHTML = `
+        <span class="enhance-target-icon" style="color:${def ? choiceIconColor(def) : 'var(--dim)'}">${def ? def.icon : '—'}</span>
+        <span class="enhance-target-mid">
+          <span class="enhance-target-slot">${label}</span>
+          <strong>${item ? itemName(item) : '未装备'}</strong>
+          <span>${item ? enhanceEffectText(item, plus) : '先去装备窗口装备'}</span>
+        </span>
+        <span class="enhance-target-plus">${item ? `+${plus}` : ''}</span>`;
+      button.addEventListener('click', () => {
+        if (!item) return;
+        enhanceTargetSlot = slot;
+        renderEnhance();
+      });
+      el.enhanceTargets.appendChild(button);
+    }
+
+    const target = save.equipped[enhanceTargetSlot];
+    const targetPlus = target ? enhanceLevel(target) : 0;
+    const maxed = targetPlus >= MAX_ENHANCE;
+    if (el.enhanceChanceHint) {
+      el.enhanceChanceHint.textContent = target ? `已强化 +${targetPlus} / +${MAX_ENHANCE}` : '选择一件已装备物品';
+    }
+    if (el.enhanceTargetSummary) {
+      if (!target) {
+        el.enhanceTargetSummary.innerHTML = '<div class="enhance-summary-empty">当前槽位没有装备，无法强化。</div>';
+      } else if (maxed) {
+        el.enhanceTargetSummary.innerHTML = `<div class="enhance-summary-name">${itemName(target)}</div><div class="enhance-summary-effect">已达到最高强化等级 +${MAX_ENHANCE}</div>`;
+      } else {
+        el.enhanceTargetSummary.innerHTML = `
+          <div class="enhance-summary-name">${itemName(target)}</div>
+          <div class="enhance-summary-effect">${enhanceEffectText(target, targetPlus)} <span>→</span> <b>${enhanceEffectText(target, targetPlus + 1)}</b></div>
+          <div class="enhance-summary-hint">成功率由所选强化石决定；失败会消耗强化石，等级不会下降。</div>`;
+      }
+    }
+
+    const stones = stoneItemsInStash();
+    if (el.enhanceStoneCount) el.enhanceStoneCount.textContent = `强化石 ${totalStoneCount()} 颗`;
+    el.enhanceStoneList.innerHTML = '';
+    if (stones.length === 0) {
+      el.enhanceStoneList.innerHTML = '<div class="enhance-empty">击杀敌人有概率掉落强化石。品质越高，强化成功率越高。</div>';
+      return;
+    }
+    for (const stone of stones) {
+      const def = defOf(stone);
+      const row = document.createElement('div');
+      row.className = `enhance-stone-row rarity-${def.rarity}`;
+      row.innerHTML = `
+        <span class="enhance-stone-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
+        <span class="enhance-stone-mid">
+          <strong>${def.name}</strong>
+          <span>Lv.${def.stoneLevel} · 成功率 ${Math.round(def.success * 100)}%</span>
+        </span>
+        <span class="enhance-stone-qty">×${stone.qty || 1}</span>
+        <button class="enhance-use-btn" type="button" ${(!target || maxed) ? 'disabled' : ''}>使用</button>`;
+      row.querySelector('button').addEventListener('click', () => useEnhanceStone(stone.type));
+      el.enhanceStoneList.appendChild(row);
+    }
+  }
+
+  function useEnhanceStone(type) {
+    const target = save.equipped[enhanceTargetSlot];
+    const stoneIdx = save.stash.findIndex((item) => item.type === type && (item.qty || 1) > 0);
+    if (!target || stoneIdx < 0) return;
+    const plus = enhanceLevel(target);
+    if (plus >= MAX_ENHANCE) {
+      toast('该装备已达到最高强化等级。');
+      return;
+    }
+    const stone = save.stash[stoneIdx];
+    const stoneDef = defOf(stone);
+    stone.qty = (stone.qty || 1) - 1;
+    if (stone.qty <= 0) save.stash.splice(stoneIdx, 1);
+    const success = Math.random() < stoneDef.success;
+    if (success) {
+      target.plus = plus + 1;
+      toast(`强化成功！${itemName(target)} 提升至 +${target.plus}。`);
+      playSound('level');
+    } else {
+      toast(`强化失败，${stoneDef.name}已消耗。`);
+      playSound('hurt');
+    }
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    renderEnhance();
+  }
+
   const MANAGE_VIEWS = {
     equip: { title: '装备', note: '装备会立即更新作战准备；进入行动后不能更换。' },
     stash: { title: '仓库', note: '仓库物资会即时保存；出售物品可以获得废料。' },
-    shop: { title: '黑市', note: '使用废料购买武器、护甲和永久补给。' }
+    shop: { title: '黑市', note: '使用废料购买武器、护甲和永久补给。' },
+    enhance: { title: '强化台', note: '强化石由敌人掉落；强化失败会消耗 1 颗强化石，装备等级不会下降。' }
   };
 
   function openEquipModal(view = 'equip') {
@@ -1273,11 +1484,13 @@
     renderEquipModal();
     renderStash();
     renderShop();
+    renderEnhance();
     if (el.equipWindowTitle) el.equipWindowTitle.textContent = MANAGE_VIEWS[selected].title;
     if (el.manageNote) el.manageNote.textContent = MANAGE_VIEWS[selected].note;
     if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', selected !== 'equip');
     if (el.manageStashPanel) el.manageStashPanel.classList.toggle('hidden', selected !== 'stash');
     if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', selected !== 'shop');
+    if (el.manageEnhancePanel) el.manageEnhancePanel.classList.toggle('hidden', selected !== 'enhance');
     el.equipOverlay.classList.remove('hidden');
   }
 
@@ -1320,8 +1533,10 @@
     renderLoadout();
     renderStash();
     renderShop();
+    renderEnhance();
     renderProgress();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
+    if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石`;
   }
 
   el.equipBtn.addEventListener('click', equipSelected);
@@ -1329,6 +1544,7 @@
   el.openEquipBtn.addEventListener('click', () => openEquipModal('equip'));
   el.openStashBtn.addEventListener('click', () => openEquipModal('stash'));
   el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
+  el.openEnhanceBtn.addEventListener('click', () => openEquipModal('enhance'));
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
   if (el.tutorialSkipBtn) {
     el.tutorialSkipBtn.addEventListener('click', () => {
@@ -2122,22 +2338,34 @@
       this.medCd = 0;
       this.lockTarget = null;
 
-      const weaponType = defOf(save.equipped.weapon).weapon || 'pistol';
+      const weaponItem = save.equipped.weapon;
+      const weaponType = defOf(weaponItem).weapon || 'pistol';
       this.weaponKey = weaponType;
       this.weapon = WEAPON_DEFS[weaponType] || WEAPON_DEFS.pistol;
+      this.weaponPlus = enhanceLevel(weaponItem);
       this.mag = this.weapon.mag;
       this.reserve = Math.round((this.weapon.reserve + save.upgrades.ammo * 45) * (1 + perkRank('ammo') * 0.1));
-      this.armorKey = save.equipped.armor ? defOf(save.equipped.armor).armor : 'none';
-      this.armor = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
+      const armorItem = save.equipped.armor;
+      this.armorKey = armorItem ? defOf(armorItem).armor : 'none';
+      this.armorPlus = enhanceLevel(armorItem);
+      const armorBase = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
+      this.armor = {
+        ...armorBase,
+        reduction: Math.min(0.75, armorBase.reduction + this.armorPlus * ENHANCE_RULES.armor.perLevel)
+      };
       this.packItem = save.equipped.pack || null;
       this.packKey = this.packItem ? defOf(this.packItem).pack : null;
-      this.pack = this.packKey ? PACK_QUALITIES[this.packKey] : null;
+      this.packPlus = enhanceLevel(this.packItem);
+      this.pack = this.packKey ? {
+        ...PACK_QUALITIES[this.packKey],
+        bonus: PACK_QUALITIES[this.packKey].bonus + this.packPlus
+      } : null;
       this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
       this.capacity = backpackCapacity();
       this.backpack = [];
-      this.damageMultiplier = 1;
+      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel;
     }
 
     update(dt) {
@@ -2543,6 +2771,8 @@
       addFloatText(this.x, this.y - 28, `+${this.xp} XP`, '#d6ff4d');
       addLootFeed(this.isBoss ? `BOSS 已击败！ +${this.xp} XP` : `击倒敌人 +${this.xp} XP`, this.isBoss);
 
+      rollEnhanceStoneDrop(this);
+
       if (this.isBoss) {
         world.pickups.push({
           x: this.x,
@@ -2703,6 +2933,42 @@
     weights.red += depth * 0.12;
     weights.rainbow += depth * 0.03;
     return `p_${weightedPick(weights)}`;
+  }
+
+  function rollEnhanceStoneDrop(enemy) {
+    if (!enemy || !world) return null;
+    const isBoss = !!enemy.isBoss;
+    const isElite = !!enemy.elite || enemy.kind === 'heavy';
+    let chance = isBoss ? 1 : isElite ? 0.28 : 0.10;
+    if (save.settings.raidRisk === 'danger') chance *= 1.25;
+    if (save.settings.raidRisk === 'extreme') chance *= 1.5;
+    if (Math.random() >= Math.min(1, chance)) return null;
+
+    const profile = isBoss ? 'boss' : isElite ? 'elite' : 'normal';
+    const weights = { ...STONE_TIER_WEIGHTS[profile] };
+    const floor = Math.max(1, raid?.floor || 1);
+    const riskBonus = save.settings.raidRisk === 'extreme' ? 8 : save.settings.raidRisk === 'danger' ? 4 : 0;
+    const depth = Math.min(18, (floor - 1) * 0.9 + riskBonus * 0.7);
+    weights.white = Math.max(0, weights.white - depth * 0.55);
+    weights.green = Math.max(0, weights.green - depth * 0.35);
+    weights.blue += depth * 0.45;
+    weights.purple += depth * 0.35;
+    weights.red += depth * 0.16;
+    weights.rainbow += depth * 0.04;
+    const type = `stone_${weightedPick(weights)}`;
+    const item = createItem(type);
+    const def = defOf(item);
+    world.pickups.push({
+      x: enemy.x,
+      y: enemy.y,
+      type: 'item',
+      item,
+      life: 45,
+      bob: rand(0, TAU)
+    });
+    addFloatText(enemy.x, enemy.y - 52, `${def.name}掉落`, choiceIconColor(def));
+    addLootFeed(`敌人掉落 ${itemName(item)} · 强化成功率 ${Math.round(def.success * 100)}%`, false);
+    return item;
   }
 
   function lootContainer(container) {
@@ -3084,11 +3350,11 @@
     el.hpFill.style.width = `${hpPct}%`;
     el.hpText.textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
     if (el.lowHpVignette) el.lowHpVignette.classList.toggle('active', player.hp > 0 && hpPct <= 30);
-    el.armorText.textContent = `护甲：${player.armor.name}`;
+    el.armorText.textContent = `护甲：${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}`;
     el.hudMeds.textContent = `医疗包 ×${player.medkits}`;
     if (el.hudKeys) el.hudKeys.textContent = `🔑 ×${raid ? (raid.keys || 0) : 0}`;
     el.hudScrap.textContent = `废料 +${raid ? raid.scrap : 0}`;
-    el.hudWeapon.textContent = player.weapon.name;
+    el.hudWeapon.textContent = save.equipped.weapon ? itemName(save.equipped.weapon) : player.weapon.name;
     const hudWeaponDef = defOf(save.equipped.weapon);
     el.hudWeaponIcon.textContent = hudWeaponDef.icon || '▰';
     el.hudWeaponIcon.style.color = player.weapon.color || '#d6ff4d';
@@ -3177,9 +3443,9 @@
     if (!player) return;
     const totalValue = player.backpack.reduce((sum, item) => sum + itemSellValue(item), 0);
     el.inventoryLoadout.innerHTML = `
-      <div>主武器<strong>${player.weapon.name}</strong></div>
-      <div>护甲<strong>${player.armor.name}</strong></div>
-      <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
+      <div>主武器<strong>${save.equipped.weapon ? itemName(save.equipped.weapon) : player.weapon.name}</strong></div>
+      <div>护甲<strong>${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}</strong></div>
+      <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}${player.packPlus ? ` · 强化+${player.packPlus}` : ''}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
       <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
@@ -3197,19 +3463,19 @@
 
     for (const item of sortItemList(player.backpack)) {
       const def = defOf(item);
-      const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : '物资';
+      const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : def.kind === 'stone' ? '强化' : '物资';
       const selected = item.id === selectedInventoryItemId;
       const div = document.createElement('button');
       div.type = 'button';
       div.className = `inventory-item rarity-${def.rarity} ${selected ? 'selected' : ''}`;
-      div.title = `${def.name}：${def.desc}`;
+      div.title = `${itemName(item)}：${def.desc}`;
       div.innerHTML = `
         <div class="inv-item-top">
           <span class="inv-kind">${kindLabel}</span>
           <span class="inv-rarity ${def.rarity}">${RARITY_LABEL[def.rarity]}</span>
         </div>
         <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
-        <span class="slot-name">${def.name}</span>
+        <span class="slot-name">${itemName(item)}</span>
         <span class="inv-qty">×${item.qty || 1}</span>
         ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<span class="inv-compare">${gearCompareText(item).replace(/<[^>]+>/g, '')}</span>` : ''}`;
       div.addEventListener('click', () => {
@@ -3225,11 +3491,12 @@
       return;
     }
     const def = defOf(selectedItem);
-    const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : '物资';
+    const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : def.kind === 'stone' ? '强化' : '物资';
     const stats = [];
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
-      stats.push(`伤害 <b>${w.damage}</b>`);
+      const plus = enhanceLevel(selectedItem);
+      stats.push(`伤害 <b>${Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel))}</b>${plus ? ` · 强化 +${plus}` : ''}`);
       stats.push(`弹匣 <b>${w.mag}</b>`);
       stats.push(w.auto || likelyTouch ? '全自动' : '半自动');
       stats.push(`射速 <b>${Math.round(60 / w.cooldown)}/min</b>`);
@@ -3237,26 +3504,33 @@
       stats.push(`备弹 <b>${w.reserve}</b>`);
     } else if (def.kind === 'armor') {
       const a = ARMOR_DEFS[def.armor];
-      stats.push(`伤害减免 <b>${Math.round(a.reduction * 100)}%</b>`);
+      const plus = enhanceLevel(selectedItem);
+      stats.push(`伤害减免 <b>${Math.round(Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel) * 100)}%</b>${plus ? ` · 强化 +${plus}` : ''}`);
       if (a.speedBonus) stats.push(`移速 <b>+${Math.round(a.speedBonus * 100)}%</b>`);
       if (a.medkitBonus) stats.push(`医疗包 <b>+${a.medkitBonus}</b>`);
       if (a.stealth) stats.push(`敌人视野 <b>-${Math.round((1 - a.stealth) * 100)}%</b>`);
     } else if (def.kind === 'pack') {
       const pack = PACK_QUALITIES[def.pack];
+      const plus = enhanceLevel(selectedItem);
       stats.push(`品质 <b>${pack.label}</b>`);
-      stats.push(`容量 <b>+${pack.bonus}</b>`);
+      stats.push(`容量 <b>+${pack.bonus + plus}</b>${plus ? ` · 强化 +${plus}` : ''}`);
       stats.push('撤离后在仓库装备');
+    } else if (def.kind === 'stone') {
+      stats.push(`等级 <b>Lv.${def.stoneLevel}</b>`);
+      stats.push(`强化成功率 <b>${Math.round(def.success * 100)}%</b>`);
+      stats.push('回到基地强化台使用');
     } else {
       stats.push(`数量 <b>×${selectedItem.qty || 1}</b>`);
       stats.push(`单价 <b>+${def.sell}</b>`);
     }
+    const unitValue = Math.round(itemSellValue(selectedItem) / (selectedItem.qty || 1));
     el.inventoryDetail.classList.remove('hidden');
     el.inventoryDetail.innerHTML = `
       <div class="inventory-detail-head">
         <div class="inventory-detail-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</div>
         <div class="inventory-detail-title">
-          <div class="inventory-detail-name">${def.name}${selectedItem.qty > 1 ? ` ×${selectedItem.qty}` : ''}</div>
-          <div class="inventory-detail-meta">${kindLabel} · ${RARITY_LABEL[def.rarity]} · 单件估值 +${def.sell || 0}</div>
+          <div class="inventory-detail-name">${itemName(selectedItem)}${selectedItem.qty > 1 ? ` ×${selectedItem.qty}` : ''}</div>
+          <div class="inventory-detail-meta">${kindLabel} · ${RARITY_LABEL[def.rarity]} · 单件估值 +${unitValue}</div>
         </div>
         <div class="inventory-detail-value">总值<br>+${itemSellValue(selectedItem)}</div>
       </div>
@@ -3861,7 +4135,7 @@
     const bounce = Math.sin(p.bob) * 3;
     ctx.save();
     ctx.translate(Math.round(p.x), Math.round(p.y + bounce));
-    const color = p.type === 'key' ? '#ffd15c' : p.bossDrop ? '#ffd15c' : p.type === 'ammo' ? '#d6c27a' : p.type === 'med' ? '#74f0a0' : defOf(p.item).rarity === 'epic' ? '#c084ff' : '#55d9ff';
+    const color = p.type === 'key' ? '#ffd15c' : p.bossDrop ? '#ffd15c' : p.type === 'ammo' ? '#d6c27a' : p.type === 'med' ? '#74f0a0' : p.type === 'item' ? choiceIconColor(defOf(p.item)) : '#9fb6d1';
     ctx.fillStyle = `${color}22`;
     ctx.beginPath();
     ctx.arc(0, 0, 15, 0, TAU);
@@ -4153,7 +4427,7 @@
     }
     for (const pickup of world.pickups) {
       if (!isExploredPoint(pickup.x, pickup.y)) continue;
-      g.fillStyle = pickup.type === 'key' || pickup.bossDrop ? '#ffd15c' : pickup.type === 'item' ? '#55d9ff' : '#9fb6d1';
+      g.fillStyle = pickup.type === 'key' || pickup.bossDrop ? '#ffd15c' : pickup.type === 'item' ? choiceIconColor(defOf(pickup.item)) : '#9fb6d1';
       g.fillRect(pickup.x * sx - 2, pickup.y * sy - 2, 4, 4);
     }
     for (const enemy of world.enemies) {
@@ -4280,7 +4554,7 @@
     }
     for (const p of world.pickups) {
       if (!isExploredPoint(p.x, p.y)) continue;
-      miniCtx.fillStyle = p.type === 'key' || p.bossDrop ? '#ffd15c' : p.type === 'item' ? '#55d9ff' : '#9fb6d1';
+      miniCtx.fillStyle = p.type === 'key' || p.bossDrop ? '#ffd15c' : p.type === 'item' ? choiceIconColor(defOf(p.item)) : '#9fb6d1';
       miniCtx.fillRect(p.x * sx - 1, p.y * sy - 1, 2, 2);
     }
     for (const e of world.enemies) {
@@ -4759,7 +5033,10 @@
           x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,
           backpack: JSON.parse(JSON.stringify(player.backpack)),
-          weapon: player.weaponKey, armor: player.armorKey, pack: player.packKey, capacity: player.capacity
+          weapon: player.weaponKey, armor: player.armorKey, pack: player.packKey, capacity: player.capacity,
+          weaponPlus: player.weaponPlus, armorPlus: player.armorPlus, packPlus: player.packPlus,
+          damageMultiplier: player.damageMultiplier, weaponDamage: player.weapon.damage * player.damageMultiplier,
+          armorReduction: player.armor.reduction, packBonus: player.pack ? player.pack.bonus : 0
         } : null,
         raid: raid ? { ...raid, perkChoices: pendingPerkChoices.slice() } : null,
         touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, firing: touch.firing, angle: touch.aimAngle, aimPressAt: touch.aimPressAt },
@@ -4778,7 +5055,7 @@
           exploredCount: world.explored ? world.explored.reduce((sum, v) => sum + v, 0) : 0,
           trailLength: world.trail ? world.trail.length : 0,
           visibleEnemies: world.enemies.filter((e) => !e.dead && isPointVisible(e.x, e.y)).length,
-          pickups: world.pickups.map((p) => ({ x: p.x, y: p.y, type: p.type, amount: p.amount || 0 }))
+          pickups: world.pickups.map((p) => ({ x: p.x, y: p.y, type: p.type, amount: p.amount || 0, itemType: p.item?.type || null, itemName: p.item ? itemName(p.item) : null }))
         } : null
       };
     },
@@ -4798,6 +5075,17 @@
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
     damageEnemy(index, amount = 9999) { const enemy = world && world.enemies[index]; if (enemy && !enemy.dead) enemy.takeDamage(amount, 0); },
     grantKeys(count = 1) { if (raid && !raid.ended) { raid.keys = (raid.keys || 0) + Math.max(0, Math.floor(count)); updateHUD(); } },
+    grantStone(type = 'stone_white', count = 1) {
+      addToStash(createItem(type, Math.max(1, Math.floor(count))));
+      persist();
+      renderAllBase();
+      return this.snapshot();
+    },
+    enhanceEquipped(slot = 'weapon', stoneType = 'stone_white') {
+      enhanceTargetSlot = ['weapon', 'armor', 'pack'].includes(slot) ? slot : 'weapon';
+      useEnhanceStone(stoneType);
+      return this.snapshot();
+    },
     lootSample(quality = 'common', count = 1000) {
       const types = {};
       const rarities = {};
