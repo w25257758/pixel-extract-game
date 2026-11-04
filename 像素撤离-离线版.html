@@ -1180,9 +1180,26 @@ body.touch-device.move-stick-fixed .move-pad {
   background: linear-gradient(90deg, #b91f46, #ff3e6c 62%, #ff9c47);
   transition: width .12s linear;
 }
+.boss-skill {
+  margin-top: 5px;
+  color: #d5a6b4;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .7px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.boss-skill.warning {
+  color: #ffd15c;
+  animation: boss-warning-pulse .55s ease-in-out infinite alternate;
+}
+@keyframes boss-warning-pulse { from { opacity: .58; } to { opacity: 1; } }
 @media (pointer: coarse), (max-height: 520px) and (max-width: 1000px) {
   .boss-hud { top: 16%; width: min(320px, 29vw); padding: 5px 7px 6px; }
   .boss-hud-head strong { font-size: 9px; }
+  .boss-skill { margin-top: 3px; font-size: 6px; }
 }
 
 /* Utility buttons and settings */
@@ -2587,6 +2604,7 @@ body.touch-device.move-stick-fixed .move-pad {
           <div id="bossHud" class="boss-hud hidden">
             <div class="boss-hud-head"><span>BOSS</span><strong id="bossName">终焉守卫</strong></div>
             <div class="boss-bar"><div id="bossFill"></div></div>
+            <div id="bossSkill" class="boss-skill">全图弹幕 · 重击锁定</div>
           </div>
 
           <div class="hud-top-right">
@@ -3134,6 +3152,94 @@ body.touch-device.move-stick-fixed .move-pad {
     extreme: { label: '极限', hint: '高压 · 最高收益', enemyCount: 1.75, enemyHp: 1.55, enemyDamage: 1.45, rareChance: 0.6, color: '#ff5b6e' }
   };
 
+  const STAGE_DEFS = [
+    {
+      id: 'industrial', name: '废弃工业区', tag: '锈蚀厂房',
+      floorPalette: ['#1b2531', '#1e2937', '#19232f', '#202b39'],
+      wallColor: '#0a0e14', edgePalette: ['#34445c', '#2b394d'],
+      miniPalette: ['#304052', '#293747'], accent: 'rgba(85,217,255,.055)',
+      enemyPool: ['grunt', 'grunt', 'scout', 'sniper', 'heavy']
+    },
+    {
+      id: 'redline', name: '赤色封锁线', tag: '军事检查站',
+      floorPalette: ['#2a1e24', '#2f2228', '#261b21', '#33242b'],
+      wallColor: '#120a0d', edgePalette: ['#5a3740', '#3f2930'],
+      miniPalette: ['#4d303a', '#3b252d'], accent: 'rgba(255,91,110,.06)',
+      enemyPool: ['grunt', 'heavy', 'scout', 'bomber', 'sniper']
+    },
+    {
+      id: 'quantum', name: '量子深渊', tag: '失控实验层',
+      floorPalette: ['#151f35', '#18243d', '#122038', '#1b2944'],
+      wallColor: '#060a12', edgePalette: ['#2f4270', '#1e2c4e'],
+      miniPalette: ['#2e4068', '#243454'], accent: 'rgba(88,166,255,.07)',
+      enemyPool: ['orbiter', 'sniper', 'scout', 'grunt', 'bomber']
+    },
+    {
+      id: 'foundry', name: '熔核铸造厂', tag: '高温禁区',
+      floorPalette: ['#2b211a', '#33261d', '#281d17', '#38291f'],
+      wallColor: '#130c08', edgePalette: ['#5e4029', '#3f2b1c'],
+      miniPalette: ['#4d3525', '#3c291b'], accent: 'rgba(255,173,69,.06)',
+      enemyPool: ['heavy', 'bomber', 'orbiter', 'grunt', 'scout']
+    },
+    {
+      id: 'void', name: '虚空回廊', tag: '相位裂隙',
+      floorPalette: ['#211a2d', '#261e35', '#1b1627', '#2c2240'],
+      wallColor: '#090611', edgePalette: ['#4a3568', '#31234a'],
+      miniPalette: ['#3e2e5c', '#2f2346'], accent: 'rgba(192,132,255,.065)',
+      enemyPool: ['orbiter', 'sniper', 'bomber', 'heavy', 'scout']
+    },
+    {
+      id: 'citadel', name: '终焉要塞', tag: '最后防线',
+      floorPalette: ['#222b2c', '#282f30', '#1d2526', '#2e3536'],
+      wallColor: '#0b0f10', edgePalette: ['#4a5b5d', '#304042'],
+      miniPalette: ['#3b494b', '#2c383a'], accent: 'rgba(214,255,77,.045)',
+      enemyPool: ['heavy', 'orbiter', 'sniper', 'bomber', 'grunt']
+    }
+  ];
+
+  const BOSS_VARIANTS = [
+    {
+      id: 'titan', name: '裂地重装·泰坦', color: '#ff9c47',
+      hp: 360, speed: 54, vision: 760, range: 620, damage: 16,
+      ringCount: 18, ringWaves: 3, ringSpeed: 330, slamCount: 2, slamRadius: 92
+    },
+    {
+      id: 'prism', name: '棱镜使徒·赛琳', color: '#c084ff',
+      hp: 400, speed: 64, vision: 800, range: 660, damage: 15,
+      ringCount: 22, ringWaves: 3, ringSpeed: 350, slamCount: 2, slamRadius: 100
+    },
+    {
+      id: 'tyrant', name: '熔核暴君·赫菲', color: '#ff536b',
+      hp: 450, speed: 58, vision: 820, range: 680, damage: 17,
+      ringCount: 26, ringWaves: 4, ringSpeed: 370, slamCount: 3, slamRadius: 104
+    },
+    {
+      id: 'omega', name: '虚空终端·Ω', color: '#58a6ff',
+      hp: 510, speed: 70, vision: 860, range: 720, damage: 18,
+      ringCount: 30, ringWaves: 4, ringSpeed: 390, slamCount: 3, slamRadius: 112
+    },
+    {
+      id: 'wraith', name: '相位猎手·诺克斯', color: '#7ee8d2',
+      hp: 550, speed: 78, vision: 880, range: 730, damage: 18,
+      ringCount: 28, ringWaves: 4, ringSpeed: 410, slamCount: 3, slamRadius: 108
+    },
+    {
+      id: 'architect', name: '终焉构装·阿基拉', color: '#d6ff4d',
+      hp: 600, speed: 62, vision: 900, range: 750, damage: 20,
+      ringCount: 32, ringWaves: 4, ringSpeed: 400, slamCount: 3, slamRadius: 118
+    }
+  ];
+
+  function stageForFloor(floor) {
+    const idx = Math.floor(Math.max(1, floor) / 5) % STAGE_DEFS.length;
+    return STAGE_DEFS[idx];
+  }
+
+  function bossVariantForFloor(floor) {
+    const idx = Math.floor(Math.max(1, floor) / 5 - 1) % BOSS_VARIANTS.length;
+    return BOSS_VARIANTS[Math.max(0, idx)];
+  }
+
   const PERK_DEFS = {
     vitality: { name: '强化体质', icon: 'HP', max: 5, color: '#ff7585', desc: '最大生命 +10' },
     runner: { name: '轻装疾行', icon: 'SP', max: 5, color: '#7ee8d2', desc: '移动速度 +4%' },
@@ -3530,6 +3636,7 @@ body.touch-device.move-stick-fixed .move-pad {
     bossHud: $('#bossHud'),
     bossName: $('#bossName'),
     bossFill: $('#bossFill'),
+    bossSkill: $('#bossSkill'),
     statScrap: $('#statScrap'),
     statRaids: $('#statRaids'),
     statExtracts: $('#statExtracts'),
@@ -5069,6 +5176,7 @@ body.touch-device.move-stick-fixed .move-pad {
 
     const risk = riskDef();
     const floor = Math.max(1, raid?.floor || 1);
+    const stage = stageForFloor(floor);
     const rareChance = clamp(risk.rareChance + (floor - 1) * 0.06, 0, 0.9);
     const containers = [];
     for (let i = 1; i < rooms.length; i++) {
@@ -5092,7 +5200,7 @@ body.touch-device.move-stick-fixed .move-pad {
 
     const enemyCount = Math.round((8 + Math.min(16, (floor - 1) * 2)) * risk.enemyCount);
     const enemies = [];
-    const kinds = ['grunt', 'grunt', 'scout', 'grunt', 'heavy'];
+    const kinds = stage.enemyPool;
     for (let i = 0; i < enemyCount; i++) {
       let room = pick(rooms.slice(1));
       let spot = roomSpot(room);
@@ -5160,6 +5268,7 @@ body.touch-device.move-stick-fixed .move-pad {
     const worldObj = {
       tiles,
       rooms,
+      stage,
       spawn,
       extraction,
       containers,
@@ -5173,10 +5282,11 @@ body.touch-device.move-stick-fixed .move-pad {
       revealTimer: 0,
       pickups: [],
       bullets: [],
+      hazards: [],
       particles: [],
       floatTexts: [],
-      mapCanvas: buildMapCanvas(tiles),
-      mini: buildMinimap(tiles),
+      mapCanvas: buildMapCanvas(tiles, stage),
+      mini: buildMinimap(tiles, stage),
       flow: { dist: null, timer: 0 },
       time: 0,
       shake: 0,
@@ -5193,15 +5303,17 @@ body.touch-device.move-stick-fixed .move-pad {
     };
   }
 
-  function buildMapCanvas(tiles) {
+  function buildMapCanvas(tiles, stage = STAGE_DEFS[0]) {
     const c = document.createElement('canvas');
     c.width = MAP_PW;
     c.height = MAP_PH;
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
 
-    const floorPalette = ['#1b2531', '#1e2937', '#19232f', '#202b39'];
-    const edgePalette = ['#34445c', '#2b394d'];
+    const floorPalette = stage.floorPalette;
+    const edgePalette = stage.edgePalette;
+    const wallColor = stage.wallColor || '#0a0e14';
+    const accent = stage.accent || 'rgba(85,217,255,.055)';
 
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
@@ -5216,7 +5328,7 @@ body.touch-device.move-stick-fixed .move-pad {
           g.fillStyle = 'rgba(0,0,0,.10)';
           g.fillRect(px, py + TILE - 2, TILE, 2);
           if (h % 9 === 0) {
-            g.fillStyle = 'rgba(85,217,255,.055)';
+            g.fillStyle = accent;
             g.fillRect(px + 8 + (h % 13), py + 9 + (h % 7), 3, 2);
           }
           if (h % 17 === 0) {
@@ -5224,32 +5336,32 @@ body.touch-device.move-stick-fixed .move-pad {
             g.fillRect(px + 5, py + 21, 13, 2);
           }
         } else {
-          g.fillStyle = '#0a0e14';
+          g.fillStyle = wallColor;
           g.fillRect(px, py, TILE, TILE);
           const belowFloor = y + 1 < MAP_H && tiles[y + 1][x] === 1;
           const rightFloor = x + 1 < MAP_W && tiles[y][x + 1] === 1;
           const leftFloor = x - 1 >= 0 && tiles[y][x - 1] === 1;
           const aboveFloor = y - 1 >= 0 && tiles[y - 1][x] === 1;
           if (belowFloor) {
-            g.fillStyle = '#34455d';
+            g.fillStyle = edgePalette[0];
             g.fillRect(px, py + TILE - 5, TILE, 5);
             g.fillStyle = '#1f2b3a';
             g.fillRect(px, py + TILE - 8, TILE, 3);
           }
           if (rightFloor) {
-            g.fillStyle = '#28374b';
+            g.fillStyle = edgePalette[1];
             g.fillRect(px + TILE - 4, py, 4, TILE);
           }
           if (leftFloor) {
-            g.fillStyle = '#1e2a39';
+            g.fillStyle = edgePalette[1];
             g.fillRect(px, py, 4, TILE);
           }
           if (aboveFloor) {
-            g.fillStyle = '#1b2532';
+            g.fillStyle = edgePalette[0];
             g.fillRect(px, py, TILE, 4);
           }
           if ((x + y) % 3 === 0) {
-            g.fillStyle = 'rgba(85,217,255,.035)';
+            g.fillStyle = accent;
             g.fillRect(px + 10, py + 10, 2, 2);
           }
         }
@@ -5275,7 +5387,7 @@ body.touch-device.move-stick-fixed .move-pad {
     return c;
   }
 
-  function buildMinimap(tiles) {
+  function buildMinimap(tiles, stage = STAGE_DEFS[0]) {
     const scale = 4;
     const c = document.createElement('canvas');
     c.width = MAP_W * scale;
@@ -5283,10 +5395,11 @@ body.touch-device.move-stick-fixed .move-pad {
     const g = c.getContext('2d');
     g.fillStyle = '#080d13';
     g.fillRect(0, 0, c.width, c.height);
+    const palette = stage.miniPalette || ['#304052', '#293747'];
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
         if (tiles[y][x] === 1) {
-          g.fillStyle = (x + y) % 2 ? '#304052' : '#293747';
+          g.fillStyle = (x + y) % 2 ? palette[0] : palette[1];
           g.fillRect(x * scale, y * scale, scale, scale);
         }
       }
@@ -5678,7 +5791,7 @@ body.touch-device.move-stick-fixed .move-pad {
       this.kind = kind;
       this.room = room;
       this.isBoss = kind === 'boss';
-      this.r = this.isBoss ? 15 : 9;
+      this.r = this.isBoss ? 16 : 9;
       this.dead = false;
       this.angle = rand(0, TAU);
       this.walkPhase = 0;
@@ -5696,32 +5809,71 @@ body.touch-device.move-stick-fixed .move-pad {
       this.winding = false;
       this.elite = false;
       this.carriesKey = false;
+      this.attackType = 'burst';
+      this.attackAimAngle = this.angle;
+      this.chargePhase = null;
+      this.chargeTimer = 0;
+      this.chargeAngle = 0;
+      this.chargeHit = false;
+      this.castType = null;
+      this.castTimer = 0;
+      this.castMax = 0;
+      this.castLabel = '';
+      this.casting = false;
+      this.attackCd = 0;
+      this.bossCycle = 0;
+      this.barrageWaves = 0;
+      this.barrageTimer = 0;
+      this.barrageAngle = 0;
+      this.bossVariant = null;
 
-      const statTable = {
-        grunt: { hp: 46, speed: 73, vision: 335, range: 320, damage: 8, cooldown: 0.95, xp: 18, scrap: 3, color: '#d65b64' },
-        scout: { hp: 30, speed: 108, vision: 370, range: 280, damage: 6, cooldown: 0.68, xp: 16, scrap: 2, color: '#df8b45' },
-        heavy: { hp: 90, speed: 52, vision: 305, range: 345, damage: 14, cooldown: 1.2, xp: 32, scrap: 6, color: '#a84a69' },
-        boss: { hp: 340, speed: 58, vision: 460, range: 460, damage: 17, cooldown: 1.05, xp: 180, scrap: 45, color: '#ff3e6c', name: '终焉守卫' }
-      };
-      const s = statTable[kind] || statTable.grunt;
       const risk = riskDef();
       const floor = Math.max(1, raid?.floor || 1);
-      this.name = s.name || '敌人';
-      this.maxHp = Math.round(s.hp * (1 + (floor - 1) * 0.24) * risk.enemyHp);
-      this.hp = this.maxHp;
-      this.speed = s.speed * (1 + Math.min(0.25, (floor - 1) * 0.015));
-      this.vision = s.vision;
-      this.range = s.range;
-      this.damage = s.damage * (1 + (floor - 1) * 0.12) * risk.enemyDamage;
-      this.cooldown = s.cooldown;
-      this.xp = Math.round(s.xp * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
-      this.scrap = Math.round(s.scrap * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
-      this.color = s.color;
+      if (this.isBoss) {
+        const variant = bossVariantForFloor(floor);
+        this.bossVariant = variant;
+        this.name = variant.name;
+        this.color = variant.color;
+        this.maxHp = Math.round(variant.hp * (1 + (floor - 1) * 0.2) * risk.enemyHp);
+        this.hp = this.maxHp;
+        this.speed = variant.speed;
+        this.vision = variant.vision;
+        this.range = variant.range;
+        this.damage = variant.damage * (1 + (floor - 1) * 0.1) * risk.enemyDamage;
+        this.cooldown = 2.4;
+        this.xp = Math.round((180 + Math.floor(floor / 5) * 55) * (1 + (floor - 1) * 0.12) * (1 + (risk.enemyDamage - 1) * 0.75));
+        this.scrap = Math.round((45 + Math.floor(floor / 5) * 12) * (1 + (floor - 1) * 0.12) * (1 + (risk.enemyDamage - 1) * 0.75));
+        this.attackType = 'boss';
+        this.attackCd = rand(1.4, 2.2);
+      } else {
+        const statTable = {
+          grunt: { hp: 46, speed: 78, vision: 340, range: 340, damage: 8, cooldown: 1.35, xp: 18, scrap: 3, color: '#d65b64', attack: 'burst', name: '突击兵' },
+          scout: { hp: 34, speed: 116, vision: 385, range: 320, damage: 7, cooldown: 1.9, xp: 17, scrap: 2, color: '#df8b45', attack: 'charge', name: '猎犬突袭者' },
+          heavy: { hp: 102, speed: 48, vision: 325, range: 370, damage: 13, cooldown: 1.75, xp: 34, scrap: 6, color: '#a84a69', attack: 'fan', name: '重装守卫' },
+          sniper: { hp: 38, speed: 60, vision: 540, range: 540, damage: 17, cooldown: 2.15, xp: 25, scrap: 4, color: '#8a6bd8', attack: 'sniper', name: '线列狙击手' },
+          bomber: { hp: 62, speed: 65, vision: 405, range: 430, damage: 12, cooldown: 2.4, xp: 27, scrap: 5, color: '#d88b3f', attack: 'mortar', name: '迫击投弹手' },
+          orbiter: { hp: 52, speed: 74, vision: 395, range: 405, damage: 6, cooldown: 2.2, xp: 29, scrap: 5, color: '#58a6ff', attack: 'radial', name: '浮游炮台' }
+        };
+        const s = statTable[kind] || statTable.grunt;
+        this.name = s.name;
+        this.maxHp = Math.round(s.hp * (1 + (floor - 1) * 0.24) * risk.enemyHp);
+        this.hp = this.maxHp;
+        this.speed = s.speed * (1 + Math.min(0.25, (floor - 1) * 0.015));
+        this.vision = s.vision;
+        this.range = s.range;
+        this.damage = s.damage * (1 + (floor - 1) * 0.12) * risk.enemyDamage;
+        this.cooldown = s.cooldown;
+        this.xp = Math.round(s.xp * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
+        this.scrap = Math.round(s.scrap * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
+        this.color = s.color;
+        this.attackType = s.attack;
+      }
     }
 
     update(dt) {
       if (this.dead) return;
       this.fireCd = Math.max(0, this.fireCd - dt);
+      this.attackCd = Math.max(0, this.attackCd - dt);
       this.hitFlash = Math.max(0, this.hitFlash - dt);
       this.muzzleFlash = Math.max(0, this.muzzleFlash - dt);
 
@@ -5749,25 +5901,33 @@ body.touch-device.move-stick-fixed .move-pad {
         }
       }
 
+      // Chargers enter a dedicated windup/dash/recover cycle.
+      if (!this.isBoss && this.chargePhase) {
+        this.updateCharge(dt);
+        this.separateFromOthers();
+        return;
+      }
+
       let moveX = 0;
       let moveY = 0;
+      const holdingAttack = this.castType || this.barrageWaves > 0;
 
       if (this.state === 'chase') {
-        if (canSee && distToPlayer < 105) {
+        if (!holdingAttack && canSee && distToPlayer < 105) {
           moveX = -dxToPlayer / Math.max(1, distToPlayer);
           moveY = -dyToPlayer / Math.max(1, distToPlayer);
-        } else if (canSee && distToPlayer < 200) {
+        } else if (!holdingAttack && canSee && distToPlayer < 200) {
           const strafe = Math.sin(world.time * 1.7 + this.walkPhase) * 0.8;
           moveX = (-dyToPlayer / Math.max(1, distToPlayer)) * strafe;
           moveY = (dxToPlayer / Math.max(1, distToPlayer)) * strafe;
-        } else {
+        } else if (!holdingAttack) {
           const d = flowDirection(this);
           const l = Math.hypot(d.x, d.y) || 1;
           moveX = d.x / l;
           moveY = d.y / l;
         }
         this.angle = Math.atan2(dyToPlayer, dxToPlayer);
-      } else {
+      } else if (!holdingAttack) {
         if (!this.patrolTarget || dist2(this.x, this.y, this.patrolTarget.x, this.patrolTarget.y) < 16 * 16) {
           this.patrolWait -= dt;
           if (this.patrolWait <= 0) {
@@ -5801,24 +5961,18 @@ body.touch-device.move-stick-fixed .move-pad {
         }
       }
 
-      if (this.winding) {
-        if (!canSee || distToPlayer > this.range * 1.22) {
-          this.winding = false;
-          this.shotWindup = 0;
-        } else {
-          this.shotWindup = Math.max(0, this.shotWindup - dt);
-          if (this.shotWindup <= 0) {
-            this.winding = false;
-            this.shoot();
-          }
-        }
-      } else if (canSee && distToPlayer < this.range && this.fireCd <= 0) {
-        this.winding = true;
-        this.shotWindupMax = this.isBoss ? 0.55 : this.kind === 'heavy' ? 0.4 : 0.3;
-        this.shotWindup = this.shotWindupMax;
-      }
+      this.separateFromOthers();
 
-      // Keep enemies from stacking on top of each other.
+      if (this.isBoss) {
+        this.updateBossCombat(dt, canSee, distToPlayer);
+      } else if (this.attackType === 'charge') {
+        this.updateChargerCombat(dt, canSee, distToPlayer);
+      } else {
+        this.updateRangedCombat(dt, canSee, distToPlayer);
+      }
+    }
+
+    separateFromOthers() {
       for (const other of world.enemies) {
         if (other === this || other.dead) continue;
         const dx = this.x - other.x;
@@ -5832,31 +5986,233 @@ body.touch-device.move-stick-fixed .move-pad {
       }
     }
 
-    shoot() {
-      this.fireCd = this.cooldown + rand(-0.12, 0.18);
-      const shots = this.isBoss ? 5 : 1;
-      const spread = this.isBoss ? 0.17 : 0.09;
-      const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
-      const mx = this.x + Math.cos(baseAngle) * 18;
-      const my = this.y + Math.sin(baseAngle) * 18;
-      for (let i = 0; i < shots; i++) {
-        const angle = baseAngle + rand(-spread, spread);
-        world.bullets.push({
-          x: mx,
-          y: my,
-          prevX: mx,
-          prevY: my,
-          vx: Math.cos(angle) * (this.isBoss ? 570 : 640),
-          vy: Math.sin(angle) * (this.isBoss ? 570 : 640),
-          damage: this.damage,
-          owner: 'enemy',
-          color: this.isBoss ? '#ff3e6c' : '#ff7b68',
-          life: this.isBoss ? 1.0 : 0.8,
-          maxLife: this.isBoss ? 1.0 : 0.8
+    updateChargerCombat(dt, canSee, distToPlayer) {
+      if (this.chargePhase) return;
+      if (canSee && distToPlayer < 360 && this.fireCd <= 0) {
+        this.chargePhase = 'windup';
+        this.chargeTimer = 0.55;
+        this.chargeAngle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.attackAimAngle = this.chargeAngle;
+        this.shotWindupMax = 0.55;
+        this.shotWindup = 0.55;
+        this.fireCd = 999;
+        addFloatText(this.x, this.y - 30, '蓄力冲撞', '#ffad45');
+      }
+    }
+
+    updateCharge(dt) {
+      if (this.chargePhase === 'windup') {
+        this.chargeTimer -= dt;
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.chargeAngle = this.angle;
+        this.shotWindup = Math.max(0, this.chargeTimer);
+        if (this.chargeTimer <= 0) {
+          this.chargePhase = 'dash';
+          this.chargeTimer = 0.34;
+          this.chargeHit = false;
+          this.shotWindup = 0;
+          addFloatText(this.x, this.y - 28, '冲撞!', '#ff5b6e');
+          playSound('enemyShoot');
+        }
+      } else if (this.chargePhase === 'dash') {
+        const step = this.speed * 3.8 * dt;
+        moveWithCollision(this, Math.cos(this.chargeAngle) * step, Math.sin(this.chargeAngle) * step);
+        this.walkPhase += dt * 20;
+        this.chargeTimer -= dt;
+        if (!this.chargeHit && dist2(this.x, this.y, player.x, player.y) < (this.r + player.r + 5) ** 2) {
+          this.chargeHit = true;
+          player.takeDamage(this.damage * 1.9, this.chargeAngle);
+          world.shake = Math.max(world.shake, 7);
+          addParticle(player.x, player.y, '#ff9c47', 9, 80, 3, 0.4);
+        }
+        if (this.chargeTimer <= 0) {
+          this.chargePhase = 'recover';
+          this.chargeTimer = 0.45;
+        }
+      } else if (this.chargePhase === 'recover') {
+        this.chargeTimer -= dt;
+        if (this.chargeTimer <= 0) {
+          this.chargePhase = null;
+          this.fireCd = this.cooldown;
+        }
+      }
+    }
+
+    updateRangedCombat(dt, canSee, distToPlayer) {
+      if (this.winding) {
+        if (!canSee || distToPlayer > this.range * 1.25) {
+          this.winding = false;
+          this.shotWindup = 0;
+          return;
+        }
+        if (this.attackType !== 'sniper') this.attackAimAngle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.shotWindup = Math.max(0, this.shotWindup - dt);
+        if (this.shotWindup <= 0) {
+          this.winding = false;
+          this.shoot();
+        }
+      } else if (canSee && distToPlayer < this.range && this.fireCd <= 0) {
+        this.winding = true;
+        this.shotWindupMax = this.attackType === 'sniper' ? 0.95
+          : this.attackType === 'mortar' ? 0.8
+          : this.attackType === 'radial' ? 0.5
+          : this.attackType === 'fan' ? 0.4 : 0.3;
+        this.shotWindup = this.shotWindupMax;
+        this.attackAimAngle = Math.atan2(player.y - this.y, player.x - this.x);
+      }
+    }
+
+    updateBossCombat(dt, canSee, distToPlayer) {
+      if (this.castType) {
+        this.castTimer -= dt;
+        this.shotWindup = Math.max(0, this.castTimer);
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        if (this.castTimer <= 0) {
+          const type = this.castType;
+          this.castType = null;
+          this.casting = false;
+          this.castLabel = '';
+          this.shotWindup = 0;
+          if (type === 'barrage') {
+            this.barrageWaves = this.bossVariant.ringWaves;
+            this.barrageTimer = 0;
+            this.barrageAngle = Math.atan2(player.y - this.y, player.x - this.x);
+            addLootFeed('首领发动全图弹幕：寻找墙体掩体！', true);
+          } else if (type === 'slam') {
+            this.spawnBossHazards();
+            this.attackCd = 3.1;
+          } else if (type === 'fan') {
+            this.fireBossFan();
+            this.attackCd = 2.35;
+          }
+        }
+        return;
+      }
+
+      if (this.barrageWaves > 0) {
+        this.barrageTimer -= dt;
+        if (this.barrageTimer <= 0) {
+          this.fireBossRing();
+          this.barrageWaves -= 1;
+          this.barrageTimer = 0.24;
+          if (this.barrageWaves <= 0) this.attackCd = 3.25;
+        }
+        return;
+      }
+
+      if (!canSee && distToPlayer > 460) return;
+      if (this.attackCd <= 0) {
+        this.bossCycle += 1;
+        if (this.bossCycle % 3 === 1) this.beginBossCast('barrage', 0.95, '全图弹幕');
+        else if (this.bossCycle % 3 === 2) this.beginBossCast('slam', 1.0, '重击锁定');
+        else this.beginBossCast('fan', 0.55, '压制散射');
+      }
+    }
+
+    beginBossCast(type, duration, label) {
+      this.castType = type;
+      this.castTimer = duration;
+      this.castMax = duration;
+      this.castLabel = label;
+      this.casting = true;
+      this.shotWindupMax = duration;
+      this.shotWindup = duration;
+      this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+      addFloatText(this.x, this.y - 38, label, this.bossVariant.color);
+      playSound('reload');
+    }
+
+    fireBossRing() {
+      const variant = this.bossVariant;
+      const count = variant.ringCount;
+      for (let i = 0; i < count; i++) {
+        const angle = this.barrageAngle + (i / count) * TAU;
+        spawnEnemyBullet(this.x, this.y, angle, variant.ringSpeed, this.damage * 0.58, {
+          color: variant.color, life: 4.6, radius: 3, kind: 'bossRing'
         });
       }
-      this.muzzleFlash = 0.08;
-      addParticle(mx, my, this.isBoss ? '#ff5b8a' : '#ffb25f', this.isBoss ? 6 : 2, 55, 2, 0.13);
+      this.barrageAngle += 0.13;
+      this.muzzleFlash = 0.12;
+      world.shake = Math.max(world.shake, 5);
+      addParticle(this.x, this.y, variant.color, 14, 95, 3, 0.35);
+      playSound('enemyShoot');
+    }
+
+    fireBossFan() {
+      const variant = this.bossVariant;
+      const base = Math.atan2(player.y - this.y, player.x - this.x);
+      for (let i = -5; i <= 5; i++) {
+        spawnEnemyBullet(this.x, this.y, base + i * 0.1, 500, this.damage * 0.85, {
+          color: variant.color, life: 1.35, radius: 2.5, kind: 'bossFan'
+        });
+      }
+      this.muzzleFlash = 0.12;
+      world.shake = Math.max(world.shake, 3);
+      playSound('enemyShoot');
+    }
+
+    spawnBossHazards() {
+      const variant = this.bossVariant;
+      const count = variant.slamCount;
+      for (let i = 0; i < count; i++) {
+        let hx = player.x;
+        let hy = player.y;
+        if (i > 0) {
+          const angle = rand(0, TAU);
+          const dist = rand(75, 160);
+          hx += Math.cos(angle) * dist;
+          hy += Math.sin(angle) * dist;
+          if (isSolidAt(hx, hy)) {
+            hx = player.x;
+            hy = player.y;
+          }
+        }
+        spawnHazard(hx, hy, variant.slamRadius, 1.55 + i * 0.12, this.damage * 3.1, variant.color, '重击');
+      }
+      addLootFeed('首领锁定区域，立刻离开红色警示圈！', true);
+      playSound('enemyShoot');
+    }
+
+    shoot() {
+      this.fireCd = this.cooldown + rand(-0.14, 0.2);
+      const baseAngle = this.attackAimAngle || Math.atan2(player.y - this.y, player.x - this.x);
+      const mx = this.x + Math.cos(baseAngle) * 18;
+      const my = this.y + Math.sin(baseAngle) * 18;
+      const floor = Math.max(1, raid?.floor || 1);
+
+      if (this.attackType === 'burst') {
+        for (const offset of [-0.085, 0, 0.085]) {
+          spawnEnemyBullet(mx, my, baseAngle + offset, 760, this.damage, {
+            color: '#ff7b68', life: 0.9, radius: 2, kind: 'burst'
+          });
+        }
+      } else if (this.attackType === 'fan') {
+        for (let i = -2; i <= 2; i++) {
+          spawnEnemyBullet(mx, my, baseAngle + i * 0.13, 520, this.damage, {
+            color: '#ff9c6b', life: 1.15, radius: 2.4, kind: 'fan'
+          });
+        }
+      } else if (this.attackType === 'sniper') {
+        spawnEnemyBullet(mx, my, baseAngle, 1550, this.damage * 1.5, {
+          color: '#ff5b6e', life: 1.0, radius: 3, kind: 'sniper'
+        });
+      } else if (this.attackType === 'mortar') {
+        spawnHazard(player.x, player.y, 70, 1.15, this.damage * 2.25, '#ffad45', '炮击');
+      } else if (this.attackType === 'radial') {
+        const count = 10 + Math.min(8, Math.floor(floor / 5));
+        const offset = world.time * 0.9;
+        for (let i = 0; i < count; i++) {
+          spawnEnemyBullet(mx, my, offset + (i / count) * TAU, 315, this.damage * 0.72, {
+            color: '#58a6ff', life: 1.45, radius: 2, kind: 'radial'
+          });
+        }
+      } else {
+        spawnEnemyBullet(mx, my, baseAngle, 640, this.damage, {
+          color: '#ff7b68', life: 0.8, radius: 2, kind: 'shot'
+        });
+      }
+      this.muzzleFlash = 0.09;
+      addParticle(mx, my, this.color, 2, 55, 2, 0.13);
       playSound('enemyShoot');
     }
 
@@ -5928,6 +6284,75 @@ body.touch-device.move-stick-fixed .move-pad {
         world.pickups.push({ x: this.x, y: this.y, type: 'item', item: createItem(itemType), life: 30, bob: rand(0, TAU) });
       }
       updateHUD();
+    }
+  }
+
+  function spawnEnemyBullet(x, y, angle, speed, damage, options = {}) {
+    if (!world) return null;
+    const bullet = {
+      x,
+      y,
+      prevX: x,
+      prevY: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      damage,
+      owner: 'enemy',
+      color: options.color || '#ff7b68',
+      life: options.life ?? 0.9,
+      maxLife: options.life ?? 0.9,
+      radius: options.radius || 2,
+      kind: options.kind || 'shot'
+    };
+    world.bullets.push(bullet);
+    return bullet;
+  }
+
+  function spawnHazard(x, y, radius, delay, damage, color, label = '重击') {
+    if (!world) return null;
+    const hazard = {
+      x,
+      y,
+      radius,
+      timer: delay,
+      maxTimer: delay,
+      damage,
+      color,
+      label,
+      exploded: false,
+      blast: 0
+    };
+    world.hazards.push(hazard);
+    return hazard;
+  }
+
+  function updateHazards(dt) {
+    if (!world || !player) return;
+    for (let i = world.hazards.length - 1; i >= 0; i--) {
+      const hazard = world.hazards[i];
+      if (!hazard.exploded) {
+        hazard.timer -= dt;
+        if (hazard.timer <= 0) {
+          hazard.exploded = true;
+          hazard.timer = 0;
+          hazard.blast = 0.36;
+          world.shake = Math.max(world.shake, 12);
+          addParticle(hazard.x, hazard.y, hazard.color, 22, 150, 4, 0.65);
+          addParticle(hazard.x, hazard.y, '#ffd15c', 12, 95, 3, 0.5);
+          addParticle(hazard.x, hazard.y, '#ffffff', 6, 60, 2, 0.3);
+          playSound('hurt');
+          if (dist2(player.x, player.y, hazard.x, hazard.y) <= hazard.radius * hazard.radius) {
+            player.takeDamage(hazard.damage, Math.atan2(player.y - hazard.y, player.x - hazard.x));
+            player.hurtCd = Math.max(player.hurtCd, 0.45);
+            addFloatText(player.x, player.y - 34, '重击命中!', '#ff5b6e');
+          } else {
+            addFloatText(hazard.x, hazard.y - 18, '闪避成功', '#7ee8d2');
+          }
+        }
+      } else {
+        hazard.blast -= dt;
+        if (hazard.blast <= 0) world.hazards.splice(i, 1);
+      }
     }
   }
 
@@ -6431,6 +6856,7 @@ body.touch-device.move-stick-fixed .move-pad {
     }
     for (const enemy of world.enemies) enemy.update(dt);
     updateBullets(dt);
+    updateHazards(dt);
     if (raid.ended) return;
     updatePickups(dt);
     updateParticles(dt);
@@ -6500,7 +6926,8 @@ body.touch-device.move-stick-fixed .move-pad {
     if (raid) {
       const bossFloor = raid.floor % 5 === 0;
       const nextBossFloor = raid.floor + (5 - (raid.floor % 5));
-      el.raidObjective.textContent = `${riskDef().label} · F${raid.floor} · ${bossFloor ? '首领层' : `下个首领 F${nextBossFloor}`} · 撤离/下层`;
+      const stageName = world?.stage?.name || stageForFloor(raid.floor).name;
+      el.raidObjective.textContent = `${riskDef().label} · ${stageName} · F${raid.floor} · ${bossFloor ? '首领层' : `下个首领 F${nextBossFloor}`}`;
     }
     if (world && raid) {
       let nearestD = Infinity;
@@ -6547,6 +6974,20 @@ body.touch-device.move-stick-fixed .move-pad {
         el.bossHud.classList.remove('hidden');
         el.bossName.textContent = boss.name;
         el.bossFill.style.width = `${clamp((boss.hp / boss.maxHp) * 100, 0, 100)}%`;
+        if (el.bossSkill) {
+          const casting = !!boss.castType;
+          const barrage = boss.barrageWaves > 0;
+          const hazardsActive = world.hazards.some((h) => !h.exploded);
+          const seconds = boss.castType ? Math.max(0, boss.castTimer).toFixed(1) : '';
+          el.bossSkill.textContent = casting
+            ? `${boss.castLabel} · ${seconds}s`
+            : barrage
+              ? '全图弹幕展开中 · 躲到墙后'
+              : hazardsActive
+                ? '重击锁定 · 离开红色警示圈'
+                : '全图弹幕 · 重击锁定';
+          el.bossSkill.classList.toggle('warning', casting || barrage || hazardsActive);
+        }
       } else {
         el.bossHud.classList.add('hidden');
       }
@@ -6832,9 +7273,12 @@ body.touch-device.move-stick-fixed .move-pad {
     updateExploration(0);
     hudAccumulator = 0;
     lastMinimapDraw = -1;
+    const stage = world.stage || stageForFloor(raid.floor);
+    raid.stage = stage.name;
+    addLootFeed(`F${raid.floor} ${stage.name} · ${stage.tag}`, false);
     addLootFeed(world.boss
-      ? `F${raid.floor} 首领层：${world.boss.name} 已出现。`
-      : `F${raid.floor}：击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。`, !!world.boss);
+      ? `首领层：${world.boss.name} 已出现。`
+      : `击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。`, !!world.boss);
     updateHUD();
     updateBackpackHud();
     if (isFirstFloor) startRaidTutorial();
@@ -6895,7 +7339,7 @@ body.touch-device.move-stick-fixed .move-pad {
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
-      toast('行动开始：本局从 LV.1 开始；首领每 5 层出现，金色守卫掉落钥匙。');
+      toast('行动开始：本局从 LV.1 开始；每 5 层出现不同首领，金色守卫掉落钥匙。');
     }
     lastTime = performance.now();
   }
@@ -7030,6 +7474,8 @@ body.touch-device.move-stick-fixed .move-pad {
     drawKeyRoom();
     for (const c of world.containers) if (isPointVisible(c.x, c.y)) drawContainer(c);
     for (const p of world.pickups) if (isPointVisible(p.x, p.y)) drawPickup(p);
+    drawHazards();
+    drawEnemyTelegraphs();
     for (const bullet of world.bullets) drawBullet(bullet);
     for (const enemy of world.enemies) if (!enemy.dead && isPointVisible(enemy.x, enemy.y)) drawCharacter(enemy, false);
     drawCharacter(player, true);
@@ -7276,16 +7722,165 @@ body.touch-device.move-stick-fixed .move-pad {
     ctx.restore();
   }
 
+  function drawHazards() {
+    for (const h of world.hazards) {
+      const pct = h.exploded ? clamp(h.blast / 0.36, 0, 1) : clamp(1 - h.timer / h.maxTimer, 0, 1);
+      ctx.save();
+      if (h.exploded) {
+        ctx.globalAlpha = pct * 0.65;
+        ctx.fillStyle = h.color;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius * (1.15 - pct * 0.2), 0, TAU);
+        ctx.fill();
+        ctx.globalAlpha = pct;
+        ctx.strokeStyle = '#fff2c2';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius * (1.2 - pct * 0.25), 0, TAU);
+        ctx.stroke();
+      } else {
+        const pulse = 0.5 + 0.5 * Math.sin(world.time * 11);
+        ctx.globalAlpha = 0.11 + pulse * 0.07;
+        ctx.fillStyle = h.color;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius, 0, TAU);
+        ctx.fill();
+        ctx.globalAlpha = 0.88;
+        ctx.strokeStyle = h.color;
+        ctx.lineWidth = 2 + pulse;
+        ctx.setLineDash([7, 5]);
+        ctx.lineDashOffset = -world.time * 30;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius, 0, TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = '#fff0b0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius * pct, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#ffd6a0';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${h.label} ${Math.max(0, h.timer).toFixed(1)}s`, h.x, h.y - h.radius - 8);
+      }
+      ctx.restore();
+    }
+  }
+
+  function rayWallDistance(x, y, angle, maxDist = 900) {
+    const step = 6;
+    for (let d = 0; d <= maxDist; d += step) {
+      if (isSolidAt(x + Math.cos(angle) * d, y + Math.sin(angle) * d)) return d;
+    }
+    return maxDist;
+  }
+
+  function drawEnemyTelegraphs() {
+    for (const enemy of world.enemies) {
+      if (enemy.dead) continue;
+      if (enemy.chargePhase === 'windup') {
+        const dist = 230;
+        const ex = enemy.x + Math.cos(enemy.chargeAngle) * dist;
+        const ey = enemy.y + Math.sin(enemy.chargeAngle) * dist;
+        const pulse = 0.5 + 0.5 * Math.sin(world.time * 14);
+        ctx.save();
+        ctx.globalAlpha = 0.24 + pulse * 0.2;
+        ctx.strokeStyle = '#ffad45';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([9, 5]);
+        ctx.beginPath();
+        ctx.moveTo(enemy.x, enemy.y);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.16 + pulse * 0.1;
+        ctx.lineWidth = 18;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x, enemy.y);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.restore();
+      } else if (enemy.winding && enemy.attackType === 'sniper') {
+        const dist = rayWallDistance(enemy.x, enemy.y, enemy.attackAimAngle, 650);
+        const charge = 1 - enemy.shotWindup / Math.max(0.01, enemy.shotWindupMax);
+        ctx.save();
+        ctx.globalAlpha = 0.25 + charge * 0.5;
+        ctx.strokeStyle = '#ff5b6e';
+        ctx.lineWidth = 1 + charge * 1.8;
+        ctx.beginPath();
+        ctx.moveTo(enemy.x, enemy.y);
+        ctx.lineTo(enemy.x + Math.cos(enemy.attackAimAngle) * dist, enemy.y + Math.sin(enemy.attackAimAngle) * dist);
+        ctx.stroke();
+        ctx.globalAlpha = 0.5 + charge * 0.4;
+        ctx.fillStyle = '#ffb0ba';
+        ctx.beginPath();
+        ctx.arc(enemy.x + Math.cos(enemy.attackAimAngle) * dist, enemy.y + Math.sin(enemy.attackAimAngle) * dist, 4, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    const boss = world.boss;
+    if (!boss || boss.dead || !boss.castType) return;
+    const charge = 1 - boss.castTimer / Math.max(0.01, boss.castMax);
+    ctx.save();
+    ctx.translate(boss.x, boss.y);
+    ctx.globalAlpha = 0.25 + charge * 0.55;
+    ctx.strokeStyle = boss.bossVariant.color;
+    ctx.lineWidth = 2;
+    if (boss.castType === 'barrage') {
+      const radius = 48 + charge * 36;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, TAU);
+      ctx.stroke();
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * TAU + world.time * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * (radius + 4), Math.sin(a) * (radius + 4));
+        ctx.lineTo(Math.cos(a) * (radius + 34), Math.sin(a) * (radius + 34));
+        ctx.stroke();
+      }
+    } else if (boss.castType === 'fan') {
+      const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+      ctx.globalAlpha = 0.2 + charge * 0.25;
+      ctx.fillStyle = boss.bossVariant.color;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, 260, base - 0.58, base + 0.58);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawBullet(b) {
     const tx = b.x - b.vx * 0.016;
     const ty = b.y - b.vy * 0.016;
+    const enemyBullet = b.owner !== 'player';
+    const radius = b.radius || (enemyBullet ? 1.5 : 2);
     ctx.strokeStyle = b.color;
-    ctx.lineWidth = b.owner === 'player' ? 2 : 1.5;
+    ctx.lineWidth = b.kind === 'bossRing' ? 2.4 : b.kind === 'sniper' ? 3 : enemyBullet ? 1.5 : 2;
     ctx.globalAlpha = 0.9;
     ctx.beginPath();
     ctx.moveTo(tx, ty);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
+    if (enemyBullet) {
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, radius, 0, TAU);
+      ctx.fill();
+      if (b.kind === 'bossRing' || b.kind === 'sniper') {
+        ctx.globalAlpha = 0.28;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, radius * 2.2, 0, TAU);
+        ctx.fill();
+      }
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -7409,15 +8004,42 @@ body.touch-device.move-stick-fixed .move-pad {
       }
     } else {
       if (isBoss) ctx.scale(1.45, 1.45);
-      // Enemy legs.
-      ctx.fillStyle = '#2b2229';
-      ctx.fillRect(-7 + bob * 0.5, -8, 6, 10);
-      ctx.fillRect(-7 - bob * 0.5, 1, 6, 10);
-      // Enemy torso.
+      const kind = entity.kind;
+      if (kind === 'orbiter') {
+        ctx.strokeStyle = entity.color;
+        ctx.globalAlpha = 0.65;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 2, 14, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(88,166,255,.22)';
+        ctx.beginPath();
+        ctx.arc(0, 2, 10, 0, TAU);
+        ctx.fill();
+      } else {
+        // Enemy legs.
+        ctx.fillStyle = '#2b2229';
+        ctx.fillRect(-7 + bob * 0.5, -8, 6, 10);
+        ctx.fillRect(-7 - bob * 0.5, 1, 6, 10);
+      }
+      // Enemy torso. Heavies are broader, scouts are leaner.
+      const torsoW = kind === 'heavy' ? 18 : kind === 'scout' ? 10 : 13;
       ctx.fillStyle = entity.hitFlash > 0 ? '#fff2f3' : entity.color;
-      ctx.fillRect(-6, -9, 13, 18);
+      ctx.fillRect(-torsoW / 2, -9, torsoW, 18);
       ctx.fillStyle = '#3a2029';
-      ctx.fillRect(-6, 4, 13, 5);
+      ctx.fillRect(-torsoW / 2, 4, torsoW, 5);
+      if (kind === 'heavy') {
+        ctx.fillStyle = '#313844';
+        ctx.fillRect(-13, -5, 4, 14);
+        ctx.fillStyle = '#8e9bad';
+        ctx.fillRect(-12, -3, 2, 9);
+      } else if (kind === 'bomber') {
+        ctx.fillStyle = '#4a2a1d';
+        ctx.fillRect(-12, -4, 5, 10);
+        ctx.fillStyle = '#ffad45';
+        ctx.fillRect(-11, -2, 3, 5);
+      }
       if (isBoss) {
         ctx.fillStyle = '#ffd15c';
         ctx.fillRect(-9, -14, 18, 4);
@@ -7429,12 +8051,17 @@ body.touch-device.move-stick-fixed .move-pad {
       ctx.fillRect(4, -7, 9, 9);
       ctx.fillStyle = '#ffb58b';
       ctx.fillRect(9, -5, 3, 3);
-      // Gun.
+      // Gun. Snipers carry a long scoped rifle.
+      const gunLen = kind === 'sniper' ? 22 : 14;
       ctx.fillStyle = '#10151c';
-      ctx.fillRect(8, 1, 14, 4);
+      ctx.fillRect(8, 1, gunLen, 4);
+      if (kind === 'sniper') {
+        ctx.fillStyle = '#6b5a9a';
+        ctx.fillRect(12, -2, 7, 3);
+      }
       if (entity.muzzleFlash > 0) {
         ctx.fillStyle = isBoss ? '#ff5b8a' : '#ffce7a';
-        ctx.fillRect(22, 0, 6, 5);
+        ctx.fillRect(8 + gunLen, 0, 6, 5);
       }
     }
     ctx.restore();
@@ -8164,8 +8791,12 @@ body.touch-device.move-stick-fixed .move-pad {
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
           altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
           containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0, locked: !!c.locked, vault: !!c.vault })),
-          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, carriesKey: !!e.carriesKey, elite: !!e.elite })),
-          boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name } : null,
+          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, carriesKey: !!e.carriesKey, elite: !!e.elite })),
+          boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
+          stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
+          hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
+          bulletCount: world.bullets.length,
+          bulletTypes: world.bullets.reduce((acc, b) => { const key = b.kind || b.owner; acc[key] = (acc[key] || 0) + 1; return acc; }, {}),
           bossPresent: !!world.boss,
           keyChest: world.keyChest ? { x: world.keyChest.x, y: world.keyChest.y, locked: !!world.keyChest.locked, searched: !!world.keyChest.searched } : null,
           roomCount: world.rooms.length,
@@ -8192,6 +8823,9 @@ body.touch-device.move-stick-fixed .move-pad {
       touch.aimPressAt = performance.now();
     },
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
+    jumpFloor(floor) { if (raid && !raid.ended) { raid.floor = Math.max(1, Math.floor(Number(floor) || 1)); beginFloor(false); return this.snapshot(); } },
+    bossAttack(type = 'barrage') { if (world && world.boss && !world.boss.dead) { if (type === 'slam') { world.boss.spawnBossHazards(); } else if (type === 'fan') { world.boss.fireBossFan(); } else { world.boss.barrageWaves = world.boss.bossVariant.ringWaves; world.boss.barrageTimer = 0; } return this.snapshot(); } },
+    spawnEnemy(kind = 'grunt') { if (world && player) { const room = world.rooms[1] || world.rooms[0]; const e = new Enemy(player.x + 70, player.y + 30, kind, room); e.state = 'chase'; e.alertTimer = 12; e.lastSeen = { x: player.x, y: player.y }; world.enemies.push(e); return this.snapshot(); } },
     damageEnemy(index, amount = 9999) { const enemy = world && world.enemies[index]; if (enemy && !enemy.dead) enemy.takeDamage(amount, 0); },
     grantKeys(count = 1) { if (raid && !raid.ended) { raid.keys = (raid.keys || 0) + Math.max(0, Math.floor(count)); updateHUD(); } },
     grantStone(type = 'stone_white', count = 1) {

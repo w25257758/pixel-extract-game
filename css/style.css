@@ -1167,9 +1167,26 @@ body.touch-device.move-stick-fixed .move-pad {
   background: linear-gradient(90deg, #b91f46, #ff3e6c 62%, #ff9c47);
   transition: width .12s linear;
 }
+.boss-skill {
+  margin-top: 5px;
+  color: #d5a6b4;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .7px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.boss-skill.warning {
+  color: #ffd15c;
+  animation: boss-warning-pulse .55s ease-in-out infinite alternate;
+}
+@keyframes boss-warning-pulse { from { opacity: .58; } to { opacity: 1; } }
 @media (pointer: coarse), (max-height: 520px) and (max-width: 1000px) {
   .boss-hud { top: 16%; width: min(320px, 29vw); padding: 5px 7px 6px; }
   .boss-hud-head strong { font-size: 9px; }
+  .boss-skill { margin-top: 3px; font-size: 6px; }
 }
 
 /* Utility buttons and settings */

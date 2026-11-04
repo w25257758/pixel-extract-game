@@ -11,9 +11,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v26
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v27
 - Save key: localStorage pixel_extract_save_v1, schema version 5
-- Latest maintenance: item-value transcendence with permanent account-wide stat growth (see git log)
+- Latest maintenance: six stage sectors, six enemy archetypes, six boss variants and fully reworked enemy/boss attacks (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
@@ -26,7 +26,10 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
 - The transcendence window shows level, current value progress / next threshold, permanent bonuses, item conversion list and bulk common-loot conversion.
-- Bosses appear only on floors divisible by 5. Every other floor has no boss marker or boss HUD.
+- Bosses appear only on floors divisible by 5. Every other floor has no boss marker or boss HUD. Boss HUD now includes the current skill name and cast countdown.
+- Six stage sectors cycle with floor depth: abandoned industry, red line, quantum abyss, foundry, void corridor, final citadel. Each has its own floor/wall/minimap palette and enemy pool.
+- Enemy archetypes: assault burst, charging hound, heavy fan, sniper laser, mortar hazard and orbiting radial barrage.
+- Bosses cycle through six named variants and use wall-blocked full-map bullet rings, targeted telegraphed slam zones and a suppression fan.
 - Every floor has one golden key guardian, one locked key-room chest and a high-value vault loot table.
 - War fog hides unseen tiles and entities. The minimap/full map only show explored tiles, with a cyan trail of the walked path.
 - Map size is 72x54 tiles with 13-18 rooms, 31-43 searchable containers and more enemies than the old 52x40 map.
@@ -45,6 +48,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Every new run starts at level 1. Base level/XP/permanent perks must not return.
 - Keep risk picker, random events, stash filter/sell-common, save export/import and touch settings.
 - Keep bosses exclusive to every fifth floor; key guardian must always drop one key; locked chest must consume exactly one key.
+- Keep enemy attacks distinct and telegraphed: burst, charge, fan, sniper line, mortar circle and radial barrage. Do not collapse them back to one generic shot.
+- Keep boss full-map barrages blocked by walls and keep targeted slam zones telegraphed for roughly 1.5 seconds with large damage on failure to dodge.
+- Keep six stage palettes and stage-specific enemy pools; HUD objective must show the current stage name.
 - Keep airdrops removed. The rare-loot source is the key-room chest.
 - Keep fog of war and persistent explored-path display on both minimap and full map.
 - Keep the enlarged map and loot density; room generation must still produce at least 12 rooms.
@@ -86,12 +92,14 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Verified enemy stone drop path at F1, base 3x2 manage grid and enhancement window no-scroll at 932x430, 667x375 and 568x320 with no JS errors.
 - Added transcendence: stash item-value conversion, 1000 first threshold, 1.25x scaling, permanent combat stats, bulk common-loot conversion and base/inventory displays.
 - Verified thresholds 1000/1250/1563/1954/2442/3052, v4 -> v5 migration, bulk conversion, +20 HP / +4% damage / +2% reduction at level 2, and 3x2 manage grid + transcendence panel no-scroll at all three test sizes.
+- Added six floor sectors with distinct map palettes and enemy pools, six enemy attack archetypes, and six boss variants with full-map barrage, telegraphed slam and suppression fan attacks.
+- Verified F1/F5/F10/F15/F20/F25/F30 stage and boss rotation, all six enemy attack types, boss slam hit for 69 damage at F5 vs zero when dodging, barrage bullet count collapsing from 47 to 7 within 1.8s due to walls/lifetime, and 568x320 boss HUD/objective no overflow.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -99,6 +107,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - movement, two-finger aim/fire, tutorial and combat feedback
   - enemy stone drop, enhancement success/failure, stone consumption and +10 cap
   - transcendence conversion, 1000/1250 thresholds, permanent stat application and save persistence
+  - stage/boss rotation, telegraphs, wall-blocked boss barrage and slam dodge/damage behavior
 
 ## Release
 1. Edit and test locally.
