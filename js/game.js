@@ -177,7 +177,8 @@
     moveZoneWidth: 50,
     moveSensitivity: 1,
     aimPadSize: 100,
-    aimSensitivity: 1
+    aimSensitivity: 1,
+    tutorialDone: false
   };
 
   function defaultSave() {
@@ -229,6 +230,7 @@
     touchSettings.aimPadSize = clamp(Number(touchSettings.aimPadSize) || 100, 70, 120);
     touchSettings.aimSensitivity = clamp(Number(touchSettings.aimSensitivity) || 1, 0.6, 1.6);
     touchSettings.raidRisk = RISK_DEFS[touchSettings.raidRisk] ? touchSettings.raidRisk : 'normal';
+    touchSettings.tutorialDone = touchSettings.tutorialDone === true;
     return merged;
   }
 
@@ -480,6 +482,14 @@
     backpackHud: $('#backpackHud'),
     backpackCount: $('#backpackCount'),
     damageFlash: $('#damageFlash'),
+    lowHpVignette: $('#lowHpVignette'),
+    damageDirection: $('#damageDirection'),
+    hitMarker: $('#hitMarker'),
+    raidTutorial: $('#raidTutorial'),
+    tutorialTitle: $('#tutorialTitle'),
+    tutorialStep: $('#tutorialStep'),
+    tutorialText: $('#tutorialText'),
+    tutorialSkipBtn: $('#tutorialSkipBtn'),
     inventoryOverlay: $('#inventoryOverlay'),
     inventoryGrid: $('#inventoryGrid'),
     inventoryLoadout: $('#inventoryLoadout'),
@@ -1088,6 +1098,12 @@
   el.openStashBtn.addEventListener('click', () => openEquipModal('stash'));
   el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
+  if (el.tutorialSkipBtn) {
+    el.tutorialSkipBtn.addEventListener('click', () => {
+      completeRaidTutorial();
+      toast('已跳过首次行动教学。');
+    });
+  }
   if (el.loadoutWeapon) el.loadoutWeapon.addEventListener('click', () => openEquipModal('equip'));
   if (el.loadoutArmor) el.loadoutArmor.addEventListener('click', () => openEquipModal('equip'));
   if (el.equipOverlay) {
@@ -1137,6 +1153,92 @@
     aimTargetAngle: 0,
     firing: false
   };
+
+  const TUTORIAL_STEPS = [
+    {
+      title: '移动',
+      touchText: '按住左侧摇杆拖动，移动角色。',
+      desktopText: '使用 WASD 或方向键移动。'
+    },
+    {
+      title: '搜索',
+      touchText: '靠近补给箱，站定 2 秒自动搜索；移动会打断。',
+      desktopText: '靠近补给箱，站定 2 秒自动搜索；移动会打断。'
+    },
+    {
+      title: '战斗',
+      touchText: '轻触右侧瞄准区转向，长按开火；开火会自动锁定前方敌人。',
+      desktopText: '鼠标瞄准，左键射击；R 换弹，F 使用医疗包。'
+    },
+    {
+      title: '撤离',
+      touchText: '跟着小地图的绿色标记，进入撤离点停留 3 秒。',
+      desktopText: '跟着小地图的绿色标记，进入撤离点停留 3 秒。'
+    }
+  ];
+
+  let raidTutorialState = { active: false, step: 0, startX: 0, startY: 0 };
+  let hitMarkerTimer = 0;
+  let damageDirectionTimer = 0;
+
+  function showHitMarker(kill = false) {
+    if (!el.hitMarker) return;
+    el.hitMarker.classList.toggle('kill', !!kill);
+    el.hitMarker.classList.remove('active');
+    void el.hitMarker.offsetWidth;
+    el.hitMarker.classList.add('active');
+    clearTimeout(hitMarkerTimer);
+    hitMarkerTimer = setTimeout(() => el.hitMarker.classList.remove('active'), 190);
+  }
+
+  function showDamageDirection(sourceAngle) {
+    if (!el.damageDirection || !Number.isFinite(sourceAngle)) return;
+    const cssAngle = sourceAngle + Math.PI / 2;
+    el.damageDirection.style.setProperty('--hit-rot', `${cssAngle}rad`);
+    el.damageDirection.classList.remove('active');
+    void el.damageDirection.offsetWidth;
+    el.damageDirection.classList.add('active');
+    clearTimeout(damageDirectionTimer);
+    damageDirectionTimer = setTimeout(() => el.damageDirection.classList.remove('active'), 760);
+  }
+
+  function setRaidTutorialStep(step) {
+    if (!raidTutorialState.active || !el.raidTutorial) return;
+    if (step >= TUTORIAL_STEPS.length) {
+      completeRaidTutorial();
+      return;
+    }
+    raidTutorialState.step = step;
+    const info = TUTORIAL_STEPS[step];
+    if (el.tutorialTitle) el.tutorialTitle.textContent = info.title;
+    if (el.tutorialStep) el.tutorialStep.textContent = `${step + 1} / ${TUTORIAL_STEPS.length}`;
+    if (el.tutorialText) el.tutorialText.textContent = touch.ui ? info.touchText : info.desktopText;
+    el.raidTutorial.classList.remove('hidden');
+  }
+
+  function advanceRaidTutorial(step) {
+    if (!raidTutorialState.active || raidTutorialState.step !== step) return;
+    setRaidTutorialStep(step + 1);
+  }
+
+  function completeRaidTutorial() {
+    raidTutorialState.active = false;
+    if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
+    if (!save.settings.tutorialDone) {
+      save.settings.tutorialDone = true;
+      persist();
+    }
+  }
+
+  function startRaidTutorial() {
+    if (save.settings.tutorialDone) {
+      if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
+      raidTutorialState.active = false;
+      return;
+    }
+    raidTutorialState = { active: true, step: 0, startX: player.x, startY: player.y };
+    setRaidTutorialStep(0);
+  }
 
   function enableTouchUI() {
     if (touch.ui) return;
@@ -1795,6 +1897,7 @@
           enemy.alertTimer = Math.max(enemy.alertTimer, 2.8);
         }
       }
+      advanceRaidTutorial(2);
       updateHUD();
       return true;
     }
@@ -1831,13 +1934,14 @@
       updateHUD();
     }
 
-    takeDamage(amount) {
+    takeDamage(amount, sourceAngle = null) {
       if (this.hurtCd > 0 || mode !== 'raid' || raid.ended) return;
       this.hurtCd = 0.075;
       const finalDamage = Math.max(1, amount * (1 - this.armor.reduction));
       this.hp -= finalDamage;
       world.shake = Math.max(world.shake, 6);
       showDamageFlash();
+      if (Number.isFinite(sourceAngle)) showDamageDirection(sourceAngle);
       playSound('hurt');
       addParticle(this.x, this.y, '#ff5b6e', 5, 60, 2, 0.4);
       if (raid && raid.interactionType === 'search' && raid.progress > 0.05) {
@@ -2056,6 +2160,7 @@
       addParticle(this.x, this.y, '#ff6d78', 5, 75, 2, 0.4);
       addFloatText(this.x + rand(-6, 6), this.y - 18, `-${Math.round(amount)}`, '#ff9aa4');
       playSound('hit');
+      showHitMarker(this.hp <= 0);
       if (this.hp <= 0) this.die();
     }
 
@@ -2214,6 +2319,7 @@
     } else {
       addLootFeed('箱子是空的……', true);
     }
+    advanceRaidTutorial(1);
     updateHUD();
   }
 
@@ -2287,7 +2393,7 @@
         }
       } else {
         if (segmentHitsCircle(b.prevX, b.prevY, b.x, b.y, player.x, player.y, player.r + 2)) {
-          player.takeDamage(b.damage);
+          player.takeDamage(b.damage, Math.atan2(-b.vy, -b.vx));
           world.bullets.splice(i, 1);
         }
       }
@@ -2336,6 +2442,7 @@
       (altActive && dist2(player.x, player.y, world.altExtraction.x, world.altExtraction.y) < world.altExtraction.r * world.altExtraction.r);
     const type = atExit ? 'extract' : nearest ? 'search' : null;
 
+    if (type === 'extract' && raidTutorialState.active) completeRaidTutorial();
     if (type !== raid.interactionType || (type === 'search' && nearest !== raid.searchTarget)) {
       raid.interactionType = type;
       raid.searchTarget = type === 'search' ? nearest : null;
@@ -2414,6 +2521,10 @@
     world.shake = Math.max(0, world.shake - dt * 18);
 
     player.update(dt);
+    if (raidTutorialState.active && raidTutorialState.step === 0 &&
+      dist2(player.x, player.y, raidTutorialState.startX, raidTutorialState.startY) > 48 * 48) {
+      advanceRaidTutorial(0);
+    }
     for (const enemy of world.enemies) enemy.update(dt);
     updateBullets(dt);
     if (raid.ended) return;
@@ -2444,6 +2555,7 @@
     const hpPct = clamp((player.hp / player.maxHp) * 100, 0, 100);
     el.hpFill.style.width = `${hpPct}%`;
     el.hpText.textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
+    if (el.lowHpVignette) el.lowHpVignette.classList.toggle('active', player.hp > 0 && hpPct <= 30);
     el.armorText.textContent = `护甲：${player.armor.name}`;
     el.hudMeds.textContent = `医疗包 ×${player.medkits}`;
     el.hudScrap.textContent = `废料 +${raid ? raid.scrap : 0}`;
@@ -2766,6 +2878,9 @@
     el.interactPrompt.classList.add('hidden');
     el.lootFeed.innerHTML = '';
     el.damageFlash.style.opacity = '0';
+    if (el.hitMarker) el.hitMarker.classList.remove('active', 'kill');
+    if (el.damageDirection) el.damageDirection.classList.remove('active');
+    if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
     keys['r'] = false;
     mouse.down = false;
     mouse.semiQueued = false;
@@ -2782,6 +2897,7 @@
     buildFlowField();
     updateHUD();
     updateBackpackHud();
+    startRaidTutorial();
     addLootFeed(`${risk.label}行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。`, false);
     if (raid.event) {
       addLootFeed(`随机事件：${raid.event.label}${raid.event.timer > 0 ? `（${raid.event.timer}秒）` : ''}`, false);
@@ -2808,6 +2924,11 @@
     el.mapOverlay.classList.add('hidden');
     el.bossHud.classList.add('hidden');
     el.interactPrompt.classList.add('hidden');
+    raidTutorialState.active = false;
+    if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
+    if (el.hitMarker) el.hitMarker.classList.remove('active', 'kill');
+    if (el.damageDirection) el.damageDirection.classList.remove('active');
+    if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
     raid.inventoryOpen = false;
     raid.mapOpen = false;
 
@@ -2882,6 +3003,11 @@
   function returnToBase() {
     el.debriefOverlay.classList.add('hidden');
     el.bossHud.classList.add('hidden');
+    if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
+    raidTutorialState.active = false;
+    if (el.hitMarker) el.hitMarker.classList.remove('active', 'kill');
+    if (el.damageDirection) el.damageDirection.classList.remove('active');
+    if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
     el.gameScreen.classList.add('hidden');
     el.baseScreen.classList.remove('hidden');
     mode = 'base';
@@ -3929,7 +4055,7 @@
     },
     setKey(key, down) { keys[key.toLowerCase()] = !!down; },
     teleport(x, y) { if (player) { player.x = x; player.y = y; } },
-    hurt(amount) { if (player) player.takeDamage(amount); },
+    hurt(amount, sourceAngle = null) { if (player) player.takeDamage(amount, sourceAngle); },
     enableTouch() { enableTouchUI(); },
     touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; },
     touchAim(x, y, mag) {
