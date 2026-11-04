@@ -21,13 +21,19 @@
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark">PX</div>
-          <div>
+          <div class="brand-copy">
             <div class="brand-title">像素撤离</div>
             <div class="brand-sub">PIXEL EXTRACT // 单机搜打撤</div>
           </div>
+          <div class="brand-progress" aria-label="等级与经验">
+            <div class="brand-level"><span>LV</span><strong id="levelBig">1</strong></div>
+            <div class="brand-xp">
+              <div class="xp-label"><span>经验</span><span id="xpLabel">0 / 100</span></div>
+              <div class="xp-bar"><div id="xpFill" class="xp-fill"></div></div>
+            </div>
+          </div>
         </div>
         <div class="top-stats">
-          <div class="stat-chip"><span>等级</span><strong id="statLevel">1</strong></div>
           <div class="stat-chip scrap"><span>废料</span><strong id="statScrap">0</strong></div>
           <div class="stat-chip"><span>行动</span><strong id="statRaids">0</strong></div>
           <div class="stat-chip"><span>撤离</span><strong id="statExtracts">0</strong></div>
@@ -85,25 +91,6 @@
           </div>
         </section>
 
-        <section class="right-column">
-          <section class="panel progression-panel">
-            <div class="panel-head"><span>成长档案</span><span class="panel-tag">PROFILE</span></div>
-            <div class="level-row">
-              <div class="level-badge"><span>LV</span><strong id="levelBig">1</strong></div>
-              <div class="xp-wrap">
-                <div class="xp-label"><span>经验</span><span id="xpLabel">0 / 100</span></div>
-                <div class="xp-bar"><div id="xpFill" class="xp-fill"></div></div>
-              </div>
-            </div>
-            <div id="nextPerk" class="next-perk"></div>
-            <div class="stat-grid">
-              <div><span>击倒</span><strong id="statKills">0</strong></div>
-              <div><span>死亡</span><strong id="statDeaths">0</strong></div>
-              <div><span>带回物资</span><strong id="statLoot">0</strong></div>
-            </div>
-          </section>
-
-        </section>
       </div>
     </main>
 

@@ -73,6 +73,32 @@ button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 }
 
 .brand { display: flex; align-items: center; gap: 14px; }
+.brand-copy { min-width: 0; }
+.brand-progress {
+  min-width: 190px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
+}
+.brand-level {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #435616;
+  background: rgba(214, 255, 77, .08);
+}
+.brand-level span { color: var(--lime-soft); font-size: 7px; letter-spacing: 1px; }
+.brand-level strong { color: var(--lime); font-size: 18px; line-height: 1; }
+.brand-xp { flex: 1; min-width: 100px; }
+.brand-progress .xp-label { margin-bottom: 3px; font-size: 8px; }
+.brand-progress .xp-bar { height: 7px; }
 
 .brand-mark {
   width: 48px;
@@ -117,7 +143,7 @@ button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
   max-width: 1500px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 300px minmax(430px, 1fr) 330px;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -1468,6 +1494,13 @@ body.touch-device.move-stick-fixed .move-pad {
     align-items: center;
   }
   .brand { gap: 8px; }
+  .brand-progress { min-width: 145px; margin-left: 2px; padding-left: 6px; gap: 5px; }
+  .brand-level { width: 30px; height: 30px; flex-basis: 30px; }
+  .brand-level span { font-size: 5px; }
+  .brand-level strong { font-size: 14px; }
+  .brand-xp { min-width: 82px; }
+  .brand-progress .xp-label { margin-bottom: 2px; font-size: 6px; }
+  .brand-progress .xp-bar { height: 5px; }
   .brand-mark {
     width: 34px;
     height: 34px;
@@ -1487,7 +1520,7 @@ body.touch-device.move-stick-fixed .move-pad {
     min-height: 0;
     width: 100%;
     height: auto;
-    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(160px, 220px);
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
     gap: 6px;
     align-items: stretch;
   }
@@ -1616,11 +1649,12 @@ body.touch-device.move-stick-fixed .move-pad {
 
 @media (orientation: landscape) and (max-height: 520px) and (max-width: 760px) {
   .base-layout {
-    grid-template-columns: 210px minmax(0, 1fr) 150px;
+    grid-template-columns: 210px minmax(0, 1fr);
     gap: 4px;
   }
   .brand-title { font-size: 14px; }
-  .brand-sub { font-size: 6px; letter-spacing: .5px; }
+  .brand-sub { display: none; }
+  .brand-progress { min-width: 122px; }
   .stat-chip { min-width: 44px; padding: 2px 4px; }
   .stat-chip strong { font-size: 11px; }
   .top-stats .ghost-btn { padding: 3px 4px; font-size: 7px; }
@@ -1667,7 +1701,10 @@ body.touch-device.move-stick-fixed .move-pad {
   .brand-mark { width: 28px; height: 28px; font-size: 9px; }
   .brand-title { font-size: 13px; }
   .brand-sub { display: none; }
-  .base-layout { grid-template-columns: 190px minmax(0, 1fr) 145px; gap: 4px; }
+  .brand-progress { min-width: 110px; }
+  .brand-level { width: 26px; height: 26px; flex-basis: 26px; }
+  .brand-level strong { font-size: 12px; }
+  .base-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 4px; }
   .loadout-panel .equip-card { padding: 3px 5px; }
   .equip-stats { display: none; }
   .supply-row { margin-bottom: 2px; }

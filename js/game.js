@@ -403,7 +403,6 @@
     bossHud: $('#bossHud'),
     bossName: $('#bossName'),
     bossFill: $('#bossFill'),
-    statLevel: $('#statLevel'),
     statScrap: $('#statScrap'),
     statRaids: $('#statRaids'),
     statExtracts: $('#statExtracts'),
@@ -429,10 +428,6 @@
     levelBig: $('#levelBig'),
     xpFill: $('#xpFill'),
     xpLabel: $('#xpLabel'),
-    nextPerk: $('#nextPerk'),
-    statKills: $('#statKills'),
-    statDeaths: $('#statDeaths'),
-    statLoot: $('#statLoot'),
     shopList: $('#shopList'),
     resetSaveBtn: $('#resetSaveBtn'),
     fullscreenBtn: $('#fullscreenBtn'),
@@ -1063,16 +1058,11 @@
   }
 
   function renderProgress() {
-    el.statLevel.textContent = save.level;
     el.statScrap.textContent = save.scrap;
     el.statRaids.textContent = save.stats.raids;
     el.statExtracts.textContent = save.stats.extracts;
     el.levelBig.textContent = save.level;
     setXpBar();
-    el.nextPerk.textContent = `下一等级：最大生命 ${maxHpForLevel(save.level + 1)} · 背包 ${backpackCapacity(save.level + 1)} 格 · 伤害系数 +${((Math.max(1, save.level) - 1) * 1.5).toFixed(1)}%`;
-    el.statKills.textContent = save.stats.kills;
-    el.statDeaths.textContent = save.stats.deaths;
-    el.statLoot.textContent = save.stats.loot;
   }
 
   function syncRiskPicker() {
