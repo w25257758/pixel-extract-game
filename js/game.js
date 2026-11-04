@@ -90,6 +90,15 @@
     ghost: { name: '幽灵纤维甲', reduction: 0.22, speedBonus: 0.04, stealth: 0.72, color: '#a98cff', desc: '减少 22% 伤害，移速 +4%，敌人视野降低 28%。' }
   };
 
+  const PACK_QUALITIES = {
+    white: { label: '白色', color: '#e8edf2', bonus: 8, desc: '基础背包装备，提供 8 个额外物资格。' },
+    green: { label: '绿色', color: '#6fe29a', bonus: 16, desc: '加固背包装备，提供 16 个额外物资格。' },
+    blue: { label: '蓝色', color: '#58a6ff', bonus: 24, desc: '战术背包装备，提供 24 个额外物资格。' },
+    purple: { label: '紫色', color: '#c084ff', bonus: 32, desc: '模块化背包装备，提供 32 个额外物资格。' },
+    red: { label: '红色', color: '#ff536b', bonus: 40, desc: '重装背包装备，提供 40 个额外物资格。' },
+    rainbow: { label: '彩色', color: '#ffd15c', bonus: 50, desc: '虹彩背包装备，提供 50 个额外物资格。' }
+  };
+
   const ITEM_DEFS = {
     w_pistol: { name: '旧式手枪', icon: '▰', kind: 'weapon', weapon: 'pistol', rarity: 'common', sell: 28, stack: false, desc: '标配副武器。伤害 24，弹匣 12 发。' },
     w_smg: { name: '蜂鸣冲锋枪', icon: '⌁', kind: 'weapon', weapon: 'smg', rarity: 'uncommon', sell: 95, stack: false, desc: '全自动冲锋枪。伤害 15，弹匣 30 发。' },
@@ -105,6 +114,12 @@
     a_scout: { name: '侦察背心', icon: '◈', kind: 'armor', armor: 'scout', rarity: 'uncommon', sell: 45, stack: false, desc: '减伤 8%，移动速度 +12%。' },
     a_medic: { name: '战地医疗甲', icon: '✚', kind: 'armor', armor: 'medic', rarity: 'rare', sell: 155, stack: false, desc: '减伤 16%，每次行动多带 1 个医疗包。' },
     a_ghost: { name: '幽灵纤维甲', icon: '◌', kind: 'armor', armor: 'ghost', rarity: 'epic', sell: 340, stack: false, desc: '减伤 22%，移速 +4%，敌人视野 -28%。' },
+    p_white: { name: '白色背包', icon: '▣', kind: 'pack', pack: 'white', rarity: 'common', sell: 35, stack: false, desc: '白色品质背包装备。容量 +8。' },
+    p_green: { name: '绿色背包', icon: '▤', kind: 'pack', pack: 'green', rarity: 'uncommon', sell: 80, stack: false, desc: '绿色品质背包装备。容量 +16。' },
+    p_blue: { name: '蓝色背包', icon: '▥', kind: 'pack', pack: 'blue', rarity: 'rare', sell: 180, stack: false, desc: '蓝色品质背包装备。容量 +24。' },
+    p_purple: { name: '紫色背包', icon: '▦', kind: 'pack', pack: 'purple', rarity: 'epic', sell: 360, stack: false, desc: '紫色品质背包装备。容量 +32。' },
+    p_red: { name: '红色背包', icon: '▧', kind: 'pack', pack: 'red', rarity: 'legendary', sell: 720, stack: false, desc: '红色品质背包装备。容量 +40。' },
+    p_rainbow: { name: '彩色背包', icon: '◈', kind: 'pack', pack: 'rainbow', rarity: 'mythic', sell: 1200, stack: false, desc: '彩色品质背包装备。容量 +50。' },
     scrap: { name: '机械零件', icon: '⚙', kind: 'loot', rarity: 'common', sell: 4, stack: true, desc: '常见的工业废料，黑市会收。' },
     fiber: { name: '纤维束', icon: '≋', kind: 'loot', rarity: 'common', sell: 6, stack: true, desc: '从废弃织物和线缆中抽出的纤维。' },
     circuit: { name: '废旧电路', icon: '▦', kind: 'loot', rarity: 'common', sell: 9, stack: true, desc: '烧毁的线路板，仍有回收价值。' },
@@ -119,8 +134,12 @@
     phase: { name: '相位遗物', icon: '✧', kind: 'loot', rarity: 'epic', sell: 248, stack: true, desc: '会在观测时轻微偏移的异常造物。' }
   };
 
-  const RARITY_LABEL = { common: '普通', uncommon: '精良', rare: '稀有', epic: '史诗' };
-  const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4 };
+  const RARITY_LABEL = { common: '普通', uncommon: '精良', rare: '稀有', epic: '史诗', legendary: '传说', mythic: '神话' };
+  const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5, mythic: 6 };
+  const RARITY_COLOR = {
+    common: '#e8edf2', uncommon: '#6fe29a', rare: '#58a6ff',
+    epic: '#c084ff', legendary: '#ff536b', mythic: '#ffd15c'
+  };
   const LOOT_RARITY_PROFILES = {
     common: { common: 62, uncommon: 27, rare: 9, epic: 2 },
     rare: { common: 26, uncommon: 34, rare: 29, epic: 11 },
@@ -131,6 +150,11 @@
     uncommon: ['chip', 'battery', 'w_smg', 'a_light', 'a_scout'],
     rare: ['relic', 'lens', 'drone_core', 'medal', 'w_rifle', 'w_shotgun', 'w_lmg', 'a_heavy', 'a_medic'],
     epic: ['core', 'quantum', 'phase', 'w_dmr', 'w_rail', 'a_riot', 'a_ghost']
+  };
+  const PACK_TIER_WEIGHTS = {
+    common: { white: 72, green: 22, blue: 5, purple: 0.8, red: 0.15, rainbow: 0.05 },
+    rare: { white: 22, green: 38, blue: 28, purple: 9, red: 2.5, rainbow: 0.5 },
+    vault: { white: 0, green: 12, blue: 40, purple: 34, red: 11, rainbow: 3 }
   };
   const RISK_DEFS = {
     normal: { label: '普通', hint: '稳定收益', enemyCount: 1, enemyHp: 1, enemyDamage: 1, rareChance: 0.24, color: '#7ed7a0' },
@@ -158,7 +182,7 @@
     return list.slice().sort((a, b) => {
       const da = defOf(a);
       const db = defOf(b);
-      const kindOrder = { weapon: 0, armor: 1, loot: 2 };
+      const kindOrder = { weapon: 0, armor: 1, pack: 2, loot: 3 };
       const kindDiff = (kindOrder[da.kind] ?? 3) - (kindOrder[db.kind] ?? 3);
       if (kindDiff) return kindDiff;
       const rarityDiff = (RARITY_ORDER[db.rarity] || 0) - (RARITY_ORDER[da.rarity] || 0);
@@ -217,12 +241,13 @@
 
   function defaultSave() {
     return {
-      version: 2,
+      version: 3,
       scrap: 80,
       stash: [],
       equipped: {
         weapon: createItem('w_pistol'),
-        armor: null
+        armor: null,
+        pack: createItem('p_white')
       },
       upgrades: { medkits: 0, ammo: 0 },
       settings: { ...DEFAULT_SETTINGS },
@@ -251,12 +276,19 @@
     } else {
       merged.equipped.armor = null;
     }
+    if (raw.equipped && raw.equipped.pack === null) {
+      merged.equipped.pack = null;
+    } else if (raw.equipped && defOf(raw.equipped.pack).kind === 'pack' && ITEM_DEFS[raw.equipped.pack?.type]) {
+      merged.equipped.pack = { ...raw.equipped.pack, id: raw.equipped.pack.id || uid(), qty: 1 };
+    } else {
+      merged.equipped.pack = createItem('p_white');
+    }
     // Level and perks are run-only now. Old saves are upgraded by dropping those fields.
     delete merged.level;
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 2;
+    merged.version = 3;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
@@ -296,7 +328,15 @@
     if (!def) return 0;
     return clamp(Math.floor(Number(raid?.perks?.[key]) || 0), 0, def.max);
   }
-  function backpackCapacity() { return 8 + perkRank('scavenger'); }
+  function equippedPackDef() {
+    const pack = save.equipped?.pack;
+    return pack ? PACK_QUALITIES[defOf(pack).pack] || null : null;
+  }
+
+  function backpackCapacity() {
+    const packBonus = equippedPackDef()?.bonus || 0;
+    return 8 + packBonus + perkRank('scavenger');
+  }
   function startingMedkits() { return 2 + save.upgrades.medkits; }
 
   function gainRaidXP(amount, silent = false) {
@@ -458,6 +498,7 @@
     loadoutArmor: $('#loadoutArmor'),
     loadoutMeds: $('#loadoutMeds'),
     loadoutSlots: $('#loadoutSlots'),
+    loadoutPack: $('#loadoutPack'),
     startRaidBtn: $('#startRaidBtn'),
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
@@ -577,6 +618,7 @@
     equippedSummary: $('#equippedSummary'),
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
+    packChoices: $('#packChoices'),
     manageEquipPanel: $('#manageEquipPanel'),
     manageStashPanel: $('#manageStashPanel'),
     manageShopPanel: $('#manageShopPanel'),
@@ -928,9 +970,19 @@
       </div>
       <div class="equip-stats"><span>伤害减免 ${Math.round(armorDef.reduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
 
+    const packItem = save.equipped.pack;
+    const packDef = packItem ? PACK_QUALITIES[defOf(packItem).pack] : null;
+    if (el.loadoutPack) {
+      el.loadoutPack.textContent = packDef ? `${packDef.label} +${packDef.bonus}` : '未装备';
+      el.loadoutPack.style.color = packDef ? packDef.color : 'var(--dim)';
+      el.loadoutPack.classList.toggle('rainbow-text', !!packItem && defOf(packItem).pack === 'rainbow');
+    }
     el.loadoutMeds.textContent = startingMedkits() + (armorDef.medkitBonus || 0);
     el.loadoutSlots.textContent = backpackCapacity();
-    if (el.baseEquipSummary) el.baseEquipSummary.textContent = weaponDef ? `武器 · ${weaponDef.name}` : '未装备武器';
+    if (el.baseEquipSummary) {
+      const packText = packDef ? ` · 背包 +${packDef.bonus}` : '';
+      el.baseEquipSummary.textContent = weaponDef ? `武器 · ${weaponDef.name}${packText}` : `未装备武器${packText}`;
+    }
   }
 
   function renderStash() {
@@ -959,7 +1011,7 @@
       slot.dataset.id = item.id;
       slot.title = `${def.name} · ${def.desc}`;
       slot.innerHTML = `
-        <span class="slot-icon" style="color:${choiceIconColor(def)}">${def.icon}</span>
+        <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
         <span class="slot-name">${def.name}</span>
         ${item.qty > 1 ? `<span class="slot-qty">×${item.qty}</span>` : ''}`;
       slot.addEventListener('click', () => {
@@ -981,7 +1033,7 @@
     el.selectedName.textContent = `${def.name}${selected.qty > 1 ? ` ×${selected.qty}` : ''}`;
     el.selectedDesc.textContent = `${def.desc} · ${RARITY_LABEL[def.rarity]}`;
     el.selectedValue.textContent = `出售 +${itemSellValue(selected)}`;
-    el.equipBtn.classList.toggle('hidden', def.kind !== 'weapon' && def.kind !== 'armor');
+    el.equipBtn.classList.toggle('hidden', !['weapon', 'armor', 'pack'].includes(def.kind));
     el.sellBtn.textContent = `出售 ×${selected.qty || 1}`;
   }
 
@@ -1056,6 +1108,10 @@
       if (a.stealth) extras.push(`敌人视野 -${Math.round((1 - a.stealth) * 100)}%`);
       return `伤害减免 ${Math.round(a.reduction * 100)}%${extras.length ? ` · ${extras.join(' · ')}` : ''} · ${RARITY_LABEL[def.rarity]}`;
     }
+    if (def.kind === 'pack') {
+      const pack = PACK_QUALITIES[def.pack];
+      return `背包装备 · ${pack.label}品质 · 容量 +${pack.bonus}`;
+    }
     return def.desc;
   }
 
@@ -1083,6 +1139,14 @@
       const extraText = extras.length ? ` · ${extras.join(' · ')}` : '';
       return `<span class="compare ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">减伤 ${diff > 0 ? '+' : ''}${diff}%${extraText}</span>`;
     }
+    if (def.kind === 'pack') {
+      const next = PACK_QUALITIES[def.pack];
+      if (!save.equipped.pack) return '<span class="compare up">当前没有背包装备 · 可直接装备</span>';
+      const current = PACK_QUALITIES[defOf(save.equipped.pack).pack];
+      const diff = next.bonus - current.bonus;
+      if (diff === 0) return '<span class="compare">容量与当前背包相同</span>';
+      return `<span class="compare ${diff > 0 ? 'up' : 'down'}">容量 ${diff > 0 ? '+' : ''}${diff} · 对比当前背包</span>`;
+    }
     return '';
   }
 
@@ -1091,15 +1155,10 @@
     if (idx < 0) return;
     const item = save.stash[idx];
     const def = defOf(item);
-    if (def.kind !== 'weapon' && def.kind !== 'armor') return;
+    if (!['weapon', 'armor', 'pack'].includes(def.kind)) return;
     save.stash.splice(idx, 1);
-    if (def.kind === 'weapon') {
-      if (save.equipped.weapon) addToStash(save.equipped.weapon);
-      save.equipped.weapon = item;
-    } else {
-      if (save.equipped.armor) addToStash(save.equipped.armor);
-      save.equipped.armor = item;
-    }
+    if (save.equipped[def.kind]) addToStash(save.equipped[def.kind]);
+    save.equipped[def.kind] = item;
     selectedStashId = null;
     persist();
     renderAllBase();
@@ -1112,20 +1171,23 @@
     if (selectedStashId) equipStashItem(selectedStashId);
   }
 
-  function unequipArmor() {
-    if (!save.equipped.armor) return;
-    addToStash(save.equipped.armor);
-    save.equipped.armor = null;
+  function unequipEquipment(kind) {
+    if (!save.equipped[kind]) return;
+    addToStash(save.equipped[kind]);
+    save.equipped[kind] = null;
     persist();
     renderAllBase();
     renderEquipModal();
     playSound('reload');
-    toast('已卸下护甲。');
+    toast(kind === 'armor' ? '已卸下护甲。' : '已卸下背包装备。');
   }
+
+  function unequipArmor() { unequipEquipment('armor'); }
+  function unequipPack() { unequipEquipment('pack'); }
 
   function choiceIconColor(def) {
     if (def.boss) return '#ffd15c';
-    return def.rarity === 'epic' ? '#c084ff' : def.rarity === 'rare' ? '#55d9ff' : def.rarity === 'uncommon' ? '#7ed7a0' : '#d6ff4d';
+    return RARITY_COLOR[def.rarity] || RARITY_COLOR.common;
   }
 
   function renderEquipChoices(kind, target) {
@@ -1136,7 +1198,9 @@
       empty.className = 'equip-empty';
       empty.textContent = kind === 'weapon'
         ? '仓库里没有其他武器。去黑市购买或从行动中带回来。'
-        : '仓库里没有护甲。去黑市购买或从行动中带回来。';
+        : kind === 'armor'
+          ? '仓库里没有护甲。去黑市购买或从行动中带回来。'
+          : '仓库里没有背包装备。搜索补给箱有概率发现不同品质的背包。';
       target.appendChild(empty);
       return;
     }
@@ -1145,7 +1209,7 @@
       const row = document.createElement('div');
       row.className = 'equip-choice';
       row.innerHTML = `
-        <div class="equip-choice-icon" style="color:${choiceIconColor(def)}">${def.icon}</div>
+        <div class="equip-choice-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</div>
         <div class="equip-choice-mid">
           <div class="equip-choice-name">${def.name}</div>
           <div class="equip-choice-stats">${gearStatsText(item)}</div>
@@ -1160,8 +1224,11 @@
   function renderEquipModal() {
     const weapon = save.equipped.weapon;
     const armor = save.equipped.armor;
+    const pack = save.equipped.pack;
     const weaponDef = weapon ? defOf(weapon) : null;
     const armorDef = armor ? defOf(armor) : null;
+    const packDef = pack ? defOf(pack) : null;
+    const packQuality = packDef ? PACK_QUALITIES[packDef.pack] : null;
     el.equippedSummary.innerHTML = `
       <div class="equipped-slot">
         <div class="equipped-slot-top">
@@ -1177,11 +1244,21 @@
         </div>
         <div class="equipped-slot-name">${armorDef ? armorDef.name : '无护甲'}</div>
         <div class="equipped-slot-stats">${armor ? gearStatsText(armor) : '没有护甲，受到完整伤害。'}</div>
+      </div>
+      <div class="equipped-slot">
+        <div class="equipped-slot-top">
+          <span class="equipped-slot-label">背包装备</span>
+          ${pack ? '<button class="mini-ghost" type="button" data-unequip="pack">卸下</button>' : ''}
+        </div>
+        <div class="equipped-slot-name" style="${packQuality ? `color:${packQuality.color}` : ''}">${packDef ? packDef.name : '未装备背包'}</div>
+        <div class="equipped-slot-stats">${pack ? gearStatsText(pack) : '没有背包装备，仅保留基础容量。'}</div>
       </div>`;
-    const unequipBtn = el.equippedSummary.querySelector('[data-unequip="armor"]');
-    if (unequipBtn) unequipBtn.addEventListener('click', unequipArmor);
+    el.equippedSummary.querySelectorAll('[data-unequip]').forEach((btn) => {
+      btn.addEventListener('click', () => btn.dataset.unequip === 'pack' ? unequipPack() : unequipArmor());
+    });
     renderEquipChoices('weapon', el.weaponChoices);
     renderEquipChoices('armor', el.armorChoices);
+    renderEquipChoices('pack', el.packChoices);
   }
 
   const MANAGE_VIEWS = {
@@ -2052,6 +2129,9 @@
       this.reserve = Math.round((this.weapon.reserve + save.upgrades.ammo * 45) * (1 + perkRank('ammo') * 0.1));
       this.armorKey = save.equipped.armor ? defOf(save.equipped.armor).armor : 'none';
       this.armor = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
+      this.packItem = save.equipped.pack || null;
+      this.packKey = this.packItem ? defOf(this.packItem).pack : null;
+      this.pack = this.packKey ? PACK_QUALITIES[this.packKey] : null;
       this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
@@ -2608,6 +2688,23 @@
     return pick(LOOT_POOLS[rarity] || LOOT_POOLS.common);
   }
 
+  function rollPackDrop(quality = 'common') {
+    const chance = quality === 'vault' ? 0.55 : quality === 'rare' ? 0.16 : 0.05;
+    if (Math.random() >= chance) return null;
+    const base = PACK_TIER_WEIGHTS[quality] || PACK_TIER_WEIGHTS.common;
+    const weights = { ...base };
+    const floor = Math.max(1, raid?.floor || 1);
+    const riskBonus = save.settings.raidRisk === 'extreme' ? 8 : save.settings.raidRisk === 'danger' ? 4 : 0;
+    const depth = Math.min(14, (floor - 1) * 0.8 + riskBonus * 0.6);
+    weights.white = Math.max(0, weights.white - depth * 0.45);
+    weights.green = Math.max(0, weights.green - depth * 0.2);
+    weights.blue += depth * 0.3;
+    weights.purple += depth * 0.2;
+    weights.red += depth * 0.12;
+    weights.rainbow += depth * 0.03;
+    return `p_${weightedPick(weights)}`;
+  }
+
   function lootContainer(container) {
     if (container.locked) {
       if ((raid.keys || 0) <= 0) {
@@ -2639,6 +2736,19 @@
       } else {
         addLootFeed('背包已满，部分物资无法带走。', true);
         break;
+      }
+    }
+    const packType = rollPackDrop(quality);
+    if (packType) {
+      const packDef = defOf(packType);
+      const packQuality = PACK_QUALITIES[packDef.pack];
+      if (addItemToBackpack(createItem(packType))) {
+        got++;
+        names.push(`${packDef.name}（容量 +${packQuality.bonus}）`);
+        gainRaidXP({ common: 4, uncommon: 8, rare: 15, epic: 25, legendary: 40, mythic: 60 }[packDef.rarity] || 4, true);
+        addLootFeed(`发现背包装备：${packDef.name} · 容量 +${packQuality.bonus}`, false);
+      } else {
+        addLootFeed(`发现 ${packDef.name}，但背包已满。`, true);
       }
     }
     const ammoChance = container.vault ? 1 : container.rarity === 'rare' ? 0.5 : 0.32;
@@ -3069,10 +3179,10 @@
     el.inventoryLoadout.innerHTML = `
       <div>主武器<strong>${player.weapon.name}</strong></div>
       <div>护甲<strong>${player.armor.name}</strong></div>
+      <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
       <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
-      <div>背包占用<strong>${player.backpack.length} / ${player.capacity}</strong></div>
       <div>携带估值<strong>+${totalValue}</strong></div>`;
     el.inventoryGrid.innerHTML = '';
     if (player.backpack.length === 0) {
@@ -3087,7 +3197,7 @@
 
     for (const item of sortItemList(player.backpack)) {
       const def = defOf(item);
-      const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : '物资';
+      const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : '物资';
       const selected = item.id === selectedInventoryItemId;
       const div = document.createElement('button');
       div.type = 'button';
@@ -3098,10 +3208,10 @@
           <span class="inv-kind">${kindLabel}</span>
           <span class="inv-rarity ${def.rarity}">${RARITY_LABEL[def.rarity]}</span>
         </div>
-        <span class="slot-icon" style="color:${choiceIconColor(def)}">${def.icon}</span>
+        <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
         <span class="slot-name">${def.name}</span>
         <span class="inv-qty">×${item.qty || 1}</span>
-        ${def.kind === 'weapon' || def.kind === 'armor' ? `<span class="inv-compare">${gearCompareText(item).replace(/<[^>]+>/g, '')}</span>` : ''}`;
+        ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<span class="inv-compare">${gearCompareText(item).replace(/<[^>]+>/g, '')}</span>` : ''}`;
       div.addEventListener('click', () => {
         selectedInventoryItemId = item.id;
         buildInventoryOverlay();
@@ -3115,7 +3225,7 @@
       return;
     }
     const def = defOf(selectedItem);
-    const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : '物资';
+    const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : '物资';
     const stats = [];
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
@@ -3131,6 +3241,11 @@
       if (a.speedBonus) stats.push(`移速 <b>+${Math.round(a.speedBonus * 100)}%</b>`);
       if (a.medkitBonus) stats.push(`医疗包 <b>+${a.medkitBonus}</b>`);
       if (a.stealth) stats.push(`敌人视野 <b>-${Math.round((1 - a.stealth) * 100)}%</b>`);
+    } else if (def.kind === 'pack') {
+      const pack = PACK_QUALITIES[def.pack];
+      stats.push(`品质 <b>${pack.label}</b>`);
+      stats.push(`容量 <b>+${pack.bonus}</b>`);
+      stats.push('撤离后在仓库装备');
     } else {
       stats.push(`数量 <b>×${selectedItem.qty || 1}</b>`);
       stats.push(`单价 <b>+${def.sell}</b>`);
@@ -3138,7 +3253,7 @@
     el.inventoryDetail.classList.remove('hidden');
     el.inventoryDetail.innerHTML = `
       <div class="inventory-detail-head">
-        <div class="inventory-detail-icon" style="color:${choiceIconColor(def)}">${def.icon}</div>
+        <div class="inventory-detail-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</div>
         <div class="inventory-detail-title">
           <div class="inventory-detail-name">${def.name}${selectedItem.qty > 1 ? ` ×${selectedItem.qty}` : ''}</div>
           <div class="inventory-detail-meta">${kindLabel} · ${RARITY_LABEL[def.rarity]} · 单件估值 +${def.sell || 0}</div>
@@ -3147,7 +3262,7 @@
       </div>
       <div class="inventory-detail-desc">${def.desc}</div>
       <div class="inventory-detail-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>
-      ${def.kind === 'weapon' || def.kind === 'armor' ? `<div class="inventory-detail-compare">${gearCompareText(selectedItem)}</div>` : ''}`;
+      ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<div class="inventory-detail-compare">${gearCompareText(selectedItem)}</div>` : ''}`;
   }
 
   function openInventory() {
@@ -4644,7 +4759,7 @@
           x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,
           backpack: JSON.parse(JSON.stringify(player.backpack)),
-          weapon: player.weaponKey, armor: player.armorKey
+          weapon: player.weaponKey, armor: player.armorKey, pack: player.packKey, capacity: player.capacity
         } : null,
         raid: raid ? { ...raid, perkChoices: pendingPerkChoices.slice() } : null,
         touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, firing: touch.firing, angle: touch.aimAngle, aimPressAt: touch.aimPressAt },
@@ -4695,6 +4810,32 @@
       }
       return { quality, total, types, rarities };
     },
+    packSample(quality = 'common', count = 1000) {
+      const types = {};
+      let drops = 0;
+      const total = Math.max(1, Math.min(20000, Math.floor(count)));
+      for (let i = 0; i < total; i++) {
+        const type = rollPackDrop(quality);
+        if (!type) continue;
+        drops++;
+        types[type] = (types[type] || 0) + 1;
+      }
+      return { quality, total, drops, types };
+    },
+    grantStashItem(type) {
+      if (!ITEM_DEFS[type]) return null;
+      const item = createItem(type);
+      addToStash(item);
+      renderAllBase();
+      return item.id;
+    },
+    equipPack(type = 'p_white') {
+      if (!ITEM_DEFS[type]) return null;
+      const item = createItem(type);
+      addToStash(item);
+      equipStashItem(item.id);
+      return { type, capacity: backpackCapacity() };
+    },
     forceRaidEvent(type) {
       if (!world || !raid) return null;
       world.altExtraction = null;
@@ -4707,6 +4848,12 @@
     addBackpackItem(type) {
       if (player) addItemToBackpack(createItem(type));
       updateBackpackHud();
+    },
+    searchContainer(index = 0) {
+      const container = world?.containers?.[index];
+      if (!container || !player) return null;
+      lootContainer(container);
+      return { searched: !!container.searched, locked: !!container.locked, backpack: player.backpack.map((i) => i.type) };
     },
     clearEnemies() {
       if (world) for (const enemy of world.enemies) enemy.dead = true;

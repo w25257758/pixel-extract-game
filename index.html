@@ -43,7 +43,8 @@
           <div id="loadoutArmor" class="equip-card"></div>
           <div class="supply-row">
             <div class="supply-box"><span>医疗包</span><strong id="loadoutMeds">2</strong></div>
-            <div class="supply-box"><span>背包格</span><strong id="loadoutSlots">8</strong></div>
+            <div class="supply-box"><span>背包容量</span><strong id="loadoutSlots">16</strong></div>
+            <div class="supply-box pack-summary"><span>背包装备</span><strong id="loadoutPack">白色 +8</strong></div>
           </div>
           <div class="risk-picker-wrap">
             <div class="risk-picker-label">行动风险 <span id="riskHint">稳定收益</span></div>
@@ -84,7 +85,7 @@
               <button id="openEquipBtn" class="manage-entry-card" type="button">
                 <span class="manage-entry-icon">EQ</span>
                 <span class="manage-entry-title">装备</span>
-                <span class="manage-entry-desc">武器与护甲</span>
+                <span class="manage-entry-desc">武器、护甲与背包</span>
                 <span class="manage-entry-meta" id="baseEquipSummary">未装备武器</span>
               </button>
               <button id="openStashBtn" class="manage-entry-card" type="button">
@@ -282,6 +283,10 @@
               <div class="equip-col-title">护甲 <span>从仓库选择</span></div>
               <div id="armorChoices" class="equip-choice-list"></div>
             </section>
+            <section class="equip-column">
+              <div class="equip-col-title">背包装备 <span>品质决定容量</span></div>
+              <div id="packChoices" class="equip-choice-list"></div>
+            </section>
           </div>
         </div>
 
@@ -297,6 +302,8 @@
               <button type="button" data-rarity="uncommon">精良</button>
               <button type="button" data-rarity="rare">稀有</button>
               <button type="button" data-rarity="epic">史诗</button>
+              <button type="button" data-rarity="legendary">传说</button>
+              <button type="button" data-rarity="mythic">神话</button>
             </div>
             <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
           </div>
