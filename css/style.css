@@ -690,6 +690,7 @@ body.touch-device.move-stick-fixed .move-pad {
   position: absolute;
   left: 50%;
   top: 50%;
+  will-change: transform;
   width: 42%;
   aspect-ratio: 1;
   border-radius: 50%;

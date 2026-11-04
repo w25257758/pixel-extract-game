@@ -584,6 +584,7 @@
     touch.moveX = 0;
     touch.moveY = 0;
     touch.moveMag = 0;
+    touch.moveTargetMag = 0;
   }
 
   function syncSettingsUI() {
@@ -1137,6 +1138,9 @@
   let camera = { x: 0, y: 0, shake: 0 };
   let lastTime = performance.now();
   let cameraInitialized = false;
+  let hudAccumulator = 0;
+  let lastMinimapDraw = -1;
+  let raidVignetteGradient = null;
 
   const keys = Object.create(null);
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, down: false, semiQueued: false, inside: false };
@@ -1151,7 +1155,8 @@
     hasAim: false,
     aimPressAt: 0,
     aimTargetAngle: 0,
-    firing: false
+    firing: false,
+    moveTargetMag: 0
   };
 
   const TUTORIAL_STEPS = [
@@ -1689,6 +1694,8 @@
     if (save.settings.performanceMode) {
       if (world.particles.length > 90) return;
       count = Math.min(count, 1);
+    } else if (world.particles.length > 220) {
+      return;
     }
     for (let i = 0; i < count; i++) {
       const a = rand(0, TAU);
@@ -1702,6 +1709,7 @@
 
   function addFloatText(x, y, text, color = '#d6ff4d') {
     if (save.settings.floatText === false) return;
+    if (world.floatTexts.length > 60) world.floatTexts.shift();
     world.floatTexts.push({ x, y, text, color, life: 0.8, maxLife: 0.8 });
   }
 
@@ -1789,11 +1797,15 @@
       if (keys['a'] || keys['arrowleft']) dx -= 1;
       if (keys['d'] || keys['arrowright']) dx += 1;
 
-      if (touch.ui && touch.moveMag > 0.04) {
-        const moveCurve = 1 / (save.settings.moveSensitivity || 1);
-        const touchMag = Math.min(1, Math.pow(touch.moveMag, moveCurve));
-        dx += touch.moveX * touchMag;
-        dy += touch.moveY * touchMag;
+      if (touch.ui) {
+        const inputSmooth = 1 - Math.exp(-dt * 30);
+        touch.moveMag += (touch.moveTargetMag - touch.moveMag) * inputSmooth;
+        if (touch.moveMag > 0.004) {
+          const moveCurve = 1 / (save.settings.moveSensitivity || 1);
+          const touchMag = Math.min(1, Math.pow(touch.moveMag, moveCurve));
+          dx += touch.moveX * touchMag;
+          dy += touch.moveY * touchMag;
+        }
       }
 
       const len = Math.hypot(dx, dy);
@@ -2531,7 +2543,11 @@
     updatePickups(dt);
     updateParticles(dt);
     updateInteraction(dt);
-    updateHUD();
+    hudAccumulator += dt;
+    if (hudAccumulator >= 0.08) {
+      hudAccumulator = 0;
+      updateHUD();
+    }
 
     // Smooth camera follow.
     const targetX = clamp(player.x - VIEW_W / 2, 0, MAP_PW - VIEW_W);
@@ -2887,6 +2903,7 @@
     touch.moveX = 0;
     touch.moveY = 0;
     touch.moveMag = 0;
+    touch.moveTargetMag = 0;
     touch.aiming = false;
     touch.aimMag = 0;
     touch.aimPressAt = 0;
@@ -2895,6 +2912,8 @@
     touch.aimAngle = 0;
     touch.aimTargetAngle = 0;
     buildFlowField();
+    hudAccumulator = 0;
+    lastMinimapDraw = -1;
     updateHUD();
     updateBackpackHud();
     startRaidTutorial();
@@ -3048,12 +3067,14 @@
 
     ctx.restore();
 
-    // Vignette / atmosphere.
+    // Vignette / atmosphere. Cache the gradient instead of rebuilding it every frame.
     if (!save.settings.performanceMode) {
-      const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
-      vg.addColorStop(0, 'rgba(0,0,0,0)');
-      vg.addColorStop(1, 'rgba(0,0,0,.56)');
-      ctx.fillStyle = vg;
+      if (!raidVignetteGradient) {
+        raidVignetteGradient = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
+        raidVignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+        raidVignetteGradient.addColorStop(1, 'rgba(0,0,0,.56)');
+      }
+      ctx.fillStyle = raidVignetteGradient;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     } else {
       ctx.fillStyle = 'rgba(0,0,0,.22)';
@@ -3065,7 +3086,10 @@
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
-    drawMinimap();
+    if (world.time - lastMinimapDraw >= 0.05) {
+      lastMinimapDraw = world.time;
+      drawMinimap();
+    }
     drawCrosshair();
   }
 
@@ -3643,15 +3667,23 @@
   // ---------------------------------------------------------------------------
   function setupVirtualStick(pad, knob, onMove, onEnd, onStart) {
     let pointerId = null;
+    let padRect = null;
+    const measure = () => {
+      const rect = pad.getBoundingClientRect();
+      padRect = {
+        cx: rect.left + rect.width / 2,
+        cy: rect.top + rect.height / 2,
+        maxRadius: rect.width * 0.31
+      };
+    };
+    window.addEventListener('resize', () => { padRect = null; });
 
     const move = (event) => {
-      const rect = pad.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = event.clientX - cx;
-      const dy = event.clientY - cy;
+      if (!padRect) measure();
+      const dx = event.clientX - padRect.cx;
+      const dy = event.clientY - padRect.cy;
       const distance = Math.hypot(dx, dy);
-      const maxRadius = rect.width * 0.31;
+      const maxRadius = padRect.maxRadius;
       const clamped = Math.min(distance, maxRadius);
       const nx = distance > 0.001 ? dx / distance : 0;
       const ny = distance > 0.001 ? dy / distance : 0;
@@ -3674,6 +3706,8 @@
       enableTouchUI();
       Sound.init();
       pad.classList.add('active');
+      padRect = null;
+      measure();
       try { pad.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
       if (onStart) onStart();
       move(event);
@@ -3692,24 +3726,35 @@
   function setupFloatingMoveStick() {
     let pointerId = null;
     let activeTarget = null;
+    let padCenterX = 0;
+    let padCenterY = 0;
+    let padRadius = 28;
     const fixedMode = () => save.settings.moveStickMode === 'fixed';
 
-    const move = (event) => {
+    const measurePad = () => {
       const rect = el.movePad.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = event.clientX - cx;
-      const dy = event.clientY - cy;
+      padCenterX = rect.left + rect.width / 2;
+      padCenterY = rect.top + rect.height / 2;
+      padRadius = Math.max(28, rect.width * 0.31);
+    };
+    window.addEventListener('resize', () => {
+      if (pointerId !== null) measurePad();
+    });
+
+    const move = (event) => {
+      const dx = event.clientX - padCenterX;
+      const dy = event.clientY - padCenterY;
       const distance = Math.hypot(dx, dy);
-      const maxRadius = Math.max(28, rect.width * 0.31);
-      const clamped = Math.min(distance, maxRadius);
+      const clamped = Math.min(distance, padRadius);
       const nx = distance > 0.001 ? dx / distance : 0;
       const ny = distance > 0.001 ? dy / distance : 0;
-      const mag = maxRadius > 0 ? Math.min(1, distance / maxRadius) : 0;
+      const rawMag = padRadius > 0 ? Math.min(1, distance / padRadius) : 0;
+      const deadZone = 0.06;
+      const mag = rawMag > deadZone ? clamp((rawMag - deadZone) / (1 - deadZone), 0, 1) : 0;
       el.moveKnob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
       touch.moveX = nx;
       touch.moveY = ny;
-      touch.moveMag = mag;
+      touch.moveTargetMag = mag;
     };
 
     const end = (event) => {
@@ -3726,6 +3771,7 @@
       touch.moveX = 0;
       touch.moveY = 0;
       touch.moveMag = 0;
+      touch.moveTargetMag = 0;
     };
 
     const begin = (event, target) => {
@@ -3752,6 +3798,8 @@
       touch.moveX = 0;
       touch.moveY = 0;
       touch.moveMag = 0;
+      touch.moveTargetMag = 0;
+      measurePad();
       try { target.setPointerCapture(pointerId); } catch (err) { /* ignore */ }
       move(event);
       event.preventDefault();
@@ -4057,7 +4105,7 @@
     teleport(x, y) { if (player) { player.x = x; player.y = y; } },
     hurt(amount, sourceAngle = null) { if (player) player.takeDamage(amount, sourceAngle); },
     enableTouch() { enableTouchUI(); },
-    touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; },
+    touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; touch.moveTargetMag = mag; },
     touchAim(x, y, mag) {
       touch.aimAngle = Math.atan2(y, x);
       touch.aimTargetAngle = touch.aimAngle;
