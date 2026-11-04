@@ -501,20 +501,23 @@
     debriefLoot: $('#debriefLoot'),
     debriefCloseBtn: $('#debriefCloseBtn'),
     toast: $('#toast'),
-    changeEquipBtn: $('#changeEquipBtn'),
+    openEquipBtn: $('#openEquipBtn'),
+    openStashBtn: $('#openStashBtn'),
+    openShopBtn: $('#openShopBtn'),
     equipOverlay: $('#equipOverlay'),
     closeEquipBtn: $('#closeEquipBtn'),
+    equipWindowTitle: $('#equipWindowTitle'),
+    manageNote: $('#manageNote'),
     equippedSummary: $('#equippedSummary'),
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
-    manageTabs: $('#manageTabs'),
     manageEquipPanel: $('#manageEquipPanel'),
     manageStashPanel: $('#manageStashPanel'),
     manageShopPanel: $('#manageShopPanel'),
-    manageStashBadge: $('#manageStashBadge'),
     shopScrap: $('#shopScrap'),
     baseStashCount: $('#baseStashCount'),
     baseScrap: $('#baseScrap'),
+    baseEquipSummary: $('#baseEquipSummary'),
     touchControls: $('#touchControls'),
     moveZone: $('#moveZone'),
     movePad: $('#movePad'),
@@ -760,11 +763,11 @@
 
     el.loadoutMeds.textContent = startingMedkits() + (armorDef.medkitBonus || 0);
     el.loadoutSlots.textContent = backpackCapacity(save.level);
+    if (el.baseEquipSummary) el.baseEquipSummary.textContent = weaponDef ? `武器 · ${weaponDef.name}` : '未装备武器';
   }
 
   function renderStash() {
     el.stashCount.textContent = `${stashSlotCount()} / ∞`;
-    if (el.manageStashBadge) el.manageStashBadge.textContent = stashSlotCount();
     if (el.baseStashCount) el.baseStashCount.textContent = `${stashSlotCount()} 件`;
     el.stashGrid.innerHTML = '';
     if (el.stashRarityFilter) {
@@ -1014,28 +1017,23 @@
     renderEquipChoices('armor', el.armorChoices);
   }
 
-  let activeManageTab = 'equip';
+  const MANAGE_VIEWS = {
+    equip: { title: '装备', note: '装备会立即更新作战准备；进入行动后不能更换。' },
+    stash: { title: '仓库', note: '仓库物资会即时保存；出售物品可以获得废料。' },
+    shop: { title: '黑市', note: '使用废料购买武器、护甲和永久补给。' }
+  };
 
-  function switchManageTab(tab = 'equip') {
-    activeManageTab = ['equip', 'stash', 'shop'].includes(tab) ? tab : 'equip';
-    if (el.manageTabs) {
-      el.manageTabs.querySelectorAll('button[data-manage-tab]').forEach((btn) => {
-        const active = btn.dataset.manageTab === activeManageTab;
-        btn.classList.toggle('active', active);
-        btn.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-    }
-    if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', activeManageTab !== 'equip');
-    if (el.manageStashPanel) el.manageStashPanel.classList.toggle('hidden', activeManageTab !== 'stash');
-    if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', activeManageTab !== 'shop');
-  }
-
-  function openEquipModal(tab = 'equip') {
+  function openEquipModal(view = 'equip') {
     if (mode !== 'base') return;
+    const selected = MANAGE_VIEWS[view] ? view : 'equip';
     renderEquipModal();
     renderStash();
     renderShop();
-    switchManageTab(tab);
+    if (el.equipWindowTitle) el.equipWindowTitle.textContent = MANAGE_VIEWS[selected].title;
+    if (el.manageNote) el.manageNote.textContent = MANAGE_VIEWS[selected].note;
+    if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', selected !== 'equip');
+    if (el.manageStashPanel) el.manageStashPanel.classList.toggle('hidden', selected !== 'stash');
+    if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', selected !== 'shop');
     el.equipOverlay.classList.remove('hidden');
   }
 
@@ -1086,14 +1084,10 @@
 
   el.equipBtn.addEventListener('click', equipSelected);
   el.sellBtn.addEventListener('click', sellSelected);
-  el.changeEquipBtn.addEventListener('click', () => openEquipModal('equip'));
+  el.openEquipBtn.addEventListener('click', () => openEquipModal('equip'));
+  el.openStashBtn.addEventListener('click', () => openEquipModal('stash'));
+  el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
-  if (el.manageTabs) {
-    el.manageTabs.addEventListener('click', (event) => {
-      const btn = event.target.closest('button[data-manage-tab]');
-      if (btn) switchManageTab(btn.dataset.manageTab);
-    });
-  }
   if (el.loadoutWeapon) el.loadoutWeapon.addEventListener('click', () => openEquipModal('equip'));
   if (el.loadoutArmor) el.loadoutArmor.addEventListener('click', () => openEquipModal('equip'));
   if (el.equipOverlay) {

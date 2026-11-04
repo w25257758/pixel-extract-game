@@ -21,10 +21,6 @@
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark">PX</div>
-          <div class="brand-copy">
-            <div class="brand-title">像素撤离</div>
-            <div class="brand-sub">PIXEL EXTRACT // 单机搜打撤</div>
-          </div>
           <div class="brand-progress" aria-label="等级与经验">
             <div class="brand-level"><span>LV</span><strong id="levelBig">1</strong></div>
             <div class="brand-xp">
@@ -78,16 +74,34 @@
             <span class="panel-tag">EQUIP / STASH / SUPPLY</span>
           </div>
           <div class="manage-center-body">
-            <div class="manage-center-mark">PX</div>
-            <div class="manage-center-kicker">LOADOUT // STORAGE // BLACK MARKET</div>
-            <h3>装备、仓库、黑市</h3>
-            <p>已合并为一个整备窗口。点击打开后，在顶部切换装备、仓库和黑市。</p>
-            <div class="manage-center-stats">
-              <div><span>仓库物资</span><strong id="baseStashCount">0 件</strong></div>
-              <div><span>废料</span><strong id="baseScrap">0</strong></div>
-              <div><span>黑市</span><strong>进货 / 升级</strong></div>
+            <div class="manage-center-heading">
+              <div class="manage-center-mark">PX</div>
+              <div class="manage-center-heading-copy">
+                <div class="manage-center-kicker">BASE SERVICES</div>
+                <h3>整备中心</h3>
+                <p>装备、仓库、黑市各自打开独立窗口。</p>
+              </div>
             </div>
-            <button id="changeEquipBtn" class="primary-btn manage-open-btn" type="button">打开整备窗口 <span>&gt;</span></button>
+            <div class="manage-entry-grid">
+              <button id="openEquipBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">EQ</span>
+                <span class="manage-entry-title">装备</span>
+                <span class="manage-entry-desc">武器与护甲</span>
+                <span class="manage-entry-meta" id="baseEquipSummary">未装备武器</span>
+              </button>
+              <button id="openStashBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">ST</span>
+                <span class="manage-entry-title">仓库</span>
+                <span class="manage-entry-desc">筛选 / 出售 / 装备</span>
+                <span class="manage-entry-meta" id="baseStashCount">0 件</span>
+              </button>
+              <button id="openShopBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">MK</span>
+                <span class="manage-entry-title">黑市</span>
+                <span class="manage-entry-desc">购买武器与补给</span>
+                <span class="manage-entry-meta"><strong id="baseScrap">0</strong> 废料</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -221,13 +235,8 @@
     <div id="equipOverlay" class="overlay full-overlay hidden">
       <div class="overlay-card equip-modal-card manage-window-card">
         <div class="overlay-head">
-          <span>整备窗口 <small>装备 / 仓库 / 黑市</small></span>
+          <span id="equipWindowTitle">装备</span>
           <button id="closeEquipBtn" class="ghost-btn small" type="button">关闭</button>
-        </div>
-        <div id="manageTabs" class="manage-tabs" role="tablist" aria-label="整备分类">
-          <button type="button" data-manage-tab="equip" class="active">装备</button>
-          <button type="button" data-manage-tab="stash">仓库 <span id="manageStashBadge">0</span></button>
-          <button type="button" data-manage-tab="shop">黑市</button>
         </div>
 
         <div id="manageEquipPanel" class="manage-panel">
@@ -285,7 +294,7 @@
           <div id="shopList" class="shop-list"></div>
         </div>
 
-        <p class="overlay-note">装备会立即更新作战准备；仓库物资和黑市交易会即时保存。进入行动后不能更换。</p>
+        <p id="manageNote" class="overlay-note">装备会立即更新作战准备；进入行动后不能更换。</p>
       </div>
     </div>
 
