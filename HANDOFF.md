@@ -11,9 +11,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v22
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v23
 - Save key: localStorage pixel_extract_save_v1
-- Latest maintenance: every-5-floor bosses, key rooms, fog of war and explored-path maps (see git log)
+- Latest maintenance: larger 72x54 map, weighted rarity loot and new collectibles (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
@@ -26,6 +26,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Bosses appear only on floors divisible by 5. Every other floor has no boss marker or boss HUD.
 - Every floor has one golden key guardian, one locked key-room chest and a high-value vault loot table.
 - War fog hides unseen tiles and entities. The minimap/full map only show explored tiles, with a cyan trail of the walked path.
+- Map size is 72x54 tiles with 13-18 rooms, 31-43 searchable containers and more enemies than the old 52x40 map.
+- Loot rarity is weighted by container quality (common/rare/vault), floor depth and risk. Rare caches use cyan world/map accents.
 - Level-up growth is a focused, paused 3-choice modal. Perks are run-only and disappear when the run ends.
 - Debrief, perk-choice and extraction-choice cards fit without scrolling at 932x430, 667x375 and 568x320.
 
@@ -40,6 +42,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep bosses exclusive to every fifth floor; key guardian must always drop one key; locked chest must consume exactly one key.
 - Keep airdrops removed. The rare-loot source is the key-room chest.
 - Keep fog of war and persistent explored-path display on both minimap and full map.
+- Keep the enlarged map and loot density; room generation must still produce at least 12 rooms.
+- Keep rarity-weighted loot: common/rare/vault containers use different rarity distributions and vault guarantees one rare+ item.
 - Keep the base one-screen on mobile landscape; do not add scrolling panels.
 - Mobile auto-lock must choose the nearest visible enemy in weapon range even when the player is moving backwards. Desktop auto-lock keeps the 75-degree front cone.
 - Keep level-up choices as an in-raid compact modal, not a base progression panel.
@@ -61,13 +65,16 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Added radial war fog, LOS-filtered entity rendering, explored-tile fog masks, persisted walk trails, and fog-aware minimap/full map markers.
 - Compacted the map card so the expanded key/path legend fits without scrolling at 568x320.
 - Local/offline smoke-tested: F1-F4 have no boss, F5 boss HP 666; key guard drop, one-key chest unlock and vault loot; fog reveal/path growth; mobile fire lock at F5; no JS errors.
+- Enlarged map to 72x54 tiles: 8 consecutive generations produced 13-18 rooms, 31-43 containers, 9-11 F1 enemies and 60 FPS in headless Edge.
+- Verified weighted drops at F1: common cache 61.7/27.0/9.3/2.0%, rare cache 25.9/33.1/30.3/10.8%, vault 0/17.2/52.0/30.8% for common/uncommon/rare/epic.
+- Added eight collectible item types: fiber, circuit, battery, lens, drone_core, medal, quantum and phase; rare caches now render cyan and appear cyan on maps.
 - Compacted debrief/perk cards and added a compact extraction-choice card.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight

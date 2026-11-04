@@ -16,8 +16,8 @@
   const REVEAL_RADIUS_TILES = 8;
 
   const TILE = 32;
-  const MAP_W = 52;
-  const MAP_H = 40;
+  const MAP_W = 72;
+  const MAP_H = 54;
   const VIEW_W = 960;
   const VIEW_H = 600;
   const MAP_PW = MAP_W * TILE;
@@ -106,13 +106,32 @@
     a_medic: { name: '战地医疗甲', icon: '✚', kind: 'armor', armor: 'medic', rarity: 'rare', sell: 155, stack: false, desc: '减伤 16%，每次行动多带 1 个医疗包。' },
     a_ghost: { name: '幽灵纤维甲', icon: '◌', kind: 'armor', armor: 'ghost', rarity: 'epic', sell: 340, stack: false, desc: '减伤 22%，移速 +4%，敌人视野 -28%。' },
     scrap: { name: '机械零件', icon: '⚙', kind: 'loot', rarity: 'common', sell: 4, stack: true, desc: '常见的工业废料，黑市会收。' },
+    fiber: { name: '纤维束', icon: '≋', kind: 'loot', rarity: 'common', sell: 6, stack: true, desc: '从废弃织物和线缆中抽出的纤维。' },
+    circuit: { name: '废旧电路', icon: '▦', kind: 'loot', rarity: 'common', sell: 9, stack: true, desc: '烧毁的线路板，仍有回收价值。' },
     chip: { name: '数据芯片', icon: '▣', kind: 'loot', rarity: 'uncommon', sell: 16, stack: true, desc: '还能读取的旧世界芯片。' },
+    battery: { name: '高能电池', icon: '▮', kind: 'loot', rarity: 'uncommon', sell: 32, stack: true, desc: '鼓包但仍有电的军规电池。' },
     relic: { name: '旧世遗物', icon: '◆', kind: 'loot', rarity: 'rare', sell: 42, stack: true, desc: '收藏家愿意为它付个好价钱。' },
-    core: { name: '反应核心', icon: '✦', kind: 'loot', rarity: 'epic', sell: 105, stack: true, desc: '从旧设施里拆出的高价值核心。' }
+    lens: { name: '光学镜片', icon: '◎', kind: 'loot', rarity: 'rare', sell: 74, stack: true, desc: '从侦察设备上拆下的精密镜片。' },
+    drone_core: { name: '无人机核心', icon: '✜', kind: 'loot', rarity: 'rare', sell: 92, stack: true, desc: '坠毁无人机里幸存的导航模块。' },
+    medal: { name: '战地勋章', icon: '★', kind: 'loot', rarity: 'rare', sell: 66, stack: true, desc: '旧时代士兵留下的纪念章。' },
+    core: { name: '反应核心', icon: '✦', kind: 'loot', rarity: 'epic', sell: 105, stack: true, desc: '从旧设施里拆出的高价值核心。' },
+    quantum: { name: '量子存储器', icon: '◈', kind: 'loot', rarity: 'epic', sell: 186, stack: true, desc: '仍在闪烁的量子级数据载体。' },
+    phase: { name: '相位遗物', icon: '✧', kind: 'loot', rarity: 'epic', sell: 248, stack: true, desc: '会在观测时轻微偏移的异常造物。' }
   };
 
   const RARITY_LABEL = { common: '普通', uncommon: '精良', rare: '稀有', epic: '史诗' };
   const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4 };
+  const LOOT_RARITY_PROFILES = {
+    common: { common: 62, uncommon: 27, rare: 9, epic: 2 },
+    rare: { common: 26, uncommon: 34, rare: 29, epic: 11 },
+    vault: { common: 0, uncommon: 18, rare: 52, epic: 30 }
+  };
+  const LOOT_POOLS = {
+    common: ['scrap', 'fiber', 'circuit'],
+    uncommon: ['chip', 'battery', 'w_smg', 'a_light', 'a_scout'],
+    rare: ['relic', 'lens', 'drone_core', 'medal', 'w_rifle', 'w_shotgun', 'w_lmg', 'a_heavy', 'a_medic'],
+    epic: ['core', 'quantum', 'phase', 'w_dmr', 'w_rail', 'a_riot', 'a_ghost']
+  };
   const RISK_DEFS = {
     normal: { label: '普通', hint: '稳定收益', enemyCount: 1, enemyHp: 1, enemyDamage: 1, rareChance: 0.24, color: '#7ed7a0' },
     danger: { label: '危险', hint: '更多敌人 · 更好掉落', enemyCount: 1.35, enemyHp: 1.25, enemyDamage: 1.2, rareChance: 0.42, color: '#ffad45' },
@@ -1536,10 +1555,10 @@
 
     for (let attempt = 0; attempt < 80 && !data; attempt++) {
       const rooms = [];
-      const tries = 40;
-      for (let i = 0; i < tries && rooms.length < 12; i++) {
-        const w = randInt(6, 10);
-        const h = randInt(5, 8);
+      const tries = 90;
+      for (let i = 0; i < tries && rooms.length < 18; i++) {
+        const w = randInt(6, 11);
+        const h = randInt(5, 9);
         const x = randInt(2, MAP_W - w - 3);
         const y = randInt(2, MAP_H - h - 3);
         const candidate = { x, y, w, h };
@@ -1552,7 +1571,7 @@
         }
         if (!overlaps) rooms.push(candidate);
       }
-      if (rooms.length < 7) continue;
+      if (rooms.length < 12) continue;
 
       rooms.sort((a, b) => (a.x + a.w / 2) - (b.x + b.w / 2));
       const tiles = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(0));
@@ -1595,8 +1614,8 @@
         }
       }
 
-      // An extra loop makes the map less linear.
-      for (let i = 0; i < 2; i++) {
+      // Extra loops make the larger map less linear.
+      for (let i = 0; i < 4; i++) {
         const a = centerOf(pick(rooms));
         const b = centerOf(pick(rooms));
         if (a.x !== b.x && a.y !== b.y) {
@@ -1648,7 +1667,7 @@
     const containers = [];
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
-      const count = randInt(1, 2) + (i === rooms.length - 1 && Math.random() < 0.45 ? 1 : 0);
+      const count = randInt(2, 3) + (i === rooms.length - 1 && Math.random() < 0.45 ? 1 : 0);
       for (let j = 0; j < count; j++) {
         const spot = roomSpot(room);
         if (!canStandOnTiles(tiles, spot.x, spot.y, 13)) continue;
@@ -1665,7 +1684,7 @@
       }
     }
 
-    const enemyCount = Math.round((6 + Math.min(12, (floor - 1) * 2)) * risk.enemyCount);
+    const enemyCount = Math.round((8 + Math.min(16, (floor - 1) * 2)) * risk.enemyCount);
     const enemies = [];
     const kinds = ['grunt', 'grunt', 'scout', 'grunt', 'heavy'];
     for (let i = 0; i < enemyCount; i++) {
@@ -2549,29 +2568,44 @@
     setTimeout(() => line.remove(), 3800);
   }
 
-  function rollLootItem(quality = 'common') {
-    const r = Math.random();
+  function weightedPick(weights) {
+    let total = 0;
+    for (const weight of Object.values(weights)) total += Math.max(0, weight);
+    if (total <= 0) return 'common';
+    let roll = Math.random() * total;
+    for (const [key, weight] of Object.entries(weights)) {
+      const safeWeight = Math.max(0, weight);
+      if (safeWeight <= 0) continue;
+      if (roll < safeWeight) return key;
+      roll -= safeWeight;
+    }
+    return Object.keys(weights)[0];
+  }
+
+  function rollLootRarity(quality = 'common') {
+    const profile = LOOT_RARITY_PROFILES[quality] || LOOT_RARITY_PROFILES.common;
+    const weights = { ...profile };
+    const floor = Math.max(1, raid?.floor || 1);
+    const riskBonus = save.settings.raidRisk === 'extreme' ? 8 : save.settings.raidRisk === 'danger' ? 4 : 0;
+    const depthBonus = Math.min(18, (floor - 1) * 1.1) + riskBonus;
     if (quality === 'vault') {
-      if (r < 0.08) return 'core';
-      if (r < 0.18) return 'relic';
-      if (r < 0.42) return pick(['w_rifle', 'w_lmg', 'a_heavy', 'a_medic']);
-      if (r < 0.62) return pick(['w_dmr', 'w_rail', 'a_ghost', 'a_riot']);
-      return pick(['chip', 'core', 'relic']);
+      const shift = Math.min(Math.max(0, weights.uncommon - 4), depthBonus * 0.35);
+      weights.uncommon -= shift;
+      weights.rare += shift * 0.55;
+      weights.epic += shift * 0.45;
+    } else {
+      const shift = Math.min(Math.max(0, weights.common - 16), depthBonus);
+      weights.common -= shift;
+      weights.rare += shift * 0.62;
+      weights.epic += shift * 0.38;
     }
-    if (quality === 'rare') {
-      if (r < 0.14) return 'scrap';
-      if (r < 0.34) return 'chip';
-      if (r < 0.55) return 'relic';
-      if (r < 0.68) return 'core';
-      if (r < 0.82) return pick(['w_smg', 'w_shotgun', 'a_light', 'a_scout']);
-      if (r < 0.94) return pick(['w_rifle', 'w_lmg', 'a_medic', 'a_heavy']);
-      return pick(['w_dmr', 'w_rail', 'a_ghost', 'a_riot']);
-    }
-    if (r < 0.52) return 'scrap';
-    if (r < 0.78) return 'chip';
-    if (r < 0.88) return 'relic';
-    if (r < 0.96) return pick(['w_smg', 'w_shotgun', 'a_light', 'a_scout']);
-    return 'core';
+    return weightedPick(weights);
+  }
+
+  function rollLootItem(quality = 'common', minRarity = 'common') {
+    let rarity = rollLootRarity(quality);
+    if ((RARITY_ORDER[rarity] || 0) < (RARITY_ORDER[minRarity] || 0)) rarity = minRarity;
+    return pick(LOOT_POOLS[rarity] || LOOT_POOLS.common);
   }
 
   function lootContainer(container) {
@@ -2587,27 +2621,34 @@
     }
     container.searched = true;
     playSound('open');
-    const count = container.vault ? randInt(3, 4) : randInt(1, 3);
+    const quality = container.vault ? 'vault' : container.rarity;
+    const count = container.vault ? randInt(4, 5) : container.rarity === 'rare' ? randInt(2, 4) : randInt(1, 3);
     let got = 0;
+    let bestRarity = 0;
     const names = [];
     for (let i = 0; i < count; i++) {
-      const type = rollLootItem(container.vault ? 'vault' : container.rarity);
+      const forceRare = container.vault && i === count - 1 && bestRarity < RARITY_ORDER.rare;
+      const type = rollLootItem(quality, forceRare ? 'rare' : 'common');
+      const def = defOf(type);
       const item = createItem(type, 1);
       if (addItemToBackpack(item)) {
         got++;
-        names.push(defOf(type).name);
-        gainRaidXP(defOf(type).rarity === 'epic' ? 10 : defOf(type).rarity === 'rare' ? 5 : 2, true);
+        names.push(def.name);
+        bestRarity = Math.max(bestRarity, RARITY_ORDER[def.rarity] || 1);
+        gainRaidXP({ common: 1, uncommon: 3, rare: 6, epic: 12 }[def.rarity] || 1, true);
       } else {
         addLootFeed('背包已满，部分物资无法带走。', true);
         break;
       }
     }
-    if (Math.random() < 0.32 || container.vault) {
-      const ammo = randInt(container.vault ? 32 : 18, container.vault ? 58 : 34);
+    const ammoChance = container.vault ? 1 : container.rarity === 'rare' ? 0.5 : 0.32;
+    if (Math.random() < ammoChance) {
+      const ammo = randInt(container.vault ? 40 : container.rarity === 'rare' ? 26 : 18, container.vault ? 72 : container.rarity === 'rare' ? 48 : 34);
       player.reserve += ammo;
       addLootFeed(`获得弹药 +${ammo}`, false);
     }
-    if ((Math.random() < 0.18 || container.vault) && player.medkits < 8) {
+    const medChance = container.vault ? 1 : container.rarity === 'rare' ? 0.3 : 0.18;
+    if (Math.random() < medChance && player.medkits < 8) {
       player.medkits += 1;
       addLootFeed('获得医疗包 +1', false);
     }
@@ -3653,22 +3694,30 @@
       ctx.strokeStyle = c.vault ? 'rgba(255,209,92,.35)' : '#2f3d50';
       ctx.strokeRect(-15, -7, 30, 18);
     } else {
-      const accent = c.vault ? '#ffd15c' : '#d6ff4d';
-      const accentRgb = c.vault ? '255,209,92' : '214,255,77';
+      const rareCache = !c.vault && c.rarity === 'rare';
+      const accent = c.vault ? '#ffd15c' : rareCache ? '#55d9ff' : '#d6ff4d';
+      const accentRgb = c.vault ? '255,209,92' : rareCache ? '85,217,255' : '214,255,77';
       const glow = 0.25 + (Math.sin(world.time * 2 + c.pulse) + 1) * 0.13;
-      ctx.fillStyle = `rgba(${accentRgb},${glow * (c.vault ? 0.36 : 0.24)})`;
+      ctx.fillStyle = `rgba(${accentRgb},${glow * (c.vault ? 0.36 : rareCache ? 0.32 : 0.24)})`;
       ctx.fillRect(c.vault ? -21 : -18, c.vault ? -17 : -15, c.vault ? 42 : 36, c.vault ? 36 : 32);
-      ctx.fillStyle = c.vault ? '#4a3b1d' : '#2c3b2b';
+      ctx.fillStyle = c.vault ? '#4a3b1d' : rareCache ? '#1d3342' : '#2c3b2b';
       ctx.fillRect(-15, -9, 30, 20);
-      ctx.fillStyle = c.vault ? '#705a27' : '#485b36';
+      ctx.fillStyle = c.vault ? '#705a27' : rareCache ? '#34566b' : '#485b36';
       ctx.fillRect(-15, -9, 30, 5);
       ctx.fillStyle = accent;
       ctx.fillRect(-3, 1, 6, 3);
       ctx.strokeStyle = `rgba(${accentRgb},.9)`;
       ctx.strokeRect(-15, -9, 30, 20);
-      ctx.fillStyle = c.vault ? '#c2a34b' : '#9ab52e';
+      ctx.fillStyle = c.vault ? '#c2a34b' : rareCache ? '#5f9ab3' : '#9ab52e';
       ctx.fillRect(-12, -7, 3, 16);
       ctx.fillRect(9, -7, 3, 16);
+      if (rareCache) {
+        ctx.font = 'bold 8px monospace';
+        ctx.fillStyle = '#55d9ff';
+        ctx.textAlign = 'center';
+        ctx.fillText('高级补给箱', 0, -14);
+        ctx.textAlign = 'left';
+      }
       if (c.vault) {
         ctx.strokeStyle = '#ffd15c';
         ctx.lineWidth = 1.5;
@@ -3983,8 +4032,8 @@
 
     for (const container of world.containers) {
       if (container.searched || !isExploredPoint(container.x, container.y)) continue;
-      g.fillStyle = container.vault ? '#ffd15c' : '#ff9c47';
-      const size = container.vault ? 8 : 6;
+      g.fillStyle = container.vault ? '#ffd15c' : container.rarity === 'rare' ? '#55d9ff' : '#ff9c47';
+      const size = container.vault ? 8 : container.rarity === 'rare' ? 7 : 6;
       g.fillRect(container.x * sx - size / 2, container.y * sy - size / 2, size, size);
     }
     for (const pickup of world.pickups) {
@@ -4110,8 +4159,9 @@
 
     for (const c of world.containers) {
       if (c.searched || !isExploredPoint(c.x, c.y)) continue;
-      miniCtx.fillStyle = c.vault ? '#ffd15c' : '#ff9c47';
-      miniCtx.fillRect(c.x * sx - 1, c.y * sy - 1, c.vault ? 5 : 3, c.vault ? 5 : 3);
+      miniCtx.fillStyle = c.vault ? '#ffd15c' : c.rarity === 'rare' ? '#55d9ff' : '#ff9c47';
+      const size = c.vault ? 5 : c.rarity === 'rare' ? 4 : 3;
+      miniCtx.fillRect(c.x * sx - 1, c.y * sy - 1, size, size);
     }
     for (const p of world.pickups) {
       if (!isExploredPoint(p.x, p.y)) continue;
@@ -4607,6 +4657,9 @@
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name } : null,
           bossPresent: !!world.boss,
           keyChest: world.keyChest ? { x: world.keyChest.x, y: world.keyChest.y, locked: !!world.keyChest.locked, searched: !!world.keyChest.searched } : null,
+          roomCount: world.rooms.length,
+          containerCount: world.containers.length,
+          mapTiles: [MAP_W, MAP_H],
           exploredCount: world.explored ? world.explored.reduce((sum, v) => sum + v, 0) : 0,
           trailLength: world.trail ? world.trail.length : 0,
           visibleEnemies: world.enemies.filter((e) => !e.dead && isPointVisible(e.x, e.y)).length,
@@ -4630,6 +4683,18 @@
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
     damageEnemy(index, amount = 9999) { const enemy = world && world.enemies[index]; if (enemy && !enemy.dead) enemy.takeDamage(amount, 0); },
     grantKeys(count = 1) { if (raid && !raid.ended) { raid.keys = (raid.keys || 0) + Math.max(0, Math.floor(count)); updateHUD(); } },
+    lootSample(quality = 'common', count = 1000) {
+      const types = {};
+      const rarities = {};
+      const total = Math.max(1, Math.min(20000, Math.floor(count)));
+      for (let i = 0; i < total; i++) {
+        const type = rollLootItem(quality);
+        types[type] = (types[type] || 0) + 1;
+        const rarity = defOf(type).rarity;
+        rarities[rarity] = (rarities[rarity] || 0) + 1;
+      }
+      return { quality, total, types, rarities };
+    },
     forceRaidEvent(type) {
       if (!world || !raid) return null;
       world.altExtraction = null;

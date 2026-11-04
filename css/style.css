@@ -1088,6 +1088,7 @@ body.touch-device.move-stick-fixed .move-pad {
 .map-dot.player { background: #ffffff; }
 .map-dot.exit { background: #d6ff4d; box-shadow: 0 0 6px rgba(214,255,77,.8); }
 .map-dot.loot { background: #ff9c47; }
+.map-dot.rare { background: #55d9ff; }
 .map-dot.key { background: #ffd15c; box-shadow: 0 0 6px rgba(255,209,92,.8); }
 .map-dot.path { background: #55d9ff; border-radius: 0; }
 .map-dot.enemy { background: #ff5b6e; }
