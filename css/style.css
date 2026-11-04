@@ -385,6 +385,10 @@ kbd {
 .hud-label { color: var(--red); font-weight: 900; font-size: .78em; }
 .hud-bar { flex: 1; height: 10px; border: 1px solid #38455a; background: #06090d; }
 .hud-bar-fill { height: 100%; background: linear-gradient(90deg, #d73e50, #ff6c7d); transition: width .15s linear; }
+.hud-xp-row { margin-top: 5px; }
+.hud-xp-label { color: var(--lime); }
+.hud-xp-bar { height: 6px; }
+.hud-bar-fill.xp { background: linear-gradient(90deg, #8bab2d, #d6ff4d); }
 .hud-value { color: var(--text); font-size: .75em; min-width: 56px; text-align: right; }
 .hud-subrow { display: flex; gap: 12px; margin-top: 6px; color: var(--dim); font-size: .68em; }
 .weapon-hud { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.08); color: var(--dim); font-size: .72em; }
@@ -573,18 +577,22 @@ kbd {
 .debrief-loot span { padding: 4px 7px; border: 1px solid var(--line-soft); color: var(--dim); font-size: 9px; }
 .debrief-card .primary-btn { width: 100%; }
 
-.perk-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-  padding: 7px 9px;
+.extract-choice-card { width: min(620px, 94%); }
+.extract-choice-card h2 { margin: 0; font-size: 26px; letter-spacing: 3px; }
+.extract-choice-card p { margin: 7px 0 0; color: var(--dim); font-size: 10px; line-height: 1.7; }
+.extract-choice-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 15px 0;
   border: 1px solid var(--line-soft);
-  background: rgba(214, 255, 77, .035);
-  font-size: 9px;
+  background: var(--line-soft);
 }
-.perk-summary span { flex: 0 0 auto; color: var(--dim); letter-spacing: 1px; }
-.perk-summary strong { color: var(--lime-soft); font-size: 10px; font-weight: 600; }
+.extract-choice-stats div { min-width: 0; padding: 9px; background: #0a1017; }
+.extract-choice-stats span { display: block; color: var(--dim); font-size: 9px; }
+.extract-choice-stats strong { display: block; margin-top: 4px; color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.extract-choice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.extract-choice-actions .primary-btn, .extract-choice-actions .secondary-btn { width: 100%; }
 
 .perk-card { width: min(760px, 94%); text-align: left; }
 .perk-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
@@ -2063,6 +2071,11 @@ body.touch-device.move-stick-fixed .move-pad {
   .debrief-card .primary-btn { padding: 9px 12px; }
   .perk-card { padding: 12px 14px; }
   .perk-card h2 { font-size: 20px; }
+  .extract-choice-card { padding: 12px 14px; }
+  .extract-choice-card h2 { font-size: 21px; }
+  .extract-choice-stats { margin: 10px 0; }
+  .extract-choice-stats div { padding: 6px; }
+  .extract-choice-stats strong { font-size: 12px; }
   .perk-choice-grid { gap: 7px; margin-top: 10px; }
   .perk-choice { min-height: 106px; padding: 9px; }
   .perk-choice-icon { width: 25px; height: 25px; font-size: 8px; }
@@ -2083,6 +2096,15 @@ body.touch-device.move-stick-fixed .move-pad {
   .perk-card { padding: 8px 11px; }
   .perk-card h2 { font-size: 17px; }
   .perk-sub { font-size: 8px; }
+  .extract-choice-card { padding: 8px 11px; }
+  .extract-choice-card h2 { font-size: 17px; letter-spacing: 2px; }
+  .extract-choice-card p { margin-top: 4px; font-size: 9px; line-height: 1.45; }
+  .extract-choice-stats { margin: 7px 0; }
+  .extract-choice-stats div { padding: 4px; }
+  .extract-choice-stats span { font-size: 8px; }
+  .extract-choice-stats strong { font-size: 11px; }
+  .extract-choice-actions { gap: 7px; }
+  .extract-choice-actions .primary-btn, .extract-choice-actions .secondary-btn { padding: 7px 9px; }
   .perk-choice-grid { margin-top: 7px; }
   .perk-choice { min-height: 88px; padding: 7px; gap: 3px; }
   .perk-choice-icon { width: 21px; height: 21px; font-size: 7px; }

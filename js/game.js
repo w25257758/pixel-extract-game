@@ -125,7 +125,7 @@
     bulwark: { name: '复合防护', icon: 'AR', max: 5, color: '#ffbd63', desc: '受到伤害 -3%' },
     ammo: { name: '弹药储备', icon: 'AM', max: 3, color: '#c49cff', desc: '备弹量 +10%' },
     medic: { name: '战地急救', icon: 'MD', max: 3, color: '#79f0a3', desc: '每次行动医疗包 +1' },
-    fortune: { name: '拾荒直觉', icon: 'LK', max: 3, color: '#ffd15c', desc: '稀有补给箱概率 +4%' }
+    fortune: { name: '战术嗅觉', icon: 'XP', max: 4, color: '#ffd15c', desc: '获得的经验 +8%' }
   };
   const PERK_KEYS = Object.keys(PERK_DEFS);
 
@@ -196,9 +196,7 @@
 
   function defaultSave() {
     return {
-      version: 1,
-      level: 1,
-      xp: 0,
+      version: 2,
       scrap: 80,
       stash: [],
       equipped: {
@@ -206,8 +204,6 @@
         armor: null
       },
       upgrades: { medkits: 0, ammo: 0 },
-      perks: {},
-      pendingPerks: 0,
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
     };
@@ -234,14 +230,13 @@
     } else {
       merged.equipped.armor = null;
     }
-    merged.level = clamp(Number(merged.level) || 1, 1, 99);
-    merged.xp = Math.max(0, Number(merged.xp) || 0);
+    // Level and perks are run-only now. Old saves are upgraded by dropping those fields.
+    delete merged.level;
+    delete merged.xp;
+    delete merged.perks;
+    delete merged.pendingPerks;
+    merged.version = 2;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
-    merged.perks = {};
-    for (const key of PERK_KEYS) {
-      merged.perks[key] = clamp(Math.floor(Number(raw.perks?.[key]) || 0), 0, PERK_DEFS[key].max);
-    }
-    merged.pendingPerks = clamp(Math.floor(Number(merged.pendingPerks) || 0), 0, 99);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
     touchSettings.moveStickSize = clamp(Number(touchSettings.moveStickSize) || 100, 70, 150);
@@ -274,29 +269,31 @@
     }
   }
 
-  function xpToNext(level) { return 90 + (level - 1) * 55; }
+  function raidXpToNext(level) { return 80 + (level - 1) * 50; }
   function perkRank(key) {
     const def = PERK_DEFS[key];
     if (!def) return 0;
-    return clamp(Math.floor(Number(save.perks?.[key]) || 0), 0, def.max);
+    return clamp(Math.floor(Number(raid?.perks?.[key]) || 0), 0, def.max);
   }
-  function maxHpForLevel(level) { return 100 + (level - 1) * 8 + perkRank('vitality') * 10; }
-  function backpackCapacity(level) { return 8 + Math.floor((level - 1) / 2) + perkRank('scavenger'); }
-  function startingMedkits() { return 2 + save.upgrades.medkits + perkRank('medic'); }
+  function backpackCapacity() { return 8 + perkRank('scavenger'); }
+  function startingMedkits() { return 2 + save.upgrades.medkits; }
 
-  function addXP(amount, silent = false) {
-    if (!amount) return 0;
-    save.xp += Math.max(0, Math.floor(amount));
+  function gainRaidXP(amount, silent = false) {
+    if (!raid || raid.ended || amount <= 0) return 0;
+    const multiplier = 1 + perkRank('fortune') * 0.08;
+    const gained = Math.max(0, Math.floor(amount * multiplier));
+    raid.xp += gained;
     let levelsGained = 0;
-    while (save.xp >= xpToNext(save.level)) {
-      save.xp -= xpToNext(save.level);
-      save.level += 1;
+    while (raid.xp >= raidXpToNext(raid.level)) {
+      raid.xp -= raidXpToNext(raid.level);
+      raid.level += 1;
       levelsGained += 1;
     }
     if (levelsGained > 0) {
-      save.pendingPerks = (save.pendingPerks || 0) + levelsGained;
+      raid.pendingPerks = (raid.pendingPerks || 0) + levelsGained;
       if (!silent) {
-        toast(`等级提升！现在是 LV.${save.level}，获得 ${levelsGained} 次成长选择。`);
+        addLootFeed(`本局等级提升 → LV.${raid.level}，获得 ${levelsGained} 次成长选择。`, false);
+        toast(`等级提升！选择一项本局成长。`);
         playSound('level');
       }
     }
@@ -455,9 +452,6 @@
     selectedValue: $('#selectedValue'),
     equipBtn: $('#equipBtn'),
     sellBtn: $('#sellBtn'),
-    levelBig: $('#levelBig'),
-    xpFill: $('#xpFill'),
-    xpLabel: $('#xpLabel'),
     shopList: $('#shopList'),
     resetSaveBtn: $('#resetSaveBtn'),
     fullscreenBtn: $('#fullscreenBtn'),
@@ -500,6 +494,9 @@
     hudWeaponIcon: $('#hudWeaponIcon'),
     hudAmmo: $('#hudAmmo'),
     hudLevel: $('#hudLevel'),
+    hudFloor: $('#hudFloor'),
+    hudXpFill: $('#hudXpFill'),
+    hudXpText: $('#hudXpText'),
     raidTimer: $('#raidTimer'),
     raidObjective: $('#raidObjective'),
     mapIntel: $('#mapIntel'),
@@ -531,6 +528,11 @@
     pauseOverlay: $('#pauseOverlay'),
     resumeBtn: $('#resumeBtn'),
     abandonBtn: $('#abandonBtn'),
+    extractChoiceOverlay: $('#extractChoiceOverlay'),
+    extractChoiceSub: $('#extractChoiceSub'),
+    extractChoiceStats: $('#extractChoiceStats'),
+    extractReturnBtn: $('#extractReturnBtn'),
+    extractDeeperBtn: $('#extractDeeperBtn'),
     debriefOverlay: $('#debriefOverlay'),
     debriefTag: $('#debriefTag'),
     debriefTitle: $('#debriefTitle'),
@@ -541,7 +543,6 @@
     perkOverlay: $('#perkOverlay'),
     perkChoiceGrid: $('#perkChoiceGrid'),
     perkPending: $('#perkPending'),
-    perkSummary: $('#perkSummary'),
     toast: $('#toast'),
     openEquipBtn: $('#openEquipBtn'),
     openStashBtn: $('#openStashBtn'),
@@ -676,7 +677,6 @@
       persist();
       renderAllBase();
       syncSettingsUI();
-      if (save.pendingPerks > 0) showPerkChoices();
       toast('存档已导入。');
     } catch (err) {
       toast('存档码无效，未导入任何内容。');
@@ -784,8 +784,8 @@
   }
 
   function renderPerkChoices() {
-    if (!el.perkChoiceGrid) return;
-    el.perkPending.textContent = `剩余 ${save.pendingPerks} 次`;
+    if (!el.perkChoiceGrid || !raid) return;
+    el.perkPending.textContent = `剩余 ${raid.pendingPerks} 次`;
     el.perkChoiceGrid.innerHTML = '';
     for (const key of pendingPerkChoices) {
       const def = PERK_DEFS[key];
@@ -806,46 +806,76 @@
 
   function showPerkChoices() {
     if (!el.perkOverlay) return;
-    if (!save.pendingPerks || save.pendingPerks <= 0) {
+    if (mode !== 'raid' || !raid || raid.ended || !raid.pendingPerks || raid.pendingPerks <= 0) {
       el.perkOverlay.classList.add('hidden');
+      if (raid) raid.perkChoiceOpen = false;
       return;
     }
     pendingPerkChoices = rollPerkChoices();
     if (pendingPerkChoices.length === 0) {
-      save.pendingPerks = 0;
-      persist();
+      const overflow = raid.pendingPerks;
+      raid.pendingPerks = 0;
+      raid.perkChoiceOpen = false;
+      if (player) {
+        player.maxHp += overflow * 5;
+        player.hp = Math.min(player.maxHp, player.hp + overflow * 5);
+      }
       el.perkOverlay.classList.add('hidden');
-      toast('所有成长强化都已满级。');
+      raid.paused = false;
+      addLootFeed(`所有成长已满级，额外获得最大生命 +${overflow * 5}。`, false);
+      updateHUD();
       return;
     }
+    raid.perkChoiceOpen = true;
+    raid.paused = true;
+    mouse.down = false;
+    mouse.semiQueued = false;
+    touch.firing = false;
+    touch.aiming = false;
+    el.interactPrompt.classList.add('hidden');
     renderPerkChoices();
     el.perkOverlay.classList.remove('hidden');
   }
 
+  function applyRunPerk(key) {
+    if (!player) return;
+    if (key === 'vitality') {
+      player.maxHp += 10;
+      player.hp = Math.min(player.maxHp, player.hp + 10);
+    } else if (key === 'runner') {
+      player.speed = 155 * (1 + (player.armor.speedBonus || 0) + perkRank('runner') * 0.04);
+    } else if (key === 'scavenger') {
+      player.capacity += 1;
+    } else if (key === 'ammo') {
+      player.reserve += Math.max(1, Math.round(player.weapon.reserve * 0.1));
+    } else if (key === 'medic') {
+      player.medkits = Math.min(8, player.medkits + 1);
+    }
+  }
+
   function choosePerk(key) {
     const def = PERK_DEFS[key];
-    if (!def || !pendingPerkChoices.includes(key) || save.pendingPerks <= 0) return;
+    if (mode !== 'raid' || !raid || raid.ended || !def || !pendingPerkChoices.includes(key) || raid.pendingPerks <= 0) return;
     const rank = perkRank(key);
     if (rank >= def.max) return;
-    save.perks[key] = rank + 1;
-    save.pendingPerks = Math.max(0, (save.pendingPerks || 0) - 1);
-    persist();
+    raid.perks[key] = rank + 1;
+    raid.pendingPerks = Math.max(0, (raid.pendingPerks || 0) - 1);
+    applyRunPerk(key);
     playSound('level');
     toast(`${def.name}提升至 ${rank + 1} 级：${def.desc}`);
-    renderAllBase();
-    if (!el.equipOverlay.classList.contains('hidden')) renderEquipModal();
-    if (save.pendingPerks > 0) {
+    addLootFeed(`成长选择：${def.name} ${rank + 1} 级`, false);
+    updateHUD();
+    updateBackpackHud();
+    if (raid.pendingPerks > 0) {
+      pendingPerkChoices = [];
       showPerkChoices();
     } else {
       pendingPerkChoices = [];
       el.perkOverlay.classList.add('hidden');
+      raid.perkChoiceOpen = false;
+      raid.paused = false;
+      lastTime = performance.now();
     }
-  }
-
-  function setXpBar() {
-    const need = xpToNext(save.level);
-    el.xpFill.style.width = `${clamp((save.xp / need) * 100, 0, 100)}%`;
-    el.xpLabel.textContent = `${save.xp} / ${need}`;
   }
 
   function renderLoadout() {
@@ -876,7 +906,7 @@
       <div class="equip-stats"><span>伤害减免 ${Math.round(armorDef.reduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
 
     el.loadoutMeds.textContent = startingMedkits() + (armorDef.medkitBonus || 0);
-    el.loadoutSlots.textContent = backpackCapacity(save.level);
+    el.loadoutSlots.textContent = backpackCapacity();
     if (el.baseEquipSummary) el.baseEquipSummary.textContent = weaponDef ? `武器 · ${weaponDef.name}` : '未装备武器';
   }
 
@@ -1127,13 +1157,6 @@
       </div>`;
     const unequipBtn = el.equippedSummary.querySelector('[data-unequip="armor"]');
     if (unequipBtn) unequipBtn.addEventListener('click', unequipArmor);
-    if (el.perkSummary) {
-      const unlocked = PERK_KEYS
-        .filter((key) => perkRank(key) > 0)
-        .map((key) => `${PERK_DEFS[key].name} ${perkRank(key)}`);
-      const pending = save.pendingPerks > 0 ? ` · 待选择 ${save.pendingPerks} 次` : '';
-      el.perkSummary.innerHTML = `<span>成长强化</span><strong>${unlocked.length ? unlocked.join(' · ') : '暂无'}${pending}</strong>`;
-    }
     renderEquipChoices('weapon', el.weaponChoices);
     renderEquipChoices('armor', el.armorChoices);
   }
@@ -1180,8 +1203,6 @@
     el.statScrap.textContent = save.scrap;
     el.statRaids.textContent = save.stats.raids;
     el.statExtracts.textContent = save.stats.extracts;
-    el.levelBig.textContent = save.level;
-    setXpBar();
   }
 
   function syncRiskPicker() {
@@ -1286,9 +1307,9 @@
       desktopText: '鼠标瞄准，左键射击；R 换弹，F 使用医疗包。'
     },
     {
-      title: '撤离',
-      touchText: '跟着小地图的绿色标记，进入撤离点停留 3 秒。',
-      desktopText: '跟着小地图的绿色标记，进入撤离点停留 3 秒。'
+      title: '撤离点',
+      touchText: '跟着小地图的绿色标记，进入撤离点停留 3 秒，然后选择继续下一层或返回基地。',
+      desktopText: '跟着小地图的绿色标记，进入撤离点停留 3 秒，然后选择继续下一层或返回基地。'
     }
   ];
 
@@ -1564,7 +1585,8 @@
     ensureFloor(extraction.x, extraction.y);
 
     const risk = riskDef();
-    const rareChance = clamp(risk.rareChance + perkRank('fortune') * 0.04, 0, 0.9);
+    const floor = Math.max(1, raid?.floor || 1);
+    const rareChance = clamp(risk.rareChance + (floor - 1) * 0.06, 0, 0.9);
     const containers = [];
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
@@ -1585,7 +1607,7 @@
       }
     }
 
-    const enemyCount = Math.round((6 + Math.min(7, Math.floor(save.level / 2))) * risk.enemyCount);
+    const enemyCount = Math.round((6 + Math.min(12, (floor - 1) * 2)) * risk.enemyCount);
     const enemies = [];
     const kinds = ['grunt', 'grunt', 'scout', 'grunt', 'heavy'];
     for (let i = 0; i < enemyCount; i++) {
@@ -1872,7 +1894,7 @@
       this.x = x;
       this.y = y;
       this.r = 10;
-      this.maxHp = maxHpForLevel(save.level);
+      this.maxHp = 100 + perkRank('vitality') * 10;
       this.hp = this.maxHp;
       this.angle = 0;
       this.speed = 155;
@@ -1896,9 +1918,9 @@
       this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
-      this.capacity = backpackCapacity(save.level);
+      this.capacity = backpackCapacity();
       this.backpack = [];
-      this.damageMultiplier = 1 + (save.level - 1) * 0.015;
+      this.damageMultiplier = 1;
     }
 
     update(dt) {
@@ -2120,16 +2142,17 @@
       };
       const s = statTable[kind] || statTable.grunt;
       const risk = riskDef();
+      const floor = Math.max(1, raid?.floor || 1);
       this.name = s.name || '敌人';
-      this.maxHp = Math.round((s.hp + Math.max(0, save.level - 1) * (this.isBoss ? 20 : 2)) * risk.enemyHp);
+      this.maxHp = Math.round(s.hp * (1 + (floor - 1) * 0.24) * risk.enemyHp);
       this.hp = this.maxHp;
-      this.speed = s.speed;
+      this.speed = s.speed * (1 + Math.min(0.25, (floor - 1) * 0.015));
       this.vision = s.vision;
       this.range = s.range;
-      this.damage = s.damage * risk.enemyDamage;
+      this.damage = s.damage * (1 + (floor - 1) * 0.12) * risk.enemyDamage;
       this.cooldown = s.cooldown;
-      this.xp = Math.round(s.xp * (1 + (risk.enemyDamage - 1) * 0.75));
-      this.scrap = Math.round(s.scrap * (1 + (risk.enemyDamage - 1) * 0.75));
+      this.xp = Math.round(s.xp * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
+      this.scrap = Math.round(s.scrap * (1 + (floor - 1) * 0.16) * (1 + (risk.enemyDamage - 1) * 0.75));
       this.color = s.color;
     }
 
@@ -2293,7 +2316,7 @@
       this.dead = true;
       this.hp = 0;
       raid.kills += 1;
-      raid.xp += this.xp;
+      gainRaidXP(this.xp, true);
       raid.scrap += this.scrap;
       addParticle(this.x, this.y, '#b83d52', 12, 110, 3, 0.8);
       addParticle(this.x, this.y, '#2e3645', 8, 65, 3, 0.6);
@@ -2422,7 +2445,7 @@
       if (addItemToBackpack(item)) {
         got++;
         names.push(defOf(type).name);
-        raid.xp += defOf(type).rarity === 'epic' ? 10 : defOf(type).rarity === 'rare' ? 5 : 2;
+        gainRaidXP(defOf(type).rarity === 'epic' ? 10 : defOf(type).rarity === 'rare' ? 5 : 2, true);
       } else {
         addLootFeed('背包已满，部分物资无法带走。', true);
         break;
@@ -2545,6 +2568,63 @@
     }
   }
 
+  function openExtractionChoice() {
+    if (!raid || raid.ended || raid.extractionChoiceOpen) return;
+    raid.extractionChoiceOpen = true;
+    raid.paused = true;
+    raid.progress = 0;
+    raid.interactionType = null;
+    mouse.down = false;
+    mouse.semiQueued = false;
+    touch.firing = false;
+    touch.aiming = false;
+    el.interactPrompt.classList.add('hidden');
+    const perks = PERK_KEYS.filter((key) => perkRank(key) > 0)
+      .map((key) => `${PERK_DEFS[key].name} ${perkRank(key)}`);
+    if (el.extractChoiceSub) {
+      el.extractChoiceSub.textContent = `你已到达第 ${raid.floor} 层撤离点。继续深入会保留本局等级、成长与背包，但敌人和掉落都会随层数提升。`;
+    }
+    if (el.extractChoiceStats) {
+      el.extractChoiceStats.innerHTML = `
+        <div><span>当前层数</span><strong>F${raid.floor}</strong></div>
+        <div><span>本局等级</span><strong>LV.${raid.level}</strong></div>
+        <div><span>背包物资</span><strong>${player.backpack.length}/${player.capacity}</strong></div>
+        <div><span>本局成长</span><strong>${perks.length ? perks.join(' · ') : '暂无'}</strong></div>`;
+    }
+    el.extractChoiceOverlay.classList.remove('hidden');
+    updateHUD();
+  }
+
+  function continueToNextFloor() {
+    if (!raid || raid.ended || !raid.extractionChoiceOpen) return;
+    el.extractChoiceOverlay.classList.add('hidden');
+    raid.extractionChoiceOpen = false;
+    raid.floor += 1;
+    raid.timeLeft = 360;
+    raid.progress = 0;
+    raid.interactionType = null;
+    raid.searchTarget = null;
+    raid.searchInterruptTimer = 0;
+    raid.bossEngaged = false;
+    raid.event = null;
+    raid.paused = false;
+    beginFloor(false);
+    lastTime = performance.now();
+    toast(`进入第 ${raid.floor} 层：敌人更强，稀有物资概率提升。`);
+    addLootFeed(`第 ${raid.floor} 层开始 · 保留本局等级与成长。`, false);
+    if (raid.event) {
+      addLootFeed(`随机事件：${raid.event.label}`, false);
+      toast(`随机事件：${raid.event.label}`);
+    }
+  }
+
+  function returnFromExtraction() {
+    if (!raid || raid.ended || !raid.extractionChoiceOpen) return;
+    el.extractChoiceOverlay.classList.add('hidden');
+    raid.extractionChoiceOpen = false;
+    endRaid(true, '你选择返回基地，本局物资已结算。');
+  }
+
   function updateInteraction(dt) {
     if (!player || raid.ended || raid.paused) {
       el.interactPrompt.classList.add('hidden');
@@ -2607,7 +2687,7 @@
       }
     } else {
       const remaining = Math.max(0, duration - raid.progress);
-      el.promptText.textContent = `正在撤离 ${remaining.toFixed(1)} 秒 · 请留在区域内`;
+      el.promptText.textContent = `正在激活撤离点 ${remaining.toFixed(1)} 秒 · 请留在区域内`;
       raid.progress += dt;
     }
     if (raid.progress >= duration) {
@@ -2617,7 +2697,7 @@
         raid.progress = 0;
         raid.interactionType = null;
       } else {
-        endRaid(true, '你在撤离点停留 3 秒，成功撤离。');
+        openExtractionChoice();
         return;
       }
     }
@@ -2673,6 +2753,7 @@
       camera.x += (targetX - camera.x) * follow;
       camera.y += (targetY - camera.y) * follow;
     }
+    if (raid.pendingPerks > 0 && !raid.paused) showPerkChoices();
   }
 
   // ---------------------------------------------------------------------------
@@ -2696,16 +2777,19 @@
     } else {
       el.hudAmmo.textContent = `${player.mag} / ${player.reserve}`;
     }
-    el.hudLevel.textContent = `LV.${save.level}`;
+    el.hudLevel.textContent = `LV.${raid ? raid.level : 1}`;
+    if (el.hudFloor) el.hudFloor.textContent = `F${raid ? raid.floor : 1}`;
+    if (el.hudXpFill && raid) {
+      const need = raidXpToNext(raid.level);
+      el.hudXpFill.style.width = `${clamp((raid.xp / need) * 100, 0, 100)}%`;
+      if (el.hudXpText) el.hudXpText.textContent = `${raid.xp}/${need}`;
+    }
     if (el.aimPad) {
       el.aimPad.classList.toggle('charging', !!(touch.ui && touch.aiming && !touch.firing));
       el.aimPad.classList.toggle('firing', !!(touch.ui && touch.aiming && touch.firing));
     }
     if (raid) {
-      const eventText = raid.event
-        ? ` · ${raid.event.label}${raid.event.timer > 0 ? ` · ${Math.ceil(raid.event.timer)} 秒` : ''}`
-        : ' · 搜刮物资';
-      el.raidObjective.textContent = `${riskDef().label}行动${eventText} · 撤离点 3 秒自动撤离`;
+      el.raidObjective.textContent = `${riskDef().label} · F${raid.floor} · 撤离点：深入或返回`;
     }
     if (world && world.boss) {
       const bossD = Math.hypot(world.boss.x - player.x, world.boss.y - player.y);
@@ -2874,7 +2958,7 @@
   }
 
   function togglePause() {
-    if (mode !== 'raid' || !raid || raid.ended) return;
+    if (mode !== 'raid' || !raid || raid.ended || raid.perkChoiceOpen || raid.extractionChoiceOpen) return;
     if (raid.inventoryOpen) {
       closeInventory();
       return;
@@ -2962,53 +3046,7 @@
     }
   }
 
-  function startRaid() {
-    Sound.init();
-    if (likelyTouch && window.innerHeight > window.innerWidth) enterLandscapeFullscreen();
-    save.stats.raids += 1;
-    persist();
-
-    world = generateWorld();
-    const risk = riskDef();
-    raid = {
-      timeLeft: 360,
-      xp: 0,
-      scrap: 0,
-      kills: 0,
-      paused: false,
-      ended: false,
-      inventoryOpen: false,
-      mapOpen: false,
-      bossEngaged: false,
-      risk: save.settings.raidRisk || 'normal',
-      event: null,
-      progress: 0,
-      interactionType: null,
-      searchTarget: null,
-      searchInterruptTimer: 0,
-      lastFullWarning: -10,
-      startedAt: performance.now()
-    };
-    applyRaidEvent();
-    player = new Player(world.spawn.x, world.spawn.y);
-    camera = { x: clamp(player.x - VIEW_W / 2, 0, MAP_PW - VIEW_W), y: clamp(player.y - VIEW_H / 2, 0, MAP_PH - VIEW_H), shake: 0 };
-    cameraInitialized = true;
-    world.shake = 0;
-
-    mode = 'raid';
-    el.baseScreen.classList.add('hidden');
-    el.gameScreen.classList.remove('hidden');
-    el.debriefOverlay.classList.add('hidden');
-    el.pauseOverlay.classList.add('hidden');
-    el.inventoryOverlay.classList.add('hidden');
-    el.mapOverlay.classList.add('hidden');
-    el.bossHud.classList.add('hidden');
-    el.interactPrompt.classList.add('hidden');
-    el.lootFeed.innerHTML = '';
-    el.damageFlash.style.opacity = '0';
-    if (el.hitMarker) el.hitMarker.classList.remove('active', 'kill');
-    if (el.damageDirection) el.damageDirection.classList.remove('active');
-    if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
+  function resetRaidInputs() {
     keys['r'] = false;
     mouse.down = false;
     mouse.semiQueued = false;
@@ -3023,23 +3061,114 @@
     touch.hasAim = false;
     touch.aimAngle = 0;
     touch.aimTargetAngle = 0;
+  }
+
+  function beginFloor(isFirstFloor = false) {
+    world = generateWorld();
+    if (!player) {
+      player = new Player(world.spawn.x, world.spawn.y);
+    } else {
+      player.x = world.spawn.x;
+      player.y = world.spawn.y;
+      player.lockTarget = null;
+      player.reloading = false;
+      player.reloadTimer = 0;
+      player.fireCd = 0;
+      player.hurtCd = 0;
+      player.moving = false;
+      player.stepCd = 0;
+      player.walkPhase = 0;
+    }
+    camera = { x: clamp(player.x - VIEW_W / 2, 0, MAP_PW - VIEW_W), y: clamp(player.y - VIEW_H / 2, 0, MAP_PH - VIEW_H), shake: 0 };
+    cameraInitialized = true;
+    world.shake = 0;
+    raid.paused = false;
+    raid.inventoryOpen = false;
+    raid.mapOpen = false;
+    raid.progress = 0;
+    raid.interactionType = null;
+    raid.searchTarget = null;
+    raid.searchInterruptTimer = 0;
+    raid.bossEngaged = false;
+    raid.perkChoiceOpen = false;
+    raid.extractionChoiceOpen = false;
+    raidTutorialState.active = false;
+    applyRaidEvent();
+    el.pauseOverlay.classList.add('hidden');
+    el.inventoryOverlay.classList.add('hidden');
+    el.mapOverlay.classList.add('hidden');
+    el.extractChoiceOverlay.classList.add('hidden');
+    el.perkOverlay.classList.add('hidden');
+    el.bossHud.classList.add('hidden');
+    el.interactPrompt.classList.add('hidden');
+    if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
+    if (el.hitMarker) el.hitMarker.classList.remove('active', 'kill');
+    if (el.damageDirection) el.damageDirection.classList.remove('active');
+    if (el.lowHpVignette) el.lowHpVignette.classList.remove('active');
+    resetRaidInputs();
     buildFlowField();
     hudAccumulator = 0;
     lastMinimapDraw = -1;
     updateHUD();
     updateBackpackHud();
-    startRaidTutorial();
-    addLootFeed(`${risk.label}行动开始：搜刮物资，找到绿色撤离点。地图红标为首领。`, false);
+    if (isFirstFloor) startRaidTutorial();
+  }
+
+  function startRaid() {
+    Sound.init();
+    if (likelyTouch && window.innerHeight > window.innerWidth) enterLandscapeFullscreen();
+    save.stats.raids += 1;
+    persist();
+
+    world = null;
+    player = null;
+    raid = {
+      timeLeft: 360,
+      floor: 1,
+      level: 1,
+      xp: 0,
+      pendingPerks: 0,
+      perks: {},
+      scrap: 0,
+      kills: 0,
+      paused: false,
+      ended: false,
+      inventoryOpen: false,
+      mapOpen: false,
+      perkChoiceOpen: false,
+      extractionChoiceOpen: false,
+      bossEngaged: false,
+      risk: save.settings.raidRisk || 'normal',
+      event: null,
+      progress: 0,
+      interactionType: null,
+      searchTarget: null,
+      searchInterruptTimer: 0,
+      lastFullWarning: -10,
+      startedAt: performance.now()
+    };
+
+    mode = 'raid';
+    el.baseScreen.classList.add('hidden');
+    el.gameScreen.classList.remove('hidden');
+    el.debriefOverlay.classList.add('hidden');
+    el.perkOverlay.classList.add('hidden');
+    el.extractChoiceOverlay.classList.add('hidden');
+    el.lootFeed.innerHTML = '';
+    el.damageFlash.style.opacity = '0';
+    beginFloor(true);
+    const risk = riskDef();
+    addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，找到绿色撤离点。`, false);
     if (raid.event) {
       addLootFeed(`随机事件：${raid.event.label}${raid.event.timer > 0 ? `（${raid.event.timer}秒）` : ''}`, false);
       toast(`随机事件：${raid.event.label}`);
     }
     if (touch.ui) {
-      toast('轻触右侧瞄准，长按开火并自动锁定。靠近补给箱站 2 秒自动搜索，移动会打断。');
+      toast('轻触右侧瞄准，长按开火并自动锁定。等级只在本次行动中提升，返回基地后重置。');
       el.touchHint.classList.remove('fade');
       setTimeout(() => el.touchHint.classList.add('fade'), 5000);
     } else {
-      toast('行动开始。WASD 移动，左键射击，地图红标首领掉落专属武器。');
+      toast('行动开始：本局从 LV.1 开始，升级后选择成长。撤离点可选继续下一层或返回基地。');
     }
     lastTime = performance.now();
   }
@@ -3048,11 +3177,15 @@
     if (!raid || raid.ended || mode !== 'raid') return;
     raid.ended = true;
     raid.paused = true;
+    raid.perkChoiceOpen = false;
+    raid.extractionChoiceOpen = false;
     mode = 'debrief';
 
     el.pauseOverlay.classList.add('hidden');
     el.inventoryOverlay.classList.add('hidden');
     el.mapOverlay.classList.add('hidden');
+    el.extractChoiceOverlay.classList.add('hidden');
+    el.perkOverlay.classList.add('hidden');
     el.bossHud.classList.add('hidden');
     el.interactPrompt.classList.add('hidden');
     raidTutorialState.active = false;
@@ -3065,38 +3198,35 @@
 
     const carried = player.backpack.slice();
     const itemUnits = carried.reduce((n, i) => n + (i.qty || 1), 0);
-    const levelBefore = save.level;
-    let xpGain = 0;
     let scrapGain = 0;
 
     if (success) {
       for (const item of carried) addToStash(item);
-      scrapGain = raid.scrap + 10 + Math.floor(Math.max(0, raid.timeLeft) / 90);
+      scrapGain = raid.scrap + 10 + raid.floor * 15 + Math.floor(Math.max(0, raid.timeLeft) / 90);
       save.scrap += scrapGain;
       save.stats.extracts += 1;
       save.stats.loot += itemUnits;
-      xpGain = raid.xp + 30 + itemUnits * 3;
       playSound('extract');
     } else {
       save.stats.deaths += 1;
-      xpGain = Math.floor(raid.xp * 0.35);
       playSound('hurt');
     }
 
     save.stats.kills += raid.kills;
-    const levelsGained = addXP(xpGain, true);
     persist();
     renderAllBase();
 
-    el.debriefTag.textContent = success ? 'EXTRACTION COMPLETE // 撤离成功' : 'SIGNAL LOST // 行动失败';
+    el.debriefTag.textContent = success ? 'EXTRACTION COMPLETE // 返回基地' : 'SIGNAL LOST // 行动失败';
     el.debriefTitle.textContent = success ? '成功撤离' : '行动失败';
     el.debriefTitle.classList.toggle('fail', !success);
-    el.debriefSub.textContent = reason + (success ? ` 行动用时 ${formatDuration((performance.now() - raid.startedAt) / 1000)}。` : ' 等级经验保留 35%，携带物资全部丢失。');
+    el.debriefSub.textContent = reason + (success
+      ? ` 行动用时 ${formatDuration((performance.now() - raid.startedAt) / 1000)}。本局等级与成长会在返回基地后重置。`
+      : ' 本局等级、成长和携带物资全部丢失，再进入会从 LV.1 开始。');
     el.debriefStats.innerHTML = `
       <div><span>击倒敌人</span><strong>${raid.kills}</strong></div>
       <div><span>${success ? '带回物资' : '损失物资'}</span><strong>${itemUnits}</strong></div>
-      <div><span>${success ? '获得废料' : '获得经验'}</span><strong>${success ? `+${scrapGain}` : `+${xpGain}`}</strong></div>
-      <div><span>行动风险</span><strong>${riskDef().label}</strong></div>`;
+      <div><span>${success ? '获得废料' : '本局等级'}</span><strong>${success ? `+${scrapGain}` : `LV.${raid.level}`}</strong></div>
+      <div><span>深入层数</span><strong>F${raid.floor}</strong></div>`;
     el.debriefLoot.innerHTML = '';
     if (success && carried.length) {
       const merged = [];
@@ -3115,16 +3245,15 @@
       span.textContent = success ? '空手而归' : '没有物资被带回';
       el.debriefLoot.appendChild(span);
     }
-    if (levelsGained > 0 || save.level > levelBefore) {
-      const span = document.createElement('span');
-      span.style.color = '#d6ff4d';
-      span.textContent = `等级提升 → LV.${save.level} · 成长选择 +${levelsGained}`;
-      el.debriefLoot.appendChild(span);
-    }
+    const runSpan = document.createElement('span');
+    runSpan.style.color = '#d6ff4d';
+    const perkSummary = PERK_KEYS.filter((key) => perkRank(key) > 0)
+      .map((key) => `${PERK_DEFS[key].name}${perkRank(key)}`).join(' · ');
+    runSpan.textContent = `本局 LV.${raid.level} · F${raid.floor}${perkSummary ? ` · ${perkSummary}` : ''} · 撤出后重置`;
+    el.debriefLoot.appendChild(runSpan);
 
     el.debriefOverlay.classList.remove('hidden');
     updateHUD();
-    if (levelsGained > 0) showPerkChoices();
   }
 
   function formatDuration(seconds) {
@@ -3133,11 +3262,9 @@
   }
 
   function returnToBase() {
-    if (save.pendingPerks > 0) {
-      showPerkChoices();
-      return;
-    }
     el.debriefOverlay.classList.add('hidden');
+    el.perkOverlay.classList.add('hidden');
+    el.extractChoiceOverlay.classList.add('hidden');
     el.bossHud.classList.add('hidden');
     if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
     raidTutorialState.active = false;
@@ -3150,8 +3277,8 @@
     world = null;
     player = null;
     raid = null;
+    pendingPerkChoices = [];
     renderAllBase();
-    setXpBar();
     lastTime = performance.now();
   }
 
@@ -3657,7 +3784,7 @@
 
     g.font = 'bold 15px monospace';
     g.textBaseline = 'middle';
-    const label = '撤离点';
+    const label = '撤离 / 下层';
     const labelW = g.measureText(label).width;
     const labelX = exX + 28 + labelW + 14 > W ? exX - labelW - 40 : exX + 28;
     g.fillStyle = 'rgba(5,9,14,.9)';
@@ -3717,7 +3844,7 @@
     miniCtx.fillRect(exX - 3, exY - 3, 6, 6);
     miniCtx.font = 'bold 8px monospace';
     miniCtx.textAlign = 'center';
-    miniCtx.fillText('撤离', exX, Math.max(8, exY - 8));
+    miniCtx.fillText('下层', exX, Math.max(8, exY - 8));
     miniCtx.textAlign = 'left';
 
     for (const c of world.containers) {
@@ -4059,7 +4186,7 @@
   window.addEventListener('blur', () => {
     mouse.down = false;
     for (const k of Object.keys(keys)) keys[k] = false;
-    if (mode === 'raid' && raid && !raid.ended && !raid.paused) togglePause();
+    if (mode === 'raid' && raid && !raid.ended && !raid.paused && !raid.perkChoiceOpen && !raid.extractionChoiceOpen) togglePause();
   });
 
   el.startRaidBtn.addEventListener('click', startRaid);
@@ -4174,6 +4301,8 @@
     }
   });
   el.debriefCloseBtn.addEventListener('click', returnToBase);
+  el.extractDeeperBtn.addEventListener('click', continueToNextFloor);
+  el.extractReturnBtn.addEventListener('click', returnFromExtraction);
 
   // ---------------------------------------------------------------------------
   // Main loop
@@ -4205,7 +4334,7 @@
           backpack: JSON.parse(JSON.stringify(player.backpack)),
           weapon: player.weaponKey, armor: player.armorKey
         } : null,
-        raid: raid ? { ...raid } : null,
+        raid: raid ? { ...raid, perkChoices: pendingPerkChoices.slice() } : null,
         touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, firing: touch.firing, angle: touch.aimAngle, aimPressAt: touch.aimPressAt },
         world: world ? {
           spawn: world.spawn,
@@ -4255,22 +4384,23 @@
     },
     tick() { updateHUD(); },
     grantPerkChoices(count = 1) {
-      save.pendingPerks = Math.max(0, (save.pendingPerks || 0) + Math.floor(count || 1));
-      persist();
+      if (!raid || raid.ended) return 0;
+      raid.pendingPerks = Math.max(0, (raid.pendingPerks || 0) + Math.floor(count || 1));
       showPerkChoices();
-      return save.pendingPerks;
+      return raid.pendingPerks;
     },
     grantXP(amount) {
-      const levels = addXP(amount, true);
-      persist();
-      renderAllBase();
-      if (levels > 0) showPerkChoices();
+      if (!raid || raid.ended) return 0;
+      const levels = gainRaidXP(amount, true);
+      if (levels > 0 && !raid.paused) showPerkChoices();
       return levels;
     },
+    openExtractionChoice,
+    continueToNextFloor,
+    returnFromExtraction,
     perkChoices() { return pendingPerkChoices.slice(); }
   };
   renderAllBase();
-  if (save.pendingPerks > 0) setTimeout(showPerkChoices, 250);
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }

@@ -21,12 +21,9 @@
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark">PX</div>
-          <div class="brand-progress" aria-label="等级与经验">
-            <div class="brand-level"><span>LV</span><strong id="levelBig">1</strong></div>
-            <div class="brand-xp">
-              <div class="xp-label"><span>经验</span><span id="xpLabel">0 / 100</span></div>
-              <div class="xp-bar"><div id="xpFill" class="xp-fill"></div></div>
-            </div>
+          <div class="brand-copy">
+            <div class="brand-title">整备基地</div>
+            <div class="brand-sub">PIXEL EXTRACT // 行动准备</div>
           </div>
         </div>
         <div class="top-stats">
@@ -65,6 +62,7 @@
             <div><kbd>WASD</kbd> 移动　<kbd>鼠标</kbd> 瞄准</div>
             <div><kbd>左键</kbd> 射击　<kbd>R</kbd> 换弹　<kbd>F</kbd> 医疗</div>
             <div>靠近补给箱停留 2 秒自动搜索　<kbd>Tab</kbd> 背包　<kbd>M</kbd> 地图　<kbd>Esc</kbd> 暂停</div>
+            <div>撤离点停留 3 秒：继续下一层，或返回基地结算</div>
           </div>
         </section>
 
@@ -113,11 +111,16 @@
         <canvas id="gameCanvas" width="960" height="600"></canvas>
         <div class="hud">
           <div class="hud-top-left">
-            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span></div>
+            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span> · <span id="hudFloor">F1</span></div>
             <div class="hud-bar-row">
               <span class="hud-label">HP</span>
               <div class="hud-bar"><div id="hpFill" class="hud-bar-fill hp"></div></div>
               <span id="hpText" class="hud-value">100/100</span>
+            </div>
+            <div class="hud-bar-row hud-xp-row">
+              <span class="hud-label hud-xp-label">XP</span>
+              <div class="hud-bar hud-xp-bar"><div id="hudXpFill" class="hud-bar-fill xp"></div></div>
+              <span id="hudXpText" class="hud-value">0/80</span>
             </div>
             <div class="hud-subrow">
               <span id="armorText">护甲：无</span>
@@ -133,7 +136,7 @@
 
           <div class="hud-top-center">
             <div id="raidTimer" class="raid-timer">06:00</div>
-            <div id="raidObjective" class="objective">搜刮物资 · 站在撤离点 3 秒自动撤离</div>
+            <div id="raidObjective" class="objective">搜刮物资 · 撤离点选择深入或返回</div>
           </div>
 
           <div id="bossHud" class="boss-hud hidden">
@@ -190,6 +193,20 @@
         </div>
         <div id="rotateHint" class="rotate-hint">建议横屏游玩</div>
 
+        <div id="extractChoiceOverlay" class="overlay full-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="extractChoiceTitle">
+          <div class="overlay-card extract-choice-card">
+            <div class="debrief-tag">EXTRACTION POINT // 撤离点</div>
+            <h2 id="extractChoiceTitle">继续深入，还是返回基地？</h2>
+            <p id="extractChoiceSub">你已到达撤离点。</p>
+            <div id="extractChoiceStats" class="extract-choice-stats"></div>
+            <div class="extract-choice-actions">
+              <button id="extractReturnBtn" class="secondary-btn" type="button">返回基地</button>
+              <button id="extractDeeperBtn" class="primary-btn" type="button">继续下一层</button>
+            </div>
+            <p class="overlay-note">继续下一层会保留本局等级、成长和背包；敌人强度与稀有物资概率会随层数提升。</p>
+          </div>
+        </div>
+
         <div id="mapOverlay" class="overlay hidden">
           <div class="overlay-card map-card">
             <div class="overlay-head">
@@ -226,7 +243,7 @@
         <div id="pauseOverlay" class="overlay hidden">
           <div class="overlay-card pause-card">
             <div class="pause-title">行动暂停</div>
-            <p>当前进度已暂停。游戏内的仓库和等级存档会在撤离或返回基地时写入。</p>
+            <p>当前进度已暂停。本局等级与成长只在行动中有效，返回基地或重新进入后会从 LV.1 开始。</p>
             <div class="pause-utility-row">
               <button id="pauseFullscreenBtn" class="secondary-btn" type="button">横屏全屏</button>
               <button id="pauseSettingsBtn" class="secondary-btn" type="button">设置</button>
@@ -252,7 +269,6 @@
 
         <div id="manageEquipPanel" class="manage-panel">
           <div id="equippedSummary" class="equipped-summary"></div>
-          <div id="perkSummary" class="perk-summary"></div>
           <div class="equip-columns">
             <section class="equip-column">
               <div class="equip-col-title">武器 <span>从仓库选择</span></div>
@@ -420,12 +436,12 @@
       <div class="overlay-card perk-card">
         <div class="perk-card-head">
           <div>
-            <div class="debrief-tag">LEVEL UP // 成长选择</div>
-            <h2 id="perkTitle">选择一项强化</h2>
+            <div class="debrief-tag">RUN LEVEL UP // 本局成长</div>
+            <h2 id="perkTitle">选择一项本局强化</h2>
           </div>
           <span id="perkPending" class="perk-pending">剩余 1 次</span>
         </div>
-        <p class="perk-sub">每次升级获得一次永久强化。选择后立即生效，并自动保存。</p>
+        <p class="perk-sub">升级后选择一项强化，立即生效；仅本局有效，返回基地或重新进入后重置。</p>
         <div id="perkChoiceGrid" class="perk-choice-grid"></div>
       </div>
     </div>
