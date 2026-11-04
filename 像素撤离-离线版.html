@@ -2596,6 +2596,85 @@ body.touch-device.move-stick-fixed .move-pad {
   .loadout-set-bonus { margin-top: 3px; padding: 2px 4px; font-size: 7px; }
 }
 
+/* Objective tracker, gear filters, set collection and management actions */
+.objective-tracker {
+  --objective-color: #55d9ff;
+  width: clamp(210px, 30vw, 360px);
+  margin: 6px auto 0;
+  padding: 5px 7px 6px;
+  border: 1px solid rgba(85, 217, 255, .35);
+  border-color: color-mix(in srgb, var(--objective-color) 45%, transparent);
+  background: rgba(5, 10, 16, .78);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--objective-color) 7%, transparent);
+  text-align: left;
+}
+.objective-tracker.hidden { display: none; }
+.objective-tracker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--objective-color); font-size: .58em; font-weight: 900; letter-spacing: .3px; }
+.objective-tracker-head b { color: #e8f1ff; font-size: 1em; }
+.objective-tracker-bar { height: 3px; margin-top: 4px; background: rgba(170, 190, 215, .15); overflow: hidden; }
+.objective-tracker-bar i { display: block; width: 0; height: 100%; background: var(--objective-color); box-shadow: 0 0 8px var(--objective-color); transition: width .18s linear; }
+.objective-tracker small { display: block; margin-top: 3px; color: #8ea6bd; font-size: .52em; line-height: 1.35; }
+.objective-tracker.active { border-color: var(--objective-color); animation: objective-pulse 1.3s ease-in-out infinite; }
+.objective-tracker.complete { --objective-color: #d6ff4d !important; }
+@keyframes objective-pulse { 50% { box-shadow: inset 0 0 22px color-mix(in srgb, var(--objective-color) 16%, transparent); } }
+
+.stash-filter-select {
+  flex: 0 0 auto;
+  max-width: 96px;
+  min-height: 26px;
+  padding: 3px 5px;
+  border: 1px solid rgba(170, 190, 215, .24);
+  background: #0a1017;
+  color: #b4c3d5;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+}
+.stash-parts { flex: 0 0 auto; padding: 4px 6px; border: 1px solid rgba(255, 209, 92, .3); color: #ffd15c; font-size: 9px; white-space: nowrap; }
+.stash-slot.locked { border-color: rgba(255, 209, 92, .45); }
+.slot-lock {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  padding: 0 3px;
+  border: 1px solid rgba(255, 209, 92, .5);
+  background: rgba(5, 9, 14, .88);
+  color: #ffd15c;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+.action-row { flex-wrap: wrap; }
+.action-row button { flex: 1 1 auto; }
+.action-row button:disabled { opacity: .42; cursor: not-allowed; }
+.compare .up, .compare span.up { color: #7bf5a8; }
+.compare .down, .compare span.down { color: #ff9b6b; }
+
+.set-collection-head { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 2px 4px; color: var(--dim); font-size: 9px; letter-spacing: .5px; }
+.set-collection-head b { color: #ffd15c; font-size: 9px; }
+.set-collection { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 0 2px 4px; }
+.set-row { padding: 5px 6px; border: 1px solid rgba(170, 190, 215, .16); background: rgba(6, 12, 18, .42); font-size: 8px; line-height: 1.35; }
+.set-row.active { border-color: rgba(255, 209, 92, .4); background: rgba(255, 209, 92, .045); }
+.set-row-top { display: flex; justify-content: space-between; gap: 4px; align-items: baseline; }
+.set-row-top strong { font-size: 9px; }
+.set-row-top span { color: #8194aa; font-size: 7px; white-space: nowrap; }
+.set-row-bonus { margin-top: 2px; color: #91a3b8; font-size: 7px; }
+
+@media (max-height: 520px) {
+  .objective-tracker { width: clamp(190px, 27vw, 300px); margin-top: 3px; padding: 3px 5px 4px; }
+  .objective-tracker small { display: none; }
+  .objective-tracker-head { font-size: .52em; }
+  .stash-filter-select { max-width: 76px; min-height: 23px; font-size: 8px; }
+  .stash-parts { padding: 2px 4px; font-size: 8px; }
+  .set-collection { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding-bottom: 0; }
+  .set-row { padding: 3px 4px; font-size: 7px; }
+  .set-row-top strong { font-size: 8px; }
+  .set-row-bonus { display: none; }
+}
+#manageStashPanel { display: flex; flex-direction: column; overflow: hidden; }
+#manageStashPanel .stash-grid { flex: 1 1 auto; min-height: 0; overflow: auto; }
+#manageStashPanel .item-actions { flex: 0 0 auto; }
+
 </style>
 </head>
 <body>
@@ -2749,6 +2828,11 @@ body.touch-device.move-stick-fixed .move-pad {
           <div class="hud-top-center">
             <div id="raidTimer" class="raid-timer">06:00</div>
             <div id="raidObjective" class="objective">搜刮物资 · 撤离点选择深入或返回</div>
+            <div id="objectiveTracker" class="objective-tracker hidden" aria-live="polite">
+              <div class="objective-tracker-head"><span id="objectiveTrackerName">战术目标</span><b id="objectiveTrackerPct">0%</b></div>
+              <div class="objective-tracker-bar"><i id="objectiveTrackerFill"></i></div>
+              <small id="objectiveTrackerHint"></small>
+            </div>
           </div>
 
           <div id="bossHud" class="boss-hud hidden">
@@ -2901,6 +2985,8 @@ body.touch-device.move-stick-fixed .move-pad {
               <div id="packChoices" class="equip-choice-list"></div>
             </section>
           </div>
+          <div class="set-collection-head"><span>套装图鉴</span><b id="setCollectionParts">改装零件 0</b></div>
+          <div id="setCollection" class="set-collection"></div>
         </div>
 
         <div id="manageStashPanel" class="manage-panel hidden">
@@ -2918,6 +3004,17 @@ body.touch-device.move-stick-fixed .move-pad {
               <button type="button" data-rarity="legendary">传说</button>
               <button type="button" data-rarity="mythic">神话</button>
             </div>
+            <select id="stashSetFilter" class="stash-filter-select" aria-label="按套装筛选">
+              <option value="all">全部套装</option>
+              <option value="raider">荒原猎手</option>
+              <option value="bulwark">壁垒协议</option>
+              <option value="specter">幽灵协议</option>
+              <option value="none">无套装</option>
+            </select>
+            <select id="stashAffixFilter" class="stash-filter-select" aria-label="按词条筛选">
+              <option value="all">全部词条</option>
+            </select>
+            <span id="stashModParts" class="stash-parts">零件 0</span>
             <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
           </div>
           <div id="stashGrid" class="stash-grid"></div>
@@ -2933,6 +3030,9 @@ body.touch-device.move-stick-fixed .move-pad {
             </div>
             <div class="action-row">
               <button id="equipBtn" class="secondary-btn hidden">装备</button>
+              <button id="lockItemBtn" class="secondary-btn hidden">锁定</button>
+              <button id="rerollItemBtn" class="secondary-btn hidden">重铸词条</button>
+              <button id="salvageItemBtn" class="secondary-btn hidden">分解</button>
               <button id="sellBtn" class="danger-btn">出售</button>
             </div>
           </div>
@@ -3422,34 +3522,130 @@ body.touch-device.move-stick-fixed .move-pad {
     {
       id: 'titan', name: '裂地重装·泰坦', color: '#ff9c47',
       hp: 360, speed: 54, vision: 760, range: 620, damage: 16,
-      ringCount: 18, ringWaves: 3, ringSpeed: 330, slamCount: 2, slamRadius: 92
+      ringCount: 18, ringWaves: 3, ringSpeed: 330, slamCount: 2, slamRadius: 92,
+      signature: { type: 'quake', label: '裂地冲击' },
     },
     {
       id: 'prism', name: '棱镜使徒·赛琳', color: '#c084ff',
       hp: 400, speed: 64, vision: 800, range: 660, damage: 15,
-      ringCount: 22, ringWaves: 3, ringSpeed: 350, slamCount: 2, slamRadius: 100
+      ringCount: 22, ringWaves: 3, ringSpeed: 350, slamCount: 2, slamRadius: 100,
+      signature: { type: 'prism', label: '棱镜审判' },
     },
     {
       id: 'tyrant', name: '熔核暴君·赫菲', color: '#ff536b',
       hp: 450, speed: 58, vision: 820, range: 680, damage: 17,
-      ringCount: 26, ringWaves: 4, ringSpeed: 370, slamCount: 3, slamRadius: 104
+      ringCount: 26, ringWaves: 4, ringSpeed: 370, slamCount: 3, slamRadius: 104,
+      signature: { type: 'lava', label: '熔核喷发' },
     },
     {
       id: 'omega', name: '虚空终端·Ω', color: '#58a6ff',
       hp: 510, speed: 70, vision: 860, range: 720, damage: 18,
-      ringCount: 30, ringWaves: 4, ringSpeed: 390, slamCount: 3, slamRadius: 112
+      ringCount: 30, ringWaves: 4, ringSpeed: 390, slamCount: 3, slamRadius: 112,
+      signature: { type: 'gravity', label: '引力坍缩' },
     },
     {
       id: 'wraith', name: '相位猎手·诺克斯', color: '#7ee8d2',
       hp: 550, speed: 78, vision: 880, range: 730, damage: 18,
-      ringCount: 28, ringWaves: 4, ringSpeed: 410, slamCount: 3, slamRadius: 108
+      ringCount: 28, ringWaves: 4, ringSpeed: 410, slamCount: 3, slamRadius: 108,
+      signature: { type: 'blink', label: '相位突袭' },
     },
     {
       id: 'architect', name: '终焉构装·阿基拉', color: '#d6ff4d',
       hp: 600, speed: 62, vision: 900, range: 750, damage: 20,
-      ringCount: 32, ringWaves: 4, ringSpeed: 400, slamCount: 3, slamRadius: 118
+      ringCount: 32, ringWaves: 4, ringSpeed: 400, slamCount: 3, slamRadius: 118,
+      signature: { type: 'array', label: '终焉阵列' }
     }
   ];
+
+  const ELITE_AFFIX_DEFS = [
+    { id: 'swift', name: '迅捷', color: '#7ee8d2', desc: '移动速度 +30%' },
+    { id: 'armored', name: '重甲', color: '#8fc8ff', desc: '伤害减免 +15%' },
+    { id: 'frenzied', name: '狂化', color: '#ff7585', desc: '攻击更快、伤害更高' },
+    { id: 'volatile', name: '爆裂', color: '#ffad45', desc: '死亡时引发爆炸' },
+    { id: 'regenerating', name: '再生', color: '#85e89d', desc: '持续恢复生命' }
+  ];
+
+  function applyEliteAffix(enemy, forcedId = null) {
+    if (!enemy || enemy.isBoss) return;
+    const def = ELITE_AFFIX_DEFS.find((entry) => entry.id === forcedId)
+      || pick(ELITE_AFFIX_DEFS.filter((entry) => entry.id !== enemy.eliteAffix));
+    enemy.elite = true;
+    enemy.eliteAffix = def.id;
+    enemy.eliteLabel = def.name;
+    enemy.name = `${def.name}·${enemy.name}`;
+    enemy.color = def.color;
+    enemy.xp = Math.round(enemy.xp * 1.35);
+    enemy.scrap = Math.round(enemy.scrap * 1.35);
+    if (def.id === 'swift') {
+      enemy.speed *= 1.3;
+    } else if (def.id === 'armored') {
+      enemy.defense = Math.min(0.6, (enemy.defense || 0) + 0.15);
+      enemy.speed *= 0.9;
+    } else if (def.id === 'frenzied') {
+      enemy.speed *= 1.1;
+      enemy.damage *= 1.1;
+      enemy.cooldown *= 0.7;
+    } else if (def.id === 'volatile') {
+      enemy.maxHp = Math.round(enemy.maxHp * 1.1);
+      enemy.hp = enemy.maxHp;
+    } else if (def.id === 'regenerating') {
+      enemy.maxHp = Math.round(enemy.maxHp * 1.15);
+      enemy.hp = enemy.maxHp;
+    }
+    return enemy;
+  }
+
+  const OBJECTIVE_DEFS = {
+    terminal: {
+      label: '数据终端', icon: '▣', color: '#55d9ff', duration: 14, quality: 'rare', waves: 3,
+      idleText: '靠近终端上传数据，敌人会被警报吸引。',
+      activeText: '上传中：留在终端范围内，击退增援！',
+      rewardScrap: [28, 44], rewardParts: 2
+    },
+    generator: {
+      label: '断电核心', icon: 'ϟ', color: '#ffad45', duration: 10, quality: 'rare', waves: 2,
+      idleText: '靠近核心执行断电序列，完成后可获得补给。',
+      activeText: '断电中：守住核心，增援正在赶来！',
+      rewardScrap: [22, 36], rewardParts: 1
+    },
+    vault: {
+      label: '风险保险库', icon: '◆', color: '#d6ff4d', duration: 18, quality: 'epic', waves: 4,
+      idleText: '高风险目标：破解保险库会触发精英追兵。',
+      activeText: '破解中：精英已锁定你的位置，坚持住！',
+      rewardScrap: [46, 72], rewardParts: 3
+    }
+  };
+
+  function createRoomObjective(rooms, tiles) {
+    const candidates = rooms.slice(1, -1).filter((room) => room.w > 3 && room.h > 3);
+    if (!candidates.length) return null;
+    for (let attempt = 0; attempt < 18; attempt++) {
+      const room = pick(candidates);
+      const spot = roomSpot(room);
+      if (!canStandOnTiles(tiles, spot.x, spot.y, 18)) continue;
+      const type = pick(Object.keys(OBJECTIVE_DEFS));
+      const def = OBJECTIVE_DEFS[type];
+      return {
+        type,
+        label: def.label,
+        icon: def.icon,
+        color: def.color,
+        x: spot.x,
+        y: spot.y,
+        r: 50,
+        room,
+        duration: def.duration,
+        progress: 0,
+        state: 'idle',
+        pulse: rand(0, TAU),
+        spawnTimer: 1.2,
+        wavesSpawned: 0,
+        waves: def.waves,
+        completeTimer: 0
+      };
+    }
+    return null;
+  }
 
   function stageForFloor(floor) {
     const idx = Math.floor(Math.max(1, floor) / 5) % STAGE_DEFS.length;
@@ -3550,6 +3746,8 @@ body.touch-device.move-stick-fixed .move-pad {
     if (!item || !ITEM_DEFS[item.type]) return null;
     const def = ITEM_DEFS[item.type];
     const normalized = { ...item, id: item.id || uid(), qty: item.qty || 1 };
+    if (item.locked === true && ['weapon', 'armor', 'pack'].includes(def.kind)) normalized.locked = true;
+    else delete normalized.locked;
     if (['weapon', 'armor', 'pack'].includes(def.kind)) {
       normalized.plus = enhanceLevel(item);
       if (Array.isArray(item.affixes)) {
@@ -3599,25 +3797,29 @@ body.touch-device.move-stick-fixed .move-pad {
     return parts.join(' · ');
   }
 
-  function countEquippedSets() {
+  function countSetsForEquipment(equipment) {
     const counts = {};
     for (const slot of ['weapon', 'armor', 'pack']) {
-      const item = save.equipped[slot];
+      const item = equipment?.[slot];
       if (item?.setId && SET_DEFS[item.setId]) counts[item.setId] = (counts[item.setId] || 0) + 1;
     }
     return counts;
   }
 
-  function loadoutBonuses() {
+  function countEquippedSets() {
+    return countSetsForEquipment(save.equipped);
+  }
+
+  function bonusesForEquipment(equipment) {
     const bonus = emptyGearBonus();
     for (const slot of ['weapon', 'armor', 'pack']) {
-      const item = save.equipped[slot];
+      const item = equipment?.[slot];
       if (!item?.affixes) continue;
       for (const affix of item.affixes) {
         if (affix.key in bonus) bonus[affix.key] += Number(affix.value) || 0;
       }
     }
-    const counts = countEquippedSets();
+    const counts = countSetsForEquipment(equipment);
     for (const [setId, count] of Object.entries(counts)) {
       const set = SET_DEFS[setId];
       if (!set) continue;
@@ -3626,6 +3828,44 @@ body.touch-device.move-stick-fixed .move-pad {
       }
     }
     return bonus;
+  }
+
+  function loadoutBonuses() {
+    return bonusesForEquipment(save.equipped);
+  }
+
+  function setTransitionText(beforeCounts, afterCounts) {
+    const ids = new Set([...Object.keys(beforeCounts), ...Object.keys(afterCounts)]);
+    for (const setId of ids) {
+      const before = beforeCounts[setId] || 0;
+      const after = afterCounts[setId] || 0;
+      if (before === after) continue;
+      const set = SET_DEFS[setId];
+      if (!set) continue;
+      if (before >= 2 && after < 2) return { text: `${set.name} ${before}/3 → ${after}/3，失去套装效果`, tone: 'down' };
+      if (after >= 2 && before < 2) return { text: `${set.name} ${before}/3 → ${after}/3，激活套装效果`, tone: 'up' };
+      if (before >= 3 || after >= 3) {
+        return { text: `${set.name} ${before}/3 → ${after}/3`, tone: after > before ? 'up' : 'down' };
+      }
+      return { text: `${set.name} ${before}/3 → ${after}/3`, tone: after > before ? 'up' : 'down' };
+    }
+    return null;
+  }
+
+  function weaponExpectedDps(item, bonus, boss = false) {
+    const def = defOf(item);
+    if (!def || def.kind !== 'weapon') return 0;
+    const w = WEAPON_DEFS[def.weapon];
+    const damage = w.damage * (1 + enhanceLevel(item) * ENHANCE_RULES.weapon.perLevel + bonus.damage) * (1 + bonus.crit) * (boss ? 1 + bonus.antiBoss : 1);
+    return damage * (w.pellets || 1) / w.cooldown * (1 + bonus.fireRate);
+  }
+
+  function effectiveHpForEquipment(equipment) {
+    const bonus = bonusesForEquipment(equipment);
+    const armorItem = equipment?.armor;
+    const armorBase = ARMOR_DEFS[armorItem ? defOf(armorItem).armor : 'none'];
+    const reduction = Math.min(0.75, armorBase.reduction + enhanceLevel(armorItem) * ENHANCE_RULES.armor.perLevel + transcendStats().reduction + bonus.defense);
+    return { hp: 100 + transcendStats().hp + bonus.maxHp, reduction, effective: (100 + transcendStats().hp + bonus.maxHp) / Math.max(0.01, 1 - reduction) };
   }
 
   function equippedSetSummary() {
@@ -3688,9 +3928,10 @@ body.touch-device.move-stick-fixed .move-pad {
 
   function defaultSave() {
     return {
-      version: 7,
+      version: 8,
       character: 'pioneer',
       scrap: 80,
+      modParts: 0,
       stash: [],
       equipped: {
         weapon: createItem('w_pistol', 1, 0, { roll: false }),
@@ -3742,8 +3983,9 @@ body.touch-device.move-stick-fixed .move-pad {
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 7;
+    merged.version = 8;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
+    merged.modParts = Math.max(0, Math.floor(Number(merged.modParts) || 0));
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
     touchSettings.moveStickSize = clamp(Number(touchSettings.moveStickSize) || 100, 70, 150);
@@ -3990,6 +4232,9 @@ body.touch-device.move-stick-fixed .move-pad {
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
     stashRarityFilter: $('#stashRarityFilter'),
+    stashSetFilter: $('#stashSetFilter'),
+    stashAffixFilter: $('#stashAffixFilter'),
+    stashModParts: $('#stashModParts'),
     sellLowBtn: $('#sellLowBtn'),
     stashGrid: $('#stashGrid'),
     stashEmpty: $('#stashEmpty'),
@@ -4001,6 +4246,9 @@ body.touch-device.move-stick-fixed .move-pad {
     selectedValue: $('#selectedValue'),
     equipBtn: $('#equipBtn'),
     sellBtn: $('#sellBtn'),
+    lockItemBtn: $('#lockItemBtn'),
+    rerollItemBtn: $('#rerollItemBtn'),
+    salvageItemBtn: $('#salvageItemBtn'),
     shopList: $('#shopList'),
     resetSaveBtn: $('#resetSaveBtn'),
     fullscreenBtn: $('#fullscreenBtn'),
@@ -4055,6 +4303,11 @@ body.touch-device.move-stick-fixed .move-pad {
     hudXpText: $('#hudXpText'),
     raidTimer: $('#raidTimer'),
     raidObjective: $('#raidObjective'),
+    objectiveTracker: $('#objectiveTracker'),
+    objectiveTrackerName: $('#objectiveTrackerName'),
+    objectiveTrackerPct: $('#objectiveTrackerPct'),
+    objectiveTrackerFill: $('#objectiveTrackerFill'),
+    objectiveTrackerHint: $('#objectiveTrackerHint'),
     mapIntel: $('#mapIntel'),
     interactPrompt: $('#interactPrompt'),
     promptText: $('#promptText'),
@@ -4116,6 +4369,8 @@ body.touch-device.move-stick-fixed .move-pad {
     equipWindowTitle: $('#equipWindowTitle'),
     manageNote: $('#manageNote'),
     equippedSummary: $('#equippedSummary'),
+    setCollection: $('#setCollection'),
+    setCollectionParts: $('#setCollectionParts'),
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
     packChoices: $('#packChoices'),
@@ -4528,31 +4783,48 @@ body.touch-device.move-stick-fixed .move-pad {
   function renderStash() {
     el.stashCount.textContent = `${stashSlotCount()} / ∞`;
     if (el.baseStashCount) el.baseStashCount.textContent = `${stashSlotCount()} 件`;
+    if (el.stashModParts) el.stashModParts.textContent = `零件 ${save.modParts}`;
     el.stashGrid.innerHTML = '';
     if (el.stashRarityFilter) {
       el.stashRarityFilter.querySelectorAll('button[data-rarity]').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.rarity === stashRarityFilter);
       });
     }
+    if (el.stashAffixFilter && el.stashAffixFilter.options.length <= 1) {
+      for (const key of AFFIX_KEYS) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = AFFIX_DEFS[key].name;
+        el.stashAffixFilter.appendChild(opt);
+      }
+    }
+    const setFilter = el.stashSetFilter?.value || 'all';
+    const affixFilter = el.stashAffixFilter?.value || 'all';
     const filtered = sortItemList(save.stash).filter((item) => {
-      return stashRarityFilter === 'all' || defOf(item).rarity === stashRarityFilter;
+      const def = defOf(item);
+      if (stashRarityFilter !== 'all' && def.rarity !== stashRarityFilter) return false;
+      if (setFilter === 'none' && item.setId) return false;
+      if (setFilter !== 'all' && setFilter !== 'none' && item.setId !== setFilter) return false;
+      if (affixFilter !== 'all' && !item.affixes?.some((affix) => affix.key === affixFilter)) return false;
+      return true;
     });
     el.stashEmpty.classList.toggle('hidden', filtered.length > 0);
     el.stashEmpty.textContent = save.stash.length === 0
       ? '仓库是空的。带战利品撤离，或去黑市进货。'
-      : '没有符合当前品质筛选的物资。';
+      : '没有符合当前筛选条件的物资。';
     if (selectedStashId && !filtered.some((i) => i.id === selectedStashId)) selectedStashId = null;
 
     for (const item of filtered) {
       const def = defOf(item);
       const slot = document.createElement('button');
       slot.type = 'button';
-      slot.className = `stash-slot rarity-${def.rarity} ${selectedStashId === item.id ? 'selected' : ''}`;
+      slot.className = `stash-slot rarity-${def.rarity} ${selectedStashId === item.id ? 'selected' : ''} ${item.locked ? 'locked' : ''}`;
       slot.dataset.id = item.id;
       slot.title = `${itemName(item)} · ${def.desc}`;
       slot.innerHTML = `
         <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
         <span class="slot-name">${itemName(item)}</span>
+        ${item.locked ? '<span class="slot-lock">锁</span>' : ''}
         ${item.qty > 1 ? `<span class="slot-qty">×${item.qty}</span>` : ''}`;
       slot.addEventListener('click', () => {
         selectedStashId = item.id;
@@ -4567,18 +4839,34 @@ body.touch-device.move-stick-fixed .move-pad {
       return;
     }
     const def = defOf(selected);
+    const isGear = ['weapon', 'armor', 'pack'].includes(def.kind);
+    const hasAffixes = isGear && !!selected.affixes?.length;
     el.itemActions.classList.remove('hidden');
     el.selectedIcon.textContent = def.icon;
     el.selectedIcon.style.color = choiceIconColor(def);
     el.selectedName.textContent = `${itemName(selected)}${selected.qty > 1 ? ` ×${selected.qty}` : ''}`;
-    el.selectedDesc.textContent = `${def.desc} · ${RARITY_LABEL[def.rarity]}${itemAffixText(selected) ? ` · ${itemAffixText(selected)}` : ''}`;
+    el.selectedDesc.textContent = `${selected.locked ? '已锁定 · ' : ''}${def.desc} · ${RARITY_LABEL[def.rarity]}${itemAffixText(selected) ? ` · ${itemAffixText(selected)}` : ''}`;
     el.selectedValue.textContent = `出售 +${itemSellValue(selected)}`;
-    el.equipBtn.classList.toggle('hidden', !['weapon', 'armor', 'pack'].includes(def.kind));
-    el.sellBtn.textContent = `出售 ×${selected.qty || 1}`;
+    el.equipBtn.classList.toggle('hidden', !isGear);
+    el.sellBtn.textContent = selected.locked ? '已锁定' : `出售 ×${selected.qty || 1}`;
+    el.sellBtn.disabled = !!selected.locked;
+    if (el.lockItemBtn) {
+      el.lockItemBtn.classList.toggle('hidden', !isGear);
+      el.lockItemBtn.textContent = selected.locked ? '解锁' : '锁定';
+    }
+    if (el.rerollItemBtn) {
+      el.rerollItemBtn.classList.toggle('hidden', !hasAffixes);
+      el.rerollItemBtn.textContent = '重铸 5零件';
+      el.rerollItemBtn.disabled = selected.locked || save.modParts < 5;
+    }
+    if (el.salvageItemBtn) {
+      el.salvageItemBtn.classList.toggle('hidden', !isGear);
+      el.salvageItemBtn.disabled = !!selected.locked;
+    }
   }
 
   function sellLowValue() {
-    const lowValue = save.stash.filter((item) => defOf(item).rarity === 'common' && defOf(item).kind !== 'stone');
+    const lowValue = save.stash.filter((item) => !item.locked && defOf(item).rarity === 'common' && defOf(item).kind !== 'stone');
     if (!lowValue.length) {
       toast('仓库里没有普通品质物资。');
       return;
@@ -4586,7 +4874,8 @@ body.touch-device.move-stick-fixed .move-pad {
     const total = lowValue.reduce((sum, item) => sum + itemSellValue(item), 0);
     const count = lowValue.reduce((sum, item) => sum + (item.qty || 1), 0);
     if (!confirm(`确定出售全部 ${count} 件普通品质物资，获得 ${total} 废料吗？`)) return;
-    save.stash = save.stash.filter((item) => defOf(item).rarity !== 'common');
+    const soldIds = new Set(lowValue.map((item) => item.id));
+    save.stash = save.stash.filter((item) => !soldIds.has(item.id));
     save.scrap += total;
     selectedStashId = null;
     persist();
@@ -4664,44 +4953,48 @@ body.touch-device.move-stick-fixed .move-pad {
 
   function gearCompareText(item) {
     const def = defOf(item);
+    const beforeEquip = save.equipped;
+    const afterEquip = { ...save.equipped, [def.kind]: item };
+    const beforeBonus = loadoutBonuses();
+    const afterBonus = bonusesForEquipment(afterEquip);
+    const setChange = setTransitionText(countEquippedSets(), countSetsForEquipment(afterEquip));
+    const appendSet = (parts) => {
+      if (setChange) parts.push(`<span class="${setChange.tone === 'up' ? 'up' : 'down'}">${setChange.text}</span>`);
+      return parts.join(' · ');
+    };
     if (def.kind === 'weapon') {
-      const next = WEAPON_DEFS[def.weapon];
       if (!save.equipped.weapon) return '<span class="compare up">当前武器槽为空 · 可直接装备</span>';
-      const currentItem = save.equipped.weapon;
-      const current = WEAPON_DEFS[defOf(currentItem).weapon];
-      const nextDps = next.damage * (1 + enhanceLevel(item) * ENHANCE_RULES.weapon.perLevel + affixValue(item, 'damage'))
-        * (1 + affixValue(item, 'fireRate')) * (next.pellets || 1) / next.cooldown;
-      const currentDps = current.damage * (1 + enhanceLevel(currentItem) * ENHANCE_RULES.weapon.perLevel + affixValue(currentItem, 'damage'))
-        * (1 + affixValue(currentItem, 'fireRate')) * (current.pellets || 1) / current.cooldown;
-      const pct = Math.round((nextDps / currentDps - 1) * 100);
-      if (Math.abs(pct) <= 2) return '<span class="compare">DPS 与当前武器基本持平</span>';
-      return `<span class="compare ${pct > 0 ? 'up' : 'down'}">DPS ${pct > 0 ? '+' : ''}${pct}% · 对比当前武器</span>`;
+      const nextDps = weaponExpectedDps(item, afterBonus, false);
+      const currentDps = weaponExpectedDps(save.equipped.weapon, beforeBonus, false);
+      const nextBossDps = weaponExpectedDps(item, afterBonus, true);
+      const currentBossDps = weaponExpectedDps(save.equipped.weapon, beforeBonus, true);
+      const pct = Math.round((nextDps / Math.max(1, currentDps) - 1) * 100);
+      const bossPct = Math.round((nextBossDps / Math.max(1, currentBossDps) - 1) * 100);
+      const parts = [
+        Math.abs(pct) <= 2 ? '<span class="up">DPS 基本持平</span>' : `<span class="${pct > 0 ? 'up' : 'down'}">DPS ${pct > 0 ? '+' : ''}${pct}%</span>`
+      ];
+      if (Math.abs(bossPct) > 2) parts.push(`<span class="${bossPct > 0 ? 'up' : 'down'}">对首领 ${bossPct > 0 ? '+' : ''}${bossPct}%</span>`);
+      return `<span class="compare ${pct > 0 ? 'up' : pct < 0 ? 'down' : ''}">${appendSet(parts)}</span>`;
     }
     if (def.kind === 'armor') {
-      const next = ARMOR_DEFS[def.armor];
       if (!save.equipped.armor) return '<span class="compare up">当前没有护甲 · 可直接装备</span>';
-      const currentItem = save.equipped.armor;
-      const current = ARMOR_DEFS[defOf(currentItem).armor];
-      const nextReduction = Math.min(0.75, next.reduction + enhanceLevel(item) * ENHANCE_RULES.armor.perLevel + affixValue(item, 'defense'));
-      const currentReduction = Math.min(0.75, current.reduction + enhanceLevel(currentItem) * ENHANCE_RULES.armor.perLevel + affixValue(currentItem, 'defense'));
-      const diff = Math.round((nextReduction - currentReduction) * 100);
-      const extras = [];
-      if (next.speedBonus) extras.push(`移速 +${Math.round(next.speedBonus * 100)}%`);
-      if (next.medkitBonus) extras.push(`医疗包 +${next.medkitBonus}`);
-      if (next.stealth) extras.push(`匿踪 +${Math.round((1 - next.stealth) * 100)}%`);
-      if (affixValue(item, 'moveSpeed')) extras.push(`移速 +${Math.round(affixValue(item, 'moveSpeed') * 100)}%`);
-      if (affixValue(item, 'dashCd')) extras.push(`冲刺CD -${affixValue(item, 'dashCd').toFixed(1)}s`);
-      const extraText = extras.length ? ` · ${extras.join(' · ')}` : '';
-      return `<span class="compare ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">减伤 ${diff > 0 ? '+' : ''}${diff}%${extraText}</span>`;
+      const before = effectiveHpForEquipment(beforeEquip);
+      const after = effectiveHpForEquipment(afterEquip);
+      const hpDiff = Math.round((after.effective / Math.max(1, before.effective) - 1) * 100);
+      const parts = [
+        `<span class="${hpDiff > 0 ? 'up' : hpDiff < 0 ? 'down' : ''}">有效生命 ${hpDiff > 0 ? '+' : ''}${hpDiff}%</span>`,
+        `减伤 ${Math.round(after.reduction * 100)}%`
+      ];
+      return `<span class="compare ${hpDiff > 0 ? 'up' : hpDiff < 0 ? 'down' : ''}">${appendSet(parts)}</span>`;
     }
     if (def.kind === 'pack') {
-      const next = PACK_QUALITIES[def.pack];
       if (!save.equipped.pack) return '<span class="compare up">当前没有背包装备 · 可直接装备</span>';
-      const currentItem = save.equipped.pack;
-      const current = PACK_QUALITIES[defOf(currentItem).pack];
-      const diff = (next.bonus + enhanceLevel(item) + affixValue(item, 'capacity')) - (current.bonus + enhanceLevel(currentItem) + affixValue(currentItem, 'capacity'));
-      if (diff === 0) return '<span class="compare">容量与当前背包相同</span>';
-      return `<span class="compare ${diff > 0 ? 'up' : 'down'}">容量 ${diff > 0 ? '+' : ''}${diff} · 对比当前背包</span>`;
+      const next = PACK_QUALITIES[def.pack];
+      const current = PACK_QUALITIES[defOf(save.equipped.pack).pack];
+      const diff = (next.bonus + enhanceLevel(item) + affixValue(item, 'capacity') + afterBonus.capacity - beforeBonus.capacity)
+        - (current.bonus + enhanceLevel(save.equipped.pack) + affixValue(save.equipped.pack, 'capacity'));
+      const parts = [diff === 0 ? '<span>容量不变</span>' : `<span class="${diff > 0 ? 'up' : 'down'}">容量 ${diff > 0 ? '+' : ''}${diff}</span>`];
+      return `<span class="compare ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${appendSet(parts)}</span>`;
     }
     return '';
   }
@@ -4815,6 +5108,7 @@ body.touch-device.move-stick-fixed .move-pad {
     renderEquipChoices('weapon', el.weaponChoices);
     renderEquipChoices('armor', el.armorChoices);
     renderEquipChoices('pack', el.packChoices);
+    renderSetCollection();
   }
 
   function stoneItemsInStash() {
@@ -5086,6 +5380,7 @@ body.touch-device.move-stick-fixed .move-pad {
     const idx = save.stash.findIndex((i) => i.id === selectedStashId);
     if (idx < 0) return;
     const item = save.stash[idx];
+    if (item.locked) { toast('该装备已锁定，先解锁才能出售。'); return; }
     const value = itemSellValue(item);
     save.stash.splice(idx, 1);
     save.scrap += value;
@@ -5094,6 +5389,91 @@ body.touch-device.move-stick-fixed .move-pad {
     renderAllBase();
     playSound('pickup');
     toast(`出售 ${itemName(item)}，获得 ${value} 废料。`);
+  }
+
+  function toggleSelectedLock() {
+    const item = save.stash.find((i) => i.id === selectedStashId);
+    if (!item) return;
+    item.locked = !item.locked;
+    persist();
+    renderStash();
+    playSound('reload');
+    toast(item.locked ? `已锁定 ${itemName(item)}` : `已解锁 ${itemName(item)}`);
+  }
+
+  function salvageSelected() {
+    const idx = save.stash.findIndex((i) => i.id === selectedStashId);
+    if (idx < 0) return;
+    const item = save.stash[idx];
+    const def = defOf(item);
+    if (!['weapon', 'armor', 'pack'].includes(def.kind) || item.locked) return;
+    const value = Math.round(itemSellValue(item) * 0.45);
+    const parts = 1 + (item.affixes?.length || 0) + (item.setId ? 1 : 0);
+    save.stash.splice(idx, 1);
+    save.scrap += value;
+    save.modParts += parts;
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    playSound('pickup');
+    toast(`分解 ${itemName(item)}：+${value} 废料，+${parts} 改装零件。`);
+  }
+
+  function rerollSelectedAffix() {
+    const item = save.stash.find((i) => i.id === selectedStashId);
+    if (!item || item.locked) return;
+    const def = defOf(item);
+    if (!['weapon', 'armor', 'pack'].includes(def.kind) || !item.affixes?.length) return;
+    const cost = 5;
+    if (save.modParts < cost) { toast(`改装零件不足，需要 ${cost} 个。`); return; }
+    const currentKeys = new Set(item.affixes.map((a) => a.key));
+    const pool = AFFIX_KEYS.filter((key) => AFFIX_DEFS[key].slot === def.kind && !currentKeys.has(key));
+    const key = pool.length ? pick(pool) : pick(item.affixes).key;
+    const affixDef = AFFIX_DEFS[key];
+    const value = affixDef.fixed != null
+      ? affixDef.fixed
+      : Math.round(rand(affixDef.min, affixDef.max) * 1000) / 1000;
+    const index = Math.floor(Math.random() * item.affixes.length);
+    item.affixes[index] = { key, value };
+    save.modParts -= cost;
+    persist();
+    renderAllBase();
+    playSound('level');
+    toast(`重铸成功：${affixDef.format(value)}（消耗 ${cost} 零件）`);
+  }
+
+  function setThresholdText(setId, threshold) {
+    const set = SET_DEFS[setId];
+    const stats = set?.bonuses?.[threshold];
+    if (!stats) return '';
+    const bits = [];
+    if (stats.damage) bits.push(`伤害+${Math.round(stats.damage * 100)}%`);
+    if (stats.crit) bits.push(`暴击+${Math.round(stats.crit * 100)}%`);
+    if (stats.defense) bits.push(`减伤+${Math.round(stats.defense * 100)}%`);
+    if (stats.maxHp) bits.push(`生命+${stats.maxHp}`);
+    if (stats.moveSpeed) bits.push(`移速+${Math.round(stats.moveSpeed * 100)}%`);
+    if (stats.dashCd) bits.push(`冲刺CD-${stats.dashCd.toFixed(1)}s`);
+    return bits.join(' ');
+  }
+
+  function renderSetCollection() {
+    if (!el.setCollection) return;
+    const counts = countEquippedSets();
+    el.setCollection.innerHTML = SET_IDS.map((setId) => {
+      const set = SET_DEFS[setId];
+      const equipped = counts[setId] || 0;
+      const stashCount = save.stash.filter((item) => item.setId === setId).length;
+      const active = equipped >= 2;
+      const pieces = [2, 3].map((threshold) => {
+        const text = setThresholdText(setId, threshold);
+        return text ? `${threshold}件：${text}` : '';
+      }).filter(Boolean).join(' ｜ ');
+      return `<div class="set-row ${active ? 'active' : ''}">
+        <div class="set-row-top"><strong style="color:${set.color}">${set.name}</strong><span>装备 ${equipped}/3 · 仓库 ${stashCount}</span></div>
+        <div class="set-row-bonus">${pieces}</div>
+      </div>`;
+    }).join('');
+    if (el.setCollectionParts) el.setCollectionParts.textContent = `改装零件 ${save.modParts}`;
   }
 
   function renderProgress() {
@@ -5172,18 +5552,25 @@ body.touch-device.move-stick-fixed .move-pad {
     syncRiskPicker();
     renderLoadout();
     renderStash();
+    renderSetCollection();
     renderShop();
     renderEnhance();
     renderTranscend();
     renderCharacterPanel();
     renderProgress();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
-    if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石`;
+    if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石 · 零件 ${save.modParts}`;
+    if (el.stashModParts) el.stashModParts.textContent = `零件 ${save.modParts}`;
     if (el.baseTranscendSummary) el.baseTranscendSummary.textContent = `Lv.${getTranscendLevel()} · ${getTranscendProgress()}/${transcendCostForLevel()}`;
   }
 
   el.equipBtn.addEventListener('click', equipSelected);
   el.sellBtn.addEventListener('click', sellSelected);
+  if (el.lockItemBtn) el.lockItemBtn.addEventListener('click', toggleSelectedLock);
+  if (el.rerollItemBtn) el.rerollItemBtn.addEventListener('click', rerollSelectedAffix);
+  if (el.salvageItemBtn) el.salvageItemBtn.addEventListener('click', salvageSelected);
+  if (el.stashSetFilter) el.stashSetFilter.addEventListener('change', () => renderStash());
+  if (el.stashAffixFilter) el.stashAffixFilter.addEventListener('change', () => renderStash());
   el.openEquipBtn.addEventListener('click', () => openEquipModal('equip'));
   el.openStashBtn.addEventListener('click', () => openEquipModal('stash'));
   el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
@@ -5268,6 +5655,11 @@ body.touch-device.move-stick-fixed .move-pad {
       title: '战斗',
       touchText: '轻触右侧瞄准区转向，长按开火；开火会自动锁定前方敌人。',
       desktopText: '鼠标瞄准，左键射击；R 换弹，F 使用医疗包。'
+    },
+    {
+      title: '战术技能',
+      touchText: '按住并拖动左侧摇杆时点冲刺按钮；点击右侧技能按钮释放角色主动技能。冲刺有无敌帧，技能有独立冷却。',
+      desktopText: '按 Space 冲刺闪避，按 Q 释放角色主动技能。冲刺和技能是两个独立冷却。'
     },
     {
       title: '撤离点',
@@ -5642,6 +6034,33 @@ body.touch-device.move-stick-fixed .move-pad {
       enemies.push(new Enemy(spot.x, spot.y, kind, room));
     }
 
+    if (enemies.length && Math.random() < 0.2 + Math.min(0.2, floor * 0.015)) {
+      applyEliteAffix(pick(enemies));
+    }
+
+    // Small squad coordination: the room leader buffs nearby squadmates.
+    const squadRooms = new Map();
+    for (const enemy of enemies) {
+      if (enemy.elite) continue;
+      if (!squadRooms.has(enemy.room)) squadRooms.set(enemy.room, []);
+      squadRooms.get(enemy.room).push(enemy);
+    }
+    for (const group of squadRooms.values()) {
+      if (group.length < 2) continue;
+      const leader = group[0];
+      leader.squadLeader = true;
+      leader.name = `队长·${leader.name}`;
+      leader.maxHp = Math.round(leader.maxHp * 1.15);
+      leader.hp = leader.maxHp;
+      leader.damage *= 1.08;
+      leader.xp = Math.round(leader.xp * 1.08);
+      for (let i = 1; i < group.length; i++) {
+        group[i].squadMember = true;
+        group[i].damage *= 1.05;
+        group[i].speed *= 1.03;
+      }
+    }
+
     const bossFloor = floor % 5 === 0;
     let bossRoom = null;
     let bossEnemy = null;
@@ -5690,6 +6109,7 @@ body.touch-device.move-stick-fixed .move-pad {
     keyGuard.xp = Math.round(keyGuard.xp * 2);
     keyGuard.scrap = Math.round(keyGuard.scrap * 2);
     keyGuard.color = '#ffd15c';
+    applyEliteAffix(keyGuard);
     enemies.push(keyGuard);
 
     const worldObj = {
@@ -5703,6 +6123,7 @@ body.touch-device.move-stick-fixed .move-pad {
       boss: bossEnemy,
       keyRoom: { x: keyRoom.x * TILE, y: keyRoom.y * TILE, w: keyRoom.w * TILE, h: keyRoom.h * TILE },
       keyChest,
+      objective: createRoomObjective(rooms, tiles),
       explored: new Uint8Array(MAP_W * MAP_H),
       fogMini: buildFogCanvas(),
       trail: [],
@@ -6268,6 +6689,7 @@ body.touch-device.move-stick-fixed .move-pad {
     takeDamage(amount, sourceAngle = null) {
       if (this.hurtCd > 0 || mode !== 'raid' || raid.ended) return;
       if (this.dashInvuln > 0) {
+        if (raid.stats) raid.stats.dodges += 1;
         addFloatText(this.x, this.y - 26, '闪避', '#7ee8d2');
         return;
       }
@@ -6291,6 +6713,7 @@ body.touch-device.move-stick-fixed .move-pad {
         raid.searchInterruptTimer = 0.9;
         addFloatText(this.x, this.y - 24, '搜索被打断', '#ffad45');
       }
+      if (raid.stats) raid.stats.damageTaken += finalDamage + shieldAbsorb;
       if (finalDamage > 0) this.hp -= finalDamage;
       updateHUD();
       if (this.hp <= 0) {
@@ -6320,6 +6743,7 @@ body.touch-device.move-stick-fixed .move-pad {
       addParticle(this.x, this.y, this.char.color || '#d6ff4d', 9, 90, 2, 0.4);
       playSound('reload');
       addLootFeed('冲刺 · 短暂无敌', false);
+      advanceRaidTutorial(3);
       updateHUD();
       return true;
     }
@@ -6364,6 +6788,7 @@ body.touch-device.move-stick-fixed .move-pad {
         addLootFeed('应急护盾：60 点护盾 / 8 秒', false);
         playSound('pickup');
       }
+      advanceRaidTutorial(3);
       updateHUD();
       return true;
     }
@@ -6379,6 +6804,7 @@ body.touch-device.move-stick-fixed .move-pad {
       addParticle(this.x + Math.cos(angle) * 20, this.y + Math.sin(angle) * 20, '#8bd3ff', 8, 120, 2, 0.35);
       addParticle(target.x, target.y, '#bfeaff', 14, 110, 3, 0.65);
       target.takeDamage(damage, angle, { ignoreDefense: true, characterSkill: true });
+      if (raid.stats) raid.stats.skillHits += 1;
       addFloatText(target.x, target.y - 38, '猎杀 · 7×', '#8bd3ff');
       world.shake = Math.max(world.shake, 6);
       playSound('shoot', 'dmr');
@@ -6418,6 +6844,10 @@ body.touch-device.move-stick-fixed .move-pad {
       this.shotWindupMax = 0;
       this.winding = false;
       this.elite = false;
+      this.eliteAffix = null;
+      this.eliteLabel = '';
+      this.squadLeader = false;
+      this.squadMember = false;
       this.carriesKey = false;
       this.attackType = 'burst';
       this.attackAimAngle = this.angle;
@@ -6492,6 +6922,9 @@ body.touch-device.move-stick-fixed .move-pad {
       this.muzzleFlash = Math.max(0, this.muzzleFlash - dt);
       this.weakPointTimer = Math.max(0, this.weakPointTimer - dt);
       this.phaseFlash = Math.max(0, this.phaseFlash - dt);
+      if (this.eliteAffix === 'regenerating' && this.hp > 0 && this.hp < this.maxHp) {
+        this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.012 * dt);
+      }
 
       const dxToPlayer = player.x - this.x;
       const dyToPlayer = player.y - this.y;
@@ -6701,6 +7134,9 @@ body.touch-device.move-stick-fixed .move-pad {
           } else if (type === 'fan') {
             this.fireBossFan();
             this.attackCd = this.bossAttackDelay(2.35);
+          } else if (type === 'signature') {
+            this.fireBossSignature();
+            this.attackCd = this.bossAttackDelay(4.4);
           }
         }
         return;
@@ -6725,9 +7161,10 @@ body.touch-device.move-stick-fixed .move-pad {
       if (!canSee && distToPlayer > 460) return;
       if (this.attackCd <= 0) {
         this.bossCycle += 1;
-        if (this.bossCycle % 3 === 1) this.beginBossCast('barrage', 0.95, '全图弹幕');
-        else if (this.bossCycle % 3 === 2) this.beginBossCast('slam', 1.0, '重击锁定');
-        else this.beginBossCast('fan', 0.55, '压制散射');
+        if (this.bossCycle % 4 === 1) this.beginBossCast('barrage', 0.95, '全图弹幕');
+        else if (this.bossCycle % 4 === 2) this.beginBossCast('slam', 1.0, '重击锁定');
+        else if (this.bossCycle % 4 === 3) this.beginBossCast('fan', 0.55, '压制散射');
+        else this.beginBossCast('signature', 1.15, this.bossVariant.signature?.label || '首领绝技');
       }
     }
 
@@ -6832,6 +7269,78 @@ body.touch-device.move-stick-fixed .move-pad {
       playSound('enemyShoot');
     }
 
+    fireBossSignature() {
+      const variant = this.bossVariant;
+      const sig = variant.signature?.type || 'array';
+      const base = Math.atan2(player.y - this.y, player.x - this.x);
+      addLootFeed(`首领绝技：${variant.signature?.label || '未知协议'}`, true);
+      world.shake = Math.max(world.shake, 7);
+      playSound('enemyShoot');
+      if (sig === 'quake') {
+        for (let i = 0; i < 5; i++) {
+          const dist = 70 + i * 44;
+          const hx = this.x + Math.cos(base) * dist;
+          const hy = this.y + Math.sin(base) * dist;
+          spawnHazard(hx, hy, 54 + this.bossPhase * 5, 1.0 + i * 0.1, this.damage * 2.5, variant.color, '裂地');
+        }
+        addParticle(this.x + Math.cos(base) * 150, this.y + Math.sin(base) * 150, variant.color, 20, 110, 4, 0.55);
+      } else if (sig === 'prism') {
+        const origins = [[-110, 0], [110, 0], [0, -110], [0, 110]];
+        for (const [ox, oy] of origins) {
+          const px = player.x + ox;
+          const py = player.y + oy;
+          if (isSolidAt(px, py)) continue;
+          const a = Math.atan2(player.y - py, player.x - px);
+          for (let i = -3; i <= 3; i++) {
+            spawnEnemyBullet(px, py, a + i * 0.08, 350, this.damage * 0.62, { color: variant.color, life: 1.8, radius: 2.5, kind: 'bossPrism' });
+          }
+        }
+        addParticle(player.x, player.y, variant.color, 24, 95, 3, 0.6);
+      } else if (sig === 'lava') {
+        for (let i = 0; i < 6; i++) {
+          const angle = rand(0, TAU);
+          const dist = rand(35, 170);
+          const hx = player.x + Math.cos(angle) * dist;
+          const hy = player.y + Math.sin(angle) * dist;
+          spawnHazard(hx, hy, 48 + this.bossPhase * 4, 1.7 + i * 0.08, this.damage * 2.2, variant.color, '熔核');
+        }
+        addLootFeed('熔核正在喷发：远离橙色警示圈！', true);
+      } else if (sig === 'gravity') {
+        for (let i = 0; i < 20 + this.bossPhase * 4; i++) {
+          const a = base + (i / (20 + this.bossPhase * 4)) * TAU;
+          spawnEnemyBullet(this.x, this.y, a, 250 + this.bossPhase * 18, this.damage * 0.55, { color: variant.color, life: 5, radius: 3.2, kind: 'bossGravity' });
+        }
+        spawnHazard(player.x, player.y, 92, 1.9, this.damage * 3.2, '#c084ff', '引力井');
+      } else if (sig === 'blink') {
+        let tx = this.x;
+        let ty = this.y;
+        for (let i = 0; i < 12; i++) {
+          const a = rand(0, TAU);
+          const d = rand(135, 220);
+          const nx = player.x + Math.cos(a) * d;
+          const ny = player.y + Math.sin(a) * d;
+          if (!isSolidAt(nx, ny)) { tx = nx; ty = ny; break; }
+        }
+        addParticle(this.x, this.y, variant.color, 20, 120, 3, 0.55);
+        this.x = tx;
+        this.y = ty;
+        this.attackAimAngle = Math.atan2(player.y - this.y, player.x - this.x);
+        addParticle(this.x, this.y, variant.color, 22, 120, 3, 0.55);
+        this.fireBossFan();
+        addLootFeed('相位猎手完成突袭，散射即将命中！', true);
+      } else {
+        const count = 8 + this.bossPhase * 2;
+        for (let i = 0; i < count; i++) {
+          const a = base + (i / count) * TAU;
+          spawnEnemyBullet(this.x, this.y, a, 310, this.damage * 0.7, { color: variant.color, life: 4.2, radius: 3, kind: 'bossArray' });
+        }
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+          spawnHazard(this.x + ox * 120, this.y + oy * 120, 66, 1.25, this.damage * 2.6, variant.color, '阵列');
+        }
+        addLootFeed('终焉阵列展开：注意十字警示区！', true);
+      }
+    }
+
     shoot() {
       this.fireCd = this.cooldown + rand(-0.14, 0.2);
       const baseAngle = this.attackAimAngle || Math.atan2(player.y - this.y, player.x - this.x);
@@ -6880,6 +7389,10 @@ body.touch-device.move-stick-fixed .move-pad {
       let perHit = options.ignoreDefense ? amount : amount * (1 - (this.defense || 0));
       if (this.isBoss && this.weakPointTimer > 0) perHit *= 1.5;
       this.hp -= perHit;
+      if (raid.stats) {
+        raid.stats.damageDealt += perHit;
+        raid.stats.highestHit = Math.max(raid.stats.highestHit, perHit);
+      }
       this.hitFlash = 0.12;
       this.state = 'chase';
       this.alertTimer = 4;
@@ -6902,6 +7415,10 @@ body.touch-device.move-stick-fixed .move-pad {
       this.dead = true;
       this.hp = 0;
       raid.kills += 1;
+      if (raid.stats) {
+        if (this.isBoss) raid.stats.bossKills += 1;
+        if (this.elite) raid.stats.eliteKills += 1;
+      }
       gainRaidXP(this.xp, true);
       raid.scrap += Math.round(this.scrap * (1 + (player?.gearBonus?.scrap || 0)));
       addParticle(this.x, this.y, '#b83d52', 12, 110, 3, 0.8);
@@ -6910,6 +7427,10 @@ body.touch-device.move-stick-fixed .move-pad {
       addLootFeed(this.isBoss ? `BOSS 已击败！ +${this.xp} XP` : `击倒敌人 +${this.xp} XP`, this.isBoss);
 
       rollEnhanceStoneDrop(this);
+      if (this.eliteAffix === 'volatile') {
+        spawnHazard(this.x, this.y, 76, 0.8, this.damage * 2.2, '#ffad45', '爆裂');
+        addLootFeed(`${this.eliteLabel || '精英'}爆炸：远离爆炸范围！`, true);
+      }
 
       if (this.isBoss) {
         world.pickups.push({
@@ -7245,6 +7766,87 @@ body.touch-device.move-stick-fixed .move-pad {
     updateHUD();
   }
 
+  function updateObjective(dt) {
+    const obj = world?.objective;
+    if (!obj || !player) return;
+    obj.pulse += dt * 2;
+    if (obj.state === 'complete') {
+      obj.completeTimer = Math.max(0, obj.completeTimer - dt);
+      return;
+    }
+    const inside = dist2(player.x, player.y, obj.x, obj.y) <= obj.r * obj.r;
+    if (!inside) {
+      if (obj.state === 'active') {
+        obj.state = 'idle';
+        addLootFeed(`已离开${obj.label}，进度保留。`, false);
+      }
+      return;
+    }
+    if (obj.state !== 'active') {
+      obj.state = 'active';
+      addLootFeed(`战术目标：${obj.label} · ${OBJECTIVE_DEFS[obj.type].activeText}`, true);
+      playSound('reload');
+    }
+    obj.progress = Math.min(obj.duration, obj.progress + dt);
+    obj.spawnTimer -= dt;
+    if (obj.spawnTimer <= 0 && obj.wavesSpawned < obj.waves && obj.progress < obj.duration) {
+      spawnObjectiveWave(obj);
+      obj.wavesSpawned += 1;
+      obj.spawnTimer = Math.max(2.2, obj.duration / (obj.waves + 1));
+    }
+    if (obj.progress >= obj.duration) completeObjective(obj);
+  }
+
+  function spawnObjectiveWave(obj) {
+    if (!world || !player) return;
+    const def = OBJECTIVE_DEFS[obj.type];
+    const count = obj.type === 'vault' ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      let spot = roomSpot(obj.room || pick(world.rooms.slice(1, -1)));
+      for (let attempt = 0; attempt < 8 && canStandAt(spot.x, spot.y, 10) === false; attempt++) {
+        spot = roomSpot(obj.room || pick(world.rooms.slice(1, -1)));
+      }
+      const enemy = new Enemy(spot.x, spot.y, pick(world.stage.enemyPool), obj.room);
+      enemy.state = 'chase';
+      enemy.alertTimer = 12;
+      enemy.lastSeen = { x: player.x, y: player.y };
+      if (obj.type === 'vault' && obj.wavesSpawned === 0 && i === 0) applyEliteAffix(enemy);
+      world.enemies.push(enemy);
+    }
+    addLootFeed(`${def.label}警报：增援已进入区域！`, true);
+    world.shake = Math.max(world.shake, 3);
+  }
+
+  function completeObjective(obj) {
+    const def = OBJECTIVE_DEFS[obj.type];
+    if (!def || obj.state === 'complete') return;
+    obj.state = 'complete';
+    obj.progress = obj.duration;
+    obj.completeTimer = 7;
+    const scrap = Math.round(rand(def.rewardScrap[0], def.rewardScrap[1]) * (1 + (player?.gearBonus?.scrap || 0)));
+    raid.scrap += scrap;
+    raid.parts += def.rewardParts;
+    if (raid.stats) raid.stats.objectives += 1;
+    const itemType = rollLootItem(def.quality, 'uncommon');
+    const item = createItem(itemType);
+    if (!addItemToBackpack(item)) {
+      world.pickups.push({ x: obj.x, y: obj.y, type: 'item', item, life: 999, bob: rand(0, TAU) });
+    }
+    const packType = rollPackDrop(def.quality);
+    if (packType) {
+      const packItem = createItem(packType);
+      if (!addItemToBackpack(packItem)) {
+        world.pickups.push({ x: obj.x + 18, y: obj.y, type: 'item', item: packItem, life: 999, bob: rand(0, TAU) });
+      }
+    }
+    addLootFeed(`战术目标完成：${obj.label} · +${scrap} 废料 · +${def.rewardParts} 零件`, true);
+    addFloatText(obj.x, obj.y - 40, '目标完成', obj.color);
+    toast(`战术目标完成：${obj.label}`);
+    world.shake = Math.max(world.shake, 5);
+    playSound('level');
+    updateHUD();
+  }
+
   function updatePickups(dt) {
     for (let i = world.pickups.length - 1; i >= 0; i--) {
       const p = world.pickups[i];
@@ -7543,6 +8145,7 @@ body.touch-device.move-stick-fixed .move-pad {
     updateBeams(dt);
     if (raid.ended) return;
     updatePickups(dt);
+    updateObjective(dt);
     updateParticles(dt);
     updateInteraction(dt);
     hudAccumulator += dt;
@@ -7665,6 +8268,24 @@ body.touch-device.move-stick-fixed .move-pad {
       const nextBossFloor = raid.floor + (5 - (raid.floor % 5));
       const stageName = world?.stage?.name || stageForFloor(raid.floor).name;
       el.raidObjective.textContent = `${riskDef().label} · ${stageName} · F${raid.floor} · ${bossFloor ? '首领层' : `下个首领 F${nextBossFloor}`}`;
+      if (el.objectiveTracker) {
+        const obj = world?.objective;
+        const show = obj && (obj.state !== 'complete' || obj.completeTimer > 0);
+        el.objectiveTracker.classList.toggle('hidden', !show);
+        if (show) {
+          const def = OBJECTIVE_DEFS[obj.type];
+          const pct = Math.round((obj.progress / obj.duration) * 100);
+          el.objectiveTracker.classList.toggle('active', obj.state === 'active');
+          el.objectiveTracker.classList.toggle('complete', obj.state === 'complete');
+          el.objectiveTracker.style.setProperty('--objective-color', obj.color);
+          el.objectiveTrackerName.textContent = `${def.icon} ${obj.label}${obj.state === 'complete' ? ' · 已完成' : ''}`;
+          el.objectiveTrackerPct.textContent = obj.state === 'complete' ? '✔' : `${pct}%`;
+          el.objectiveTrackerFill.style.width = `${pct}%`;
+          el.objectiveTrackerHint.textContent = obj.state === 'complete'
+            ? '奖励已发放，继续搜刮或前往撤离点。'
+            : obj.state === 'active' ? def.activeText : def.idleText;
+        }
+      }
     }
     if (world && raid) {
       let nearestD = Infinity;
@@ -7927,6 +8548,7 @@ body.touch-device.move-stick-fixed .move-pad {
         enemy.xp = Math.round(enemy.xp * 2);
         enemy.scrap = Math.round(enemy.scrap * 2);
         enemy.color = '#ffd15c';
+        applyEliteAffix(enemy);
         world.enemies.push(enemy);
       }
       raid.event = { type, label: '精英巡逻队出现', timer: 0 };
@@ -8048,6 +8670,7 @@ body.touch-device.move-stick-fixed .move-pad {
       pendingPerks: 0,
       perks: {},
       scrap: 0,
+      parts: 0,
       keys: 0,
       kills: 0,
       paused: false,
@@ -8064,6 +8687,7 @@ body.touch-device.move-stick-fixed .move-pad {
       searchTarget: null,
       searchInterruptTimer: 0,
       lastFullWarning: -10,
+      stats: { damageDealt: 0, damageTaken: 0, highestHit: 0, dodges: 0, skillHits: 0, eliteKills: 0, bossKills: 0, objectives: 0 },
       startedAt: performance.now()
     };
 
@@ -8123,6 +8747,7 @@ body.touch-device.move-stick-fixed .move-pad {
       for (const item of carried) addToStash(item);
       scrapGain = raid.scrap + 10 + raid.floor * 15 + Math.floor(Math.max(0, raid.timeLeft) / 90);
       save.scrap += scrapGain;
+      save.modParts += raid.parts;
       save.stats.extracts += 1;
       save.stats.loot += itemUnits;
       playSound('extract');
@@ -8141,10 +8766,20 @@ body.touch-device.move-stick-fixed .move-pad {
     el.debriefSub.textContent = reason + (success
       ? ` 行动用时 ${formatDuration((performance.now() - raid.startedAt) / 1000)}。本局等级与成长会在返回基地后重置。`
       : ' 本局等级、成长和携带物资全部丢失，再进入会从 LV.1 开始。');
+    const stats = raid.stats || { damageDealt: 0, damageTaken: 0, highestHit: 0, dodges: 0, skillHits: 0, eliteKills: 0, bossKills: 0, objectives: 0 };
+    const bestItem = success && carried.length
+      ? carried.reduce((best, item) => (!best || itemSellValue(item) > itemSellValue(best) ? item : best), null)
+      : null;
     el.debriefStats.innerHTML = `
       <div><span>击倒敌人</span><strong>${raid.kills}</strong></div>
-      <div><span>${success ? '带回物资' : '损失物资'}</span><strong>${itemUnits}</strong></div>
+      <div><span>造成伤害</span><strong>${Math.round(stats.damageDealt).toLocaleString()}</strong></div>
+      <div><span>承受伤害</span><strong>${Math.round(stats.damageTaken).toLocaleString()}</strong></div>
+      <div><span>最高单次</span><strong>${Math.round(stats.highestHit).toLocaleString()}</strong></div>
+      <div><span>成功闪避</span><strong>${stats.dodges}</strong></div>
+      <div><span>精英 / 首领</span><strong>${stats.eliteKills} / ${stats.bossKills}</strong></div>
+      <div><span>完成目标</span><strong>${stats.objectives}</strong></div>
       <div><span>${success ? '获得废料' : '本局等级'}</span><strong>${success ? `+${scrapGain}` : `LV.${raid.level}`}</strong></div>
+      <div><span>${success ? '带回物资' : '损失物资'}</span><strong>${itemUnits}</strong></div>
       <div><span>深入层数</span><strong>F${raid.floor}</strong></div>`;
     el.debriefLoot.innerHTML = '';
     if (success && carried.length) {
@@ -8168,8 +8803,14 @@ body.touch-device.move-stick-fixed .move-pad {
     runSpan.style.color = '#d6ff4d';
     const perkSummary = PERK_KEYS.filter((key) => perkRank(key) > 0)
       .map((key) => `${PERK_DEFS[key].name}${perkRank(key)}`).join(' · ');
-    runSpan.textContent = `本局 LV.${raid.level} · F${raid.floor}${perkSummary ? ` · ${perkSummary}` : ''} · 撤出后重置`;
+    runSpan.textContent = `本局 LV.${raid.level} · F${raid.floor}${perkSummary ? ` · ${perkSummary}` : ''}${success && raid.parts > 0 ? ` · 零件 +${raid.parts}` : ''} · 撤出后重置`;
     el.debriefLoot.appendChild(runSpan);
+    if (bestItem) {
+      const bestSpan = document.createElement('span');
+      bestSpan.style.color = '#ffd15c';
+      bestSpan.textContent = `最佳掉落：${itemName(bestItem)}（价值 ${itemSellValue(bestItem)}）`;
+      el.debriefLoot.appendChild(bestSpan);
+    }
 
     el.debriefOverlay.classList.remove('hidden');
     updateHUD();
@@ -8220,6 +8861,7 @@ body.touch-device.move-stick-fixed .move-pad {
     drawExtraction();
     drawAltExtraction();
     drawKeyRoom();
+    drawObjective();
     for (const c of world.containers) if (isPointVisible(c.x, c.y)) drawContainer(c);
     for (const p of world.pickups) if (isPointVisible(p.x, p.y)) drawPickup(p);
     drawHazards();
@@ -8290,6 +8932,60 @@ body.touch-device.move-stick-fixed .move-pad {
     ctx.textAlign = 'center';
     ctx.fillText('KEY ROOM // 钥匙房', room.x + room.w / 2, room.y + 22);
     ctx.textAlign = 'left';
+    ctx.restore();
+  }
+
+  function drawObjective() {
+    const obj = world?.objective;
+    if (!obj || !isPointVisible(obj.x, obj.y, VISION_RADIUS + 80)) return;
+    const def = OBJECTIVE_DEFS[obj.type];
+    const pulse = (Math.sin(obj.pulse) + 1) * 0.5;
+    const radius = obj.r + pulse * 5;
+    const progress = clamp(obj.progress / obj.duration, 0, 1);
+    ctx.save();
+    ctx.translate(obj.x, obj.y);
+    const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, radius + 24);
+    grad.addColorStop(0, `${obj.color}35`);
+    grad.addColorStop(0.65, `${obj.color}10`);
+    grad.addColorStop(1, `${obj.color}00`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 24, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = obj.state === 'complete' ? 'rgba(214,255,77,.85)' : `${obj.color}aa`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(obj.state === 'active' ? [] : [7, 6]);
+    ctx.lineDashOffset = -obj.pulse * 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = obj.state === 'complete' ? '#d6ff4d' : obj.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius - 6, -Math.PI / 2, -Math.PI / 2 + TAU * progress);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(5,9,14,.75)';
+    ctx.fillRect(-17, -17, 34, 34);
+    ctx.strokeStyle = obj.color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-17, -17, 34, 34);
+    ctx.fillStyle = obj.color;
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(obj.state === 'complete' ? '✓' : obj.icon, 0, 1);
+    ctx.font = 'bold 9px monospace';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = obj.color;
+    ctx.fillText(obj.label, 0, -radius - 12);
+    if (obj.state === 'active') {
+      ctx.fillStyle = 'rgba(5,9,14,.82)';
+      ctx.fillRect(-30, radius + 8, 60, 13);
+      ctx.fillStyle = obj.color;
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(`${Math.round(progress * 100)}%`, 0, radius + 18);
+    }
     ctx.restore();
   }
 
@@ -8751,6 +9447,13 @@ body.touch-device.move-stick-fixed .move-pad {
       ctx.fillText('!', 0, barY - 7);
     }
 
+    if (!isPlayer && entity.squadLeader) {
+      ctx.fillStyle = '#d6ff4d';
+      ctx.font = 'bold 7px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('队长', 0, barY - 17);
+    }
+
     if (!isPlayer && entity.elite) {
       ctx.strokeStyle = entity.carriesKey ? 'rgba(255,209,92,.95)' : 'rgba(255,209,92,.8)';
       ctx.lineWidth = 2;
@@ -8762,6 +9465,11 @@ body.touch-device.move-stick-fixed .move-pad {
         ctx.font = 'bold 8px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('KEY', 0, barY - (isBoss ? 20 : 18));
+      } else if (entity.eliteLabel) {
+        ctx.fillStyle = entity.color || '#ffd15c';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`精英 · ${entity.eliteLabel}`, 0, barY - 17);
       }
     }
     if (!isPlayer && entity.shotWindup > 0) {
@@ -9040,6 +9748,22 @@ body.touch-device.move-stick-fixed .move-pad {
       g.fillText('首领', bx + 12, by);
     }
 
+    if (world.objective && world.objective.state !== 'complete' && isExploredPoint(world.objective.x, world.objective.y)) {
+      const ox = world.objective.x * sx;
+      const oy = world.objective.y * sy;
+      g.fillStyle = world.objective.color;
+      g.beginPath();
+      g.moveTo(ox, oy - 7);
+      g.lineTo(ox + 7, oy);
+      g.lineTo(ox, oy + 7);
+      g.lineTo(ox - 7, oy);
+      g.closePath();
+      g.fill();
+      g.font = 'bold 10px monospace';
+      g.textBaseline = 'middle';
+      g.fillText(world.objective.label, ox + 11, oy);
+    }
+
     const exX = world.extraction.x * sx;
     const exY = world.extraction.y * sy;
     g.fillStyle = 'rgba(214,255,77,.18)';
@@ -9071,6 +9795,15 @@ body.touch-device.move-stick-fixed .move-pad {
     g.fillRect(labelX - 6, exY - 13, labelW + 12, 26);
     g.fillStyle = '#d6ff4d';
     g.fillText(label, labelX, exY);
+
+    if (world.objective && world.objective.state !== 'complete' && isExploredPoint(world.objective.x, world.objective.y)) {
+      const ox = world.objective.x * sx;
+      const oy = world.objective.y * sy;
+      miniCtx.fillStyle = world.objective.color;
+      miniCtx.beginPath();
+      miniCtx.arc(ox, oy, 3, 0, TAU);
+      miniCtx.fill();
+    }
 
     if (world.altExtraction && world.altExtraction.timeLeft > 0 &&
       (isExploredPoint(world.altExtraction.x, world.altExtraction.y) || isPointVisible(world.altExtraction.x, world.altExtraction.y))) {
@@ -9653,7 +10386,7 @@ body.touch-device.move-stick-fixed .move-pad {
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
           altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
           containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0, locked: !!c.locked, vault: !!c.vault })),
-          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite })),
+          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite, eliteAffix: e.eliteAffix, eliteLabel: e.eliteLabel, squadLeader: !!e.squadLeader, squadMember: !!e.squadMember })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, defense: world.boss.defense, bossPhase: world.boss.bossPhase, weakPointTimer: world.boss.weakPointTimer, phaseFlash: world.boss.phaseFlash, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
@@ -9662,6 +10395,7 @@ body.touch-device.move-stick-fixed .move-pad {
           bulletTypes: world.bullets.reduce((acc, b) => { const key = b.kind || b.owner; acc[key] = (acc[key] || 0) + 1; return acc; }, {}),
           bossPresent: !!world.boss,
           keyChest: world.keyChest ? { x: world.keyChest.x, y: world.keyChest.y, locked: !!world.keyChest.locked, searched: !!world.keyChest.searched } : null,
+          objective: world.objective ? { type: world.objective.type, label: world.objective.label, x: world.objective.x, y: world.objective.y, r: world.objective.r, progress: world.objective.progress, duration: world.objective.duration, state: world.objective.state, wavesSpawned: world.objective.wavesSpawned, completeTimer: world.objective.completeTimer } : null,
           roomCount: world.rooms.length,
           containerCount: world.containers.length,
           mapTiles: [MAP_W, MAP_H],
@@ -9674,6 +10408,9 @@ body.touch-device.move-stick-fixed .move-pad {
     },
     setKey(key, down) { keys[key.toLowerCase()] = !!down; },
     teleport(x, y) { if (player) { player.x = x; player.y = y; } },
+    teleportToObjective() { if (player && world?.objective) { player.x = world.objective.x; player.y = world.objective.y; } return this.snapshot(); },
+    setObjectiveProgress(value) { if (world?.objective) world.objective.progress = Math.max(0, Math.min(world.objective.duration, Number(value) || 0)); return this.snapshot(); },
+    spawnEliteAt(kind = 'heavy', affix = null, dx = 80, dy = 0) { if (world && player) { const room = world.rooms[1] || world.rooms[0]; const e = new Enemy(player.x + Number(dx), player.y + Number(dy), kind, room); applyEliteAffix(e, affix); e.state = 'chase'; e.alertTimer = 12; e.lastSeen = { x: player.x, y: player.y }; world.enemies.push(e); return this.snapshot(); } },
     hurt(amount, sourceAngle = null) { if (player) player.takeDamage(amount, sourceAngle); },
     dash() { if (player) player.tryDash(); return this.snapshot(); },
     characterSkill() { if (player) player.useCharacterSkill(); return this.snapshot(); },
@@ -9812,6 +10549,8 @@ body.touch-device.move-stick-fixed .move-pad {
       lootContainer(container);
       return { searched: !!container.searched, locked: !!container.locked, backpack: player.backpack.map((i) => i.type) };
     },
+    grantModParts(amount = 5) { save.modParts = Math.max(0, save.modParts + Math.floor(Number(amount) || 0)); renderAllBase(); return save.modParts; },
+    bossSignature() { if (world?.boss && !world.boss.dead) { world.boss.fireBossSignature(); } return this.snapshot(); },
     clearEnemies() {
       if (world) for (const enemy of world.enemies) enemy.dead = true;
     },

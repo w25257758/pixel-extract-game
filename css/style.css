@@ -2582,3 +2582,82 @@ body.touch-device.move-stick-fixed .move-pad {
   .status-badge { padding: 0 4px; font-size: .52em; }
   .loadout-set-bonus { margin-top: 3px; padding: 2px 4px; font-size: 7px; }
 }
+
+/* Objective tracker, gear filters, set collection and management actions */
+.objective-tracker {
+  --objective-color: #55d9ff;
+  width: clamp(210px, 30vw, 360px);
+  margin: 6px auto 0;
+  padding: 5px 7px 6px;
+  border: 1px solid rgba(85, 217, 255, .35);
+  border-color: color-mix(in srgb, var(--objective-color) 45%, transparent);
+  background: rgba(5, 10, 16, .78);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--objective-color) 7%, transparent);
+  text-align: left;
+}
+.objective-tracker.hidden { display: none; }
+.objective-tracker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--objective-color); font-size: .58em; font-weight: 900; letter-spacing: .3px; }
+.objective-tracker-head b { color: #e8f1ff; font-size: 1em; }
+.objective-tracker-bar { height: 3px; margin-top: 4px; background: rgba(170, 190, 215, .15); overflow: hidden; }
+.objective-tracker-bar i { display: block; width: 0; height: 100%; background: var(--objective-color); box-shadow: 0 0 8px var(--objective-color); transition: width .18s linear; }
+.objective-tracker small { display: block; margin-top: 3px; color: #8ea6bd; font-size: .52em; line-height: 1.35; }
+.objective-tracker.active { border-color: var(--objective-color); animation: objective-pulse 1.3s ease-in-out infinite; }
+.objective-tracker.complete { --objective-color: #d6ff4d !important; }
+@keyframes objective-pulse { 50% { box-shadow: inset 0 0 22px color-mix(in srgb, var(--objective-color) 16%, transparent); } }
+
+.stash-filter-select {
+  flex: 0 0 auto;
+  max-width: 96px;
+  min-height: 26px;
+  padding: 3px 5px;
+  border: 1px solid rgba(170, 190, 215, .24);
+  background: #0a1017;
+  color: #b4c3d5;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+}
+.stash-parts { flex: 0 0 auto; padding: 4px 6px; border: 1px solid rgba(255, 209, 92, .3); color: #ffd15c; font-size: 9px; white-space: nowrap; }
+.stash-slot.locked { border-color: rgba(255, 209, 92, .45); }
+.slot-lock {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  padding: 0 3px;
+  border: 1px solid rgba(255, 209, 92, .5);
+  background: rgba(5, 9, 14, .88);
+  color: #ffd15c;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+.action-row { flex-wrap: wrap; }
+.action-row button { flex: 1 1 auto; }
+.action-row button:disabled { opacity: .42; cursor: not-allowed; }
+.compare .up, .compare span.up { color: #7bf5a8; }
+.compare .down, .compare span.down { color: #ff9b6b; }
+
+.set-collection-head { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 2px 4px; color: var(--dim); font-size: 9px; letter-spacing: .5px; }
+.set-collection-head b { color: #ffd15c; font-size: 9px; }
+.set-collection { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 0 2px 4px; }
+.set-row { padding: 5px 6px; border: 1px solid rgba(170, 190, 215, .16); background: rgba(6, 12, 18, .42); font-size: 8px; line-height: 1.35; }
+.set-row.active { border-color: rgba(255, 209, 92, .4); background: rgba(255, 209, 92, .045); }
+.set-row-top { display: flex; justify-content: space-between; gap: 4px; align-items: baseline; }
+.set-row-top strong { font-size: 9px; }
+.set-row-top span { color: #8194aa; font-size: 7px; white-space: nowrap; }
+.set-row-bonus { margin-top: 2px; color: #91a3b8; font-size: 7px; }
+
+@media (max-height: 520px) {
+  .objective-tracker { width: clamp(190px, 27vw, 300px); margin-top: 3px; padding: 3px 5px 4px; }
+  .objective-tracker small { display: none; }
+  .objective-tracker-head { font-size: .52em; }
+  .stash-filter-select { max-width: 76px; min-height: 23px; font-size: 8px; }
+  .stash-parts { padding: 2px 4px; font-size: 8px; }
+  .set-collection { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding-bottom: 0; }
+  .set-row { padding: 3px 4px; font-size: 7px; }
+  .set-row-top strong { font-size: 8px; }
+  .set-row-bonus { display: none; }
+}
+#manageStashPanel { display: flex; flex-direction: column; overflow: hidden; }
+#manageStashPanel .stash-grid { flex: 1 1 auto; min-height: 0; overflow: auto; }
+#manageStashPanel .item-actions { flex: 0 0 auto; }

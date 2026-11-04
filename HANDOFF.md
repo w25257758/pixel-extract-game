@@ -11,9 +11,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v29
-- Save key: localStorage pixel_extract_save_v1, schema version 7
-- Latest maintenance: character skills, boss phase/core windows, random gear affixes/sets, status HUD and aimed skill targeting (see git log)
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v30
+- Save key: localStorage pixel_extract_save_v1, schema version 8
+- Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
@@ -41,6 +41,11 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Universal Space dash: short directional displacement, 4s CD, brief invulnerability; touch dash button and Q active skill mirror it. Character status badges show shield/overdrive/low-HP/dash/lock/set effects.
 - Debrief, perk-choice and extraction-choice cards fit without scrolling at 932x430, 667x375 and 568x320.
 - Base loadout has a compact set-bonus line; equipment cards display affix text and item names use a star for set pieces.
+- Stash now has quality/set/affix filters, lock/salvage/reroll actions and a compact action footer; equipment window has set codex and affix-aware comparison.
+- In-raid HUD has an optional objective tracker with progress bar and active/idle hint; room objectives also render in the world and on the explored map.
+- Boss HUD continues to show cast label, phase and core countdown; each boss variant has a named signature cast in its attack cycle.
+- Elite enemies display an affix label above their health bars; volatile elites leave a telegraphed explosion on death.
+- Debrief now reports damage dealt/taken, highest hit, dodges, elite/boss kills, objectives completed and best drop; run-earned mod parts are added on successful extraction.
 
 ## Must keep
 - No separate fire button.
@@ -57,6 +62,13 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep boss phase thresholds at 65%/30%, phase-scaled attack density, the exposed-core damage window (x1.5) and the P1/P2/P3 HUD markers.
 - Keep random gear affixes and the three sets: raider (damage/crit), bulwark (reduction/max HP), specter (move speed/dash CD). Do not roll affixes on the starter pistol/pack.
 - Keep the character status-effect badges and cooldown rings on touch buttons.
+- Keep gear management: item locking must block sell/salvage/reroll, salvage grants mod parts, reroll costs 5 parts, and starter gear remains unmodded.
+- Keep the affix-aware gear comparison including set break/activation preview; do not regress to base weapon DPS only.
+- Keep the three room objective types and their risk/reward balance; objectives must remain optional and not block extraction.
+- Keep elite affixes (swift/armored/frenzied/volatile/regenerating) and the volatile death telegraph.
+- Keep room-based squad leaders (HP/damage buff) and squadmate coordination (damage/speed buff); do not remove the `队长` visual label.
+- Keep one unique signature cast per boss variant; do not collapse all bosses back to the same three-pattern cycle.
+- Keep five-step first-run tutorial and the debrief combat statistics.
 - Keep character HUD/touch cooldown displays and the six-card 3x2 manage grid.
 - Keep enemy attacks distinct and telegraphed: burst, charge, fan, sniper line, mortar circle and radial barrage. Do not collapse them back to one generic shot.
 - Keep boss full-map barrages blocked by walls and keep targeted slam zones telegraphed for roughly 1.5 seconds with large damage on failure to dodge.
@@ -78,7 +90,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Main-view visibility is a radial fog with LOS checks; map markers must never reveal unseen enemies or the boss.
 
 ## Recent work
-- First-raid four-step tutorial: move, search, combat, extract. Skippable, shows once.
+- First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
 - Combat feedback: hit marker, red kill marker, damage-direction arrow, low-HP edge pulse.
 - Movement optimization: cached stick geometry, input dead zone and smoothing, HUD/minimap throttling, cached vignette gradient, particle caps.
 - Reworked progression to be run-only: base level/XP and permanent perks were removed; every run starts at LV.1.
@@ -117,11 +129,19 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Verified boss phase 2 at 65%, phase 3 at 30%, core damage x1.5 (100 base -> 123 after 18% defense), barrage core timer, HUD `P2/3`/`P3/3` and no page overflow at 932x430.
 - Verified sniper aim-cone targeting: aimed far heavy locked while an off-angle near heavy was ignored; status badge `猎杀锁定`, touch skill ring at 360deg, and 568x320 no page scroll.
 - Verified base/loadout/equip/stash/character layouts at 932x430, 667x375 and 568x320, no page scroll and no inner panel overflow.
+- Added gear management: stash quality/set/affix filters, lock/unlock preventing sale, salvage -> mod parts, 5-part affix reroll, set codex, mod-part counters and affix-aware DPS/effective-HP/set-change comparison.
+- Verified lock -> sell blocked, reroll affix changed and consumed 5 parts, set filter showed the expected item, set codex displayed raider 3/3 and stash count, and 568x320 stash action footer fit without page overflow.
+- Added three objective types with hold progress, reinforcement waves, rewards (scrap + mod parts + item + possible pack), world/map markers and HUD tracker. Verified vault objective active -> complete, raid.parts +3 and objectives stat +1.
+- Added elite affixes and verified volatile elite death created a `爆裂` hazard; affix labels are exposed in snapshot. Added random elite roll on generation and retained gold-key elite behavior.
+- Added room-based enemy squad leaders and squadmates with small stat buffs and a `队长` label; verified F1 generated one leader and two members at 568x320 without overflow.
+- Added boss signatures for titan/prism/tyrant/omega/wraith/architect; verified F5/F10/F15/F20/F25/F30 signatures generated 5 hazards, 28 prism bullets, 6 lava hazards, 24 gravity bullets + hazard, 11 wraith fan bullets, and 10 array bullets + 4 hazards respectively.
+- Added full debrief stats and best-drop summary; verified debrief at 568x320 reports damage, highest hit, elite kills, objectives, scrap and mod parts with no page overflow.
+- Bumped save schema to v8 and PWA cache to v30.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase).
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature().
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -131,7 +151,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - transcendence conversion, 1000/1250 thresholds, permanent stat application and save persistence
   - stage/boss rotation, telegraphs, wall-blocked boss barrage and slam dodge/damage behavior
   - character selection persistence, v6->v7 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
-  - boss 3-phase thresholds/core windows, affix/set combat application, status badges, aimed sniper target and 568x320 layout
+  - boss 3-phase thresholds/core windows, signature casts, affix/set combat application, gear lock/reroll/filter, elite affixes, objectives and 568x320 layout
+  - v7->v8 migration, mod parts persistence and debrief statistics
 
 ## Release
 1. Edit and test locally.

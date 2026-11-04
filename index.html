@@ -166,6 +166,11 @@
           <div class="hud-top-center">
             <div id="raidTimer" class="raid-timer">06:00</div>
             <div id="raidObjective" class="objective">搜刮物资 · 撤离点选择深入或返回</div>
+            <div id="objectiveTracker" class="objective-tracker hidden" aria-live="polite">
+              <div class="objective-tracker-head"><span id="objectiveTrackerName">战术目标</span><b id="objectiveTrackerPct">0%</b></div>
+              <div class="objective-tracker-bar"><i id="objectiveTrackerFill"></i></div>
+              <small id="objectiveTrackerHint"></small>
+            </div>
           </div>
 
           <div id="bossHud" class="boss-hud hidden">
@@ -318,6 +323,8 @@
               <div id="packChoices" class="equip-choice-list"></div>
             </section>
           </div>
+          <div class="set-collection-head"><span>套装图鉴</span><b id="setCollectionParts">改装零件 0</b></div>
+          <div id="setCollection" class="set-collection"></div>
         </div>
 
         <div id="manageStashPanel" class="manage-panel hidden">
@@ -335,6 +342,17 @@
               <button type="button" data-rarity="legendary">传说</button>
               <button type="button" data-rarity="mythic">神话</button>
             </div>
+            <select id="stashSetFilter" class="stash-filter-select" aria-label="按套装筛选">
+              <option value="all">全部套装</option>
+              <option value="raider">荒原猎手</option>
+              <option value="bulwark">壁垒协议</option>
+              <option value="specter">幽灵协议</option>
+              <option value="none">无套装</option>
+            </select>
+            <select id="stashAffixFilter" class="stash-filter-select" aria-label="按词条筛选">
+              <option value="all">全部词条</option>
+            </select>
+            <span id="stashModParts" class="stash-parts">零件 0</span>
             <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
           </div>
           <div id="stashGrid" class="stash-grid"></div>
@@ -350,6 +368,9 @@
             </div>
             <div class="action-row">
               <button id="equipBtn" class="secondary-btn hidden">装备</button>
+              <button id="lockItemBtn" class="secondary-btn hidden">锁定</button>
+              <button id="rerollItemBtn" class="secondary-btn hidden">重铸词条</button>
+              <button id="salvageItemBtn" class="secondary-btn hidden">分解</button>
               <button id="sellBtn" class="danger-btn">出售</button>
             </div>
           </div>
