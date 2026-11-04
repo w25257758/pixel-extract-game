@@ -495,6 +495,7 @@
     hudAmmo: $('#hudAmmo'),
     hudLevel: $('#hudLevel'),
     hudFloor: $('#hudFloor'),
+    hudLockState: $('#hudLockState'),
     hudXpFill: $('#hudXpFill'),
     hudXpText: $('#hudXpText'),
     raidTimer: $('#raidTimer'),
@@ -1982,8 +1983,9 @@
         if (this.reloadTimer <= 0) this.finishReload();
       }
 
-      const wantsLock = touch.ui && touch.aiming && save.settings.autoLock !== false;
-      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40, touch.aimAngle) : null;
+      const lockAimAngle = touch.ui && touch.hasAim ? touch.aimAngle : this.angle;
+      const wantsLock = save.settings.autoLock !== false && (touch.ui ? touch.aiming : (mouse.down || mouse.semiQueued));
+      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 60, lockAimAngle) : null;
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }
@@ -2779,6 +2781,13 @@
     }
     el.hudLevel.textContent = `LV.${raid ? raid.level : 1}`;
     if (el.hudFloor) el.hudFloor.textContent = `F${raid ? raid.floor : 1}`;
+    if (el.hudLockState) {
+      const autoLock = save.settings.autoLock !== false;
+      const locked = !!(player.lockTarget && !player.lockTarget.dead);
+      el.hudLockState.textContent = autoLock ? (locked ? '锁定' : '索敌 ON') : '索敌 OFF';
+      el.hudLockState.classList.toggle('active', locked);
+      el.hudLockState.classList.toggle('off', !autoLock);
+    }
     if (el.hudXpFill && raid) {
       const need = raidXpToNext(raid.level);
       el.hudXpFill.style.width = `${clamp((raid.xp / need) * 100, 0, 100)}%`;
@@ -4229,6 +4238,8 @@
   el.settingAutoLock.addEventListener('change', () => {
     save.settings.autoLock = el.settingAutoLock.checked;
     persist();
+    toast(save.settings.autoLock ? '自动索敌已开启。' : '自动索敌已关闭。');
+    if (player && !save.settings.autoLock) player.lockTarget = null;
   });
   el.settingPerformanceMode.addEventListener('change', () => {
     save.settings.performanceMode = el.settingPerformanceMode.checked;

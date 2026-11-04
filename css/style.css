@@ -381,6 +381,9 @@ kbd {
 .hud-top-left { position: absolute; top: 2.2%; left: 2%; width: 31%; min-width: 230px; padding: 10px 12px; background: linear-gradient(90deg, rgba(5,9,14,.9), rgba(5,9,14,.35)); border-left: 2px solid var(--lime); }
 .hud-callsign { color: var(--dim); font-size: .72em; letter-spacing: 1.3px; margin-bottom: 7px; }
 .hud-callsign span { color: var(--lime); }
+.hud-lock-state { margin-left: 5px; padding: 0 4px; border: 1px solid rgba(214,255,77,.28); color: var(--dim); font-size: .84em; letter-spacing: .5px; }
+.hud-lock-state.active { border-color: var(--lime); color: #0a0e14; background: var(--lime); }
+.hud-lock-state.off { border-color: var(--line); color: #68758a; }
 .hud-bar-row { display: flex; align-items: center; gap: 7px; }
 .hud-label { color: var(--red); font-weight: 900; font-size: .78em; }
 .hud-bar { flex: 1; height: 10px; border: 1px solid #38455a; background: #06090d; }

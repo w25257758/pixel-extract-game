@@ -111,7 +111,7 @@
         <canvas id="gameCanvas" width="960" height="600"></canvas>
         <div class="hud">
           <div class="hud-top-left">
-            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span> · <span id="hudFloor">F1</span></div>
+            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span> · <span id="hudFloor">F1</span> <span id="hudLockState" class="hud-lock-state">索敌 ON</span></div>
             <div class="hud-bar-row">
               <span class="hud-label">HP</span>
               <div class="hud-bar"><div id="hpFill" class="hud-bar-fill hp"></div></div>
@@ -376,7 +376,7 @@
           </div>
         </div>
         <label class="settings-row">
-          <span><strong>自动锁定</strong><small>开火时自动瞄准最近的可见敌人</small></span>
+          <span><strong>自动索敌</strong><small>瞄准或开火时自动锁定前方最近的可见敌人</small></span>
           <input id="settingAutoLock" class="settings-toggle" type="checkbox">
         </label>
         <label class="settings-row settings-row-stack" for="settingAimPadSize">

@@ -394,6 +394,9 @@ kbd {
 .hud-top-left { position: absolute; top: 2.2%; left: 2%; width: 31%; min-width: 230px; padding: 10px 12px; background: linear-gradient(90deg, rgba(5,9,14,.9), rgba(5,9,14,.35)); border-left: 2px solid var(--lime); }
 .hud-callsign { color: var(--dim); font-size: .72em; letter-spacing: 1.3px; margin-bottom: 7px; }
 .hud-callsign span { color: var(--lime); }
+.hud-lock-state { margin-left: 5px; padding: 0 4px; border: 1px solid rgba(214,255,77,.28); color: var(--dim); font-size: .84em; letter-spacing: .5px; }
+.hud-lock-state.active { border-color: var(--lime); color: #0a0e14; background: var(--lime); }
+.hud-lock-state.off { border-color: var(--line); color: #68758a; }
 .hud-bar-row { display: flex; align-items: center; gap: 7px; }
 .hud-label { color: var(--red); font-weight: 900; font-size: .78em; }
 .hud-bar { flex: 1; height: 10px; border: 1px solid #38455a; background: #06090d; }
@@ -2224,7 +2227,7 @@ body.touch-device.move-stick-fixed .move-pad {
         <canvas id="gameCanvas" width="960" height="600"></canvas>
         <div class="hud">
           <div class="hud-top-left">
-            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span> · <span id="hudFloor">F1</span></div>
+            <div class="hud-callsign">RAIDER // <span id="hudLevel">LV.1</span> · <span id="hudFloor">F1</span> <span id="hudLockState" class="hud-lock-state">索敌 ON</span></div>
             <div class="hud-bar-row">
               <span class="hud-label">HP</span>
               <div class="hud-bar"><div id="hpFill" class="hud-bar-fill hp"></div></div>
@@ -2489,7 +2492,7 @@ body.touch-device.move-stick-fixed .move-pad {
           </div>
         </div>
         <label class="settings-row">
-          <span><strong>自动锁定</strong><small>开火时自动瞄准最近的可见敌人</small></span>
+          <span><strong>自动索敌</strong><small>瞄准或开火时自动锁定前方最近的可见敌人</small></span>
           <input id="settingAutoLock" class="settings-toggle" type="checkbox">
         </label>
         <label class="settings-row settings-row-stack" for="settingAimPadSize">
@@ -3060,6 +3063,7 @@ body.touch-device.move-stick-fixed .move-pad {
     hudAmmo: $('#hudAmmo'),
     hudLevel: $('#hudLevel'),
     hudFloor: $('#hudFloor'),
+    hudLockState: $('#hudLockState'),
     hudXpFill: $('#hudXpFill'),
     hudXpText: $('#hudXpText'),
     raidTimer: $('#raidTimer'),
@@ -4547,8 +4551,9 @@ body.touch-device.move-stick-fixed .move-pad {
         if (this.reloadTimer <= 0) this.finishReload();
       }
 
-      const wantsLock = touch.ui && touch.aiming && save.settings.autoLock !== false;
-      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 40, touch.aimAngle) : null;
+      const lockAimAngle = touch.ui && touch.hasAim ? touch.aimAngle : this.angle;
+      const wantsLock = save.settings.autoLock !== false && (touch.ui ? touch.aiming : (mouse.down || mouse.semiQueued));
+      this.lockTarget = wantsLock ? findPlayerLockTarget(this.weapon.range + 60, lockAimAngle) : null;
       if (this.lockTarget) {
         this.angle = Math.atan2(this.lockTarget.y - this.y, this.lockTarget.x - this.x);
       }
@@ -5344,6 +5349,13 @@ body.touch-device.move-stick-fixed .move-pad {
     }
     el.hudLevel.textContent = `LV.${raid ? raid.level : 1}`;
     if (el.hudFloor) el.hudFloor.textContent = `F${raid ? raid.floor : 1}`;
+    if (el.hudLockState) {
+      const autoLock = save.settings.autoLock !== false;
+      const locked = !!(player.lockTarget && !player.lockTarget.dead);
+      el.hudLockState.textContent = autoLock ? (locked ? '锁定' : '索敌 ON') : '索敌 OFF';
+      el.hudLockState.classList.toggle('active', locked);
+      el.hudLockState.classList.toggle('off', !autoLock);
+    }
     if (el.hudXpFill && raid) {
       const need = raidXpToNext(raid.level);
       el.hudXpFill.style.width = `${clamp((raid.xp / need) * 100, 0, 100)}%`;
@@ -6794,6 +6806,8 @@ body.touch-device.move-stick-fixed .move-pad {
   el.settingAutoLock.addEventListener('change', () => {
     save.settings.autoLock = el.settingAutoLock.checked;
     persist();
+    toast(save.settings.autoLock ? '自动索敌已开启。' : '自动索敌已关闭。');
+    if (player && !save.settings.autoLock) player.lockTarget = null;
   });
   el.settingPerformanceMode.addEventListener('change', () => {
     save.settings.performanceMode = el.settingPerformanceMode.checked;
