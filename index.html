@@ -252,6 +252,7 @@
 
         <div id="manageEquipPanel" class="manage-panel">
           <div id="equippedSummary" class="equipped-summary"></div>
+          <div id="perkSummary" class="perk-summary"></div>
           <div class="equip-columns">
             <section class="equip-column">
               <div class="equip-col-title">武器 <span>从仓库选择</span></div>
@@ -412,6 +413,20 @@
         <div id="debriefStats" class="debrief-stats"></div>
         <div id="debriefLoot" class="debrief-loot"></div>
         <button id="debriefCloseBtn" class="primary-btn">返回基地</button>
+      </div>
+    </div>
+
+    <div id="perkOverlay" class="overlay full-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="perkTitle">
+      <div class="overlay-card perk-card">
+        <div class="perk-card-head">
+          <div>
+            <div class="debrief-tag">LEVEL UP // 成长选择</div>
+            <h2 id="perkTitle">选择一项强化</h2>
+          </div>
+          <span id="perkPending" class="perk-pending">剩余 1 次</span>
+        </div>
+        <p class="perk-sub">每次升级获得一次永久强化。选择后立即生效，并自动保存。</p>
+        <div id="perkChoiceGrid" class="perk-choice-grid"></div>
       </div>
     </div>
 

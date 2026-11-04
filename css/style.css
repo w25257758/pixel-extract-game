@@ -565,13 +565,75 @@ kbd {
 .debrief-card h2 { margin: 0; font-size: 30px; letter-spacing: 4px; }
 .debrief-card h2.fail { color: var(--red); }
 .debrief-card p { color: var(--dim); font-size: 11px; line-height: 1.7; }
-.debrief-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 18px 0; background: var(--line-soft); border: 1px solid var(--line-soft); }
+.debrief-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 18px 0; background: var(--line-soft); border: 1px solid var(--line-soft); }
 .debrief-stats div { background: #0a1017; padding: 10px; }
 .debrief-stats span { display: block; color: var(--dim); font-size: 9px; }
 .debrief-stats strong { display: block; margin-top: 4px; color: var(--text); font-size: 17px; }
 .debrief-loot { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 18px; }
 .debrief-loot span { padding: 4px 7px; border: 1px solid var(--line-soft); color: var(--dim); font-size: 9px; }
 .debrief-card .primary-btn { width: 100%; }
+
+.perk-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-soft);
+  background: rgba(214, 255, 77, .035);
+  font-size: 9px;
+}
+.perk-summary span { flex: 0 0 auto; color: var(--dim); letter-spacing: 1px; }
+.perk-summary strong { color: var(--lime-soft); font-size: 10px; font-weight: 600; }
+
+.perk-card { width: min(760px, 94%); text-align: left; }
+.perk-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.perk-card h2 { margin: 1px 0 4px; font-size: 24px; letter-spacing: 3px; }
+.perk-sub { margin: 0; color: var(--dim); font-size: 10px; line-height: 1.6; }
+.perk-pending {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(214, 255, 77, .34);
+  color: var(--lime);
+  background: rgba(214, 255, 77, .06);
+  font-size: 9px;
+  font-weight: 800;
+}
+.perk-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.perk-choice {
+  --perk-color: var(--lime);
+  min-width: 0;
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 12px;
+  text-align: left;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--perk-color);
+  background: linear-gradient(160deg, rgba(21, 30, 43, .98), rgba(8, 12, 18, .98));
+  cursor: pointer;
+  transition: transform .08s ease, border-color .12s ease, background .12s ease;
+}
+.perk-choice:hover { transform: translateY(-2px); border-color: var(--perk-color); background: linear-gradient(160deg, rgba(28, 40, 48, .98), rgba(9, 14, 20, .98)); }
+.perk-choice:active { transform: translateY(0); }
+.perk-choice-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--perk-color);
+  color: var(--perk-color);
+  background: rgba(255, 255, 255, .025);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .5px;
+}
+.perk-choice-name { color: var(--text); font-size: 14px; font-weight: 900; letter-spacing: .5px; }
+.perk-choice-desc { color: var(--dim); font-size: 9px; line-height: 1.5; }
+.perk-choice-rank { margin-top: auto; padding-top: 7px; color: var(--perk-color); font-size: 9px; font-weight: 800; }
 
 .toast {
   position: fixed;
@@ -1985,4 +2047,46 @@ body.touch-device.move-stick-fixed .move-pad {
 @media (orientation: landscape) and (max-height: 340px) {
   .raid-tutorial { top: 23%; width: min(270px, 47vw); }
   .damage-direction { width: min(44vmin, 170px); }
+}
+
+
+/* Level-up perk choices and compact debrief */
+@media (orientation: landscape) and (max-height: 520px) {
+  .debrief-card { padding: 12px 14px; }
+  .debrief-tag { margin-bottom: 4px; }
+  .debrief-card h2 { font-size: 24px; }
+  .debrief-card p { margin: 6px 0; line-height: 1.45; }
+  .debrief-stats { margin: 10px 0; }
+  .debrief-stats div { padding: 6px; }
+  .debrief-stats strong { margin-top: 2px; font-size: 15px; }
+  .debrief-loot { margin-bottom: 10px; }
+  .debrief-card .primary-btn { padding: 9px 12px; }
+  .perk-card { padding: 12px 14px; }
+  .perk-card h2 { font-size: 20px; }
+  .perk-choice-grid { gap: 7px; margin-top: 10px; }
+  .perk-choice { min-height: 106px; padding: 9px; }
+  .perk-choice-icon { width: 25px; height: 25px; font-size: 8px; }
+  .perk-choice-name { font-size: 12px; }
+  .perk-choice-desc { font-size: 8px; }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .debrief-card { padding: 8px 11px; }
+  .debrief-card h2 { font-size: 20px; letter-spacing: 2px; }
+  .debrief-card p { margin: 4px 0; font-size: 9px; }
+  .debrief-stats { margin: 7px 0; }
+  .debrief-stats div { padding: 4px; }
+  .debrief-stats span { font-size: 8px; }
+  .debrief-stats strong { font-size: 13px; }
+  .debrief-loot { margin-bottom: 7px; }
+  .debrief-card .primary-btn { padding: 6px 10px; }
+  .perk-card { padding: 8px 11px; }
+  .perk-card h2 { font-size: 17px; }
+  .perk-sub { font-size: 8px; }
+  .perk-choice-grid { margin-top: 7px; }
+  .perk-choice { min-height: 88px; padding: 7px; gap: 3px; }
+  .perk-choice-icon { width: 21px; height: 21px; font-size: 7px; }
+  .perk-choice-name { font-size: 11px; }
+  .perk-choice-desc { font-size: 7px; }
+  .perk-choice-rank { padding-top: 4px; font-size: 8px; }
 }

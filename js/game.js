@@ -11,6 +11,7 @@
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const dist2 = (x1, y1, x2, y2) => (x1 - x2) ** 2 + (y1 - y2) ** 2;
   const TAU = Math.PI * 2;
+  const AUTO_LOCK_CONE = Math.PI * 0.42;
 
   const TILE = 32;
   const MAP_W = 52;
@@ -116,6 +117,18 @@
     extreme: { label: '极限', hint: '高压 · 最高收益', enemyCount: 1.75, enemyHp: 1.55, enemyDamage: 1.45, rareChance: 0.6, color: '#ff5b6e' }
   };
 
+  const PERK_DEFS = {
+    vitality: { name: '强化体质', icon: 'HP', max: 5, color: '#ff7585', desc: '最大生命 +10' },
+    runner: { name: '轻装疾行', icon: 'SP', max: 5, color: '#7ee8d2', desc: '移动速度 +4%' },
+    quickhands: { name: '快速换弹', icon: 'RL', max: 4, color: '#55d9ff', desc: '换弹时间 -7%' },
+    scavenger: { name: '扩容背包', icon: 'BP', max: 3, color: '#d6ff4d', desc: '背包容量 +1' },
+    bulwark: { name: '复合防护', icon: 'AR', max: 5, color: '#ffbd63', desc: '受到伤害 -3%' },
+    ammo: { name: '弹药储备', icon: 'AM', max: 3, color: '#c49cff', desc: '备弹量 +10%' },
+    medic: { name: '战地急救', icon: 'MD', max: 3, color: '#79f0a3', desc: '每次行动医疗包 +1' },
+    fortune: { name: '拾荒直觉', icon: 'LK', max: 3, color: '#ffd15c', desc: '稀有补给箱概率 +4%' }
+  };
+  const PERK_KEYS = Object.keys(PERK_DEFS);
+
   function riskDef() {
     return RISK_DEFS[save.settings.raidRisk] || RISK_DEFS.normal;
   }
@@ -193,6 +206,8 @@
         armor: null
       },
       upgrades: { medkits: 0, ammo: 0 },
+      perks: {},
+      pendingPerks: 0,
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
     };
@@ -222,6 +237,11 @@
     merged.level = clamp(Number(merged.level) || 1, 1, 99);
     merged.xp = Math.max(0, Number(merged.xp) || 0);
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
+    merged.perks = {};
+    for (const key of PERK_KEYS) {
+      merged.perks[key] = clamp(Math.floor(Number(raw.perks?.[key]) || 0), 0, PERK_DEFS[key].max);
+    }
+    merged.pendingPerks = clamp(Math.floor(Number(merged.pendingPerks) || 0), 0, 99);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
     touchSettings.moveStickSize = clamp(Number(touchSettings.moveStickSize) || 100, 70, 150);
@@ -255,24 +275,32 @@
   }
 
   function xpToNext(level) { return 90 + (level - 1) * 55; }
-  function maxHpForLevel(level) { return 100 + (level - 1) * 8; }
-  function backpackCapacity(level) { return 8 + Math.floor((level - 1) / 2); }
-  function startingMedkits() { return 2 + save.upgrades.medkits; }
+  function perkRank(key) {
+    const def = PERK_DEFS[key];
+    if (!def) return 0;
+    return clamp(Math.floor(Number(save.perks?.[key]) || 0), 0, def.max);
+  }
+  function maxHpForLevel(level) { return 100 + (level - 1) * 8 + perkRank('vitality') * 10; }
+  function backpackCapacity(level) { return 8 + Math.floor((level - 1) / 2) + perkRank('scavenger'); }
+  function startingMedkits() { return 2 + save.upgrades.medkits + perkRank('medic'); }
 
   function addXP(amount, silent = false) {
-    if (!amount) return;
+    if (!amount) return 0;
     save.xp += Math.max(0, Math.floor(amount));
-    let leveled = false;
+    let levelsGained = 0;
     while (save.xp >= xpToNext(save.level)) {
       save.xp -= xpToNext(save.level);
       save.level += 1;
-      leveled = true;
+      levelsGained += 1;
     }
-    if (leveled && !silent) {
-      toast(`等级提升！现在是 LV.${save.level}，最大生命 +8。`);
-      playSound('level');
+    if (levelsGained > 0) {
+      save.pendingPerks = (save.pendingPerks || 0) + levelsGained;
+      if (!silent) {
+        toast(`等级提升！现在是 LV.${save.level}，获得 ${levelsGained} 次成长选择。`);
+        playSound('level');
+      }
     }
-    return leveled;
+    return levelsGained;
   }
 
   function addToStash(item) {
@@ -510,6 +538,10 @@
     debriefStats: $('#debriefStats'),
     debriefLoot: $('#debriefLoot'),
     debriefCloseBtn: $('#debriefCloseBtn'),
+    perkOverlay: $('#perkOverlay'),
+    perkChoiceGrid: $('#perkChoiceGrid'),
+    perkPending: $('#perkPending'),
+    perkSummary: $('#perkSummary'),
     toast: $('#toast'),
     openEquipBtn: $('#openEquipBtn'),
     openStashBtn: $('#openStashBtn'),
@@ -644,6 +676,7 @@
       persist();
       renderAllBase();
       syncSettingsUI();
+      if (save.pendingPerks > 0) showPerkChoices();
       toast('存档已导入。');
     } catch (err) {
       toast('存档码无效，未导入任何内容。');
@@ -737,6 +770,76 @@
     el.toast.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove('show'), 2600);
+  }
+
+  let pendingPerkChoices = [];
+
+  function rollPerkChoices() {
+    const available = PERK_KEYS.filter((key) => perkRank(key) < PERK_DEFS[key].max);
+    for (let i = available.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [available[i], available[j]] = [available[j], available[i]];
+    }
+    return available.slice(0, 3);
+  }
+
+  function renderPerkChoices() {
+    if (!el.perkChoiceGrid) return;
+    el.perkPending.textContent = `剩余 ${save.pendingPerks} 次`;
+    el.perkChoiceGrid.innerHTML = '';
+    for (const key of pendingPerkChoices) {
+      const def = PERK_DEFS[key];
+      const rank = perkRank(key);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'perk-choice';
+      btn.style.setProperty('--perk-color', def.color);
+      btn.innerHTML = `
+        <span class="perk-choice-icon">${def.icon}</span>
+        <span class="perk-choice-name">${def.name}</span>
+        <span class="perk-choice-desc">${def.desc}</span>
+        <span class="perk-choice-rank">${rank} / ${def.max}</span>`;
+      btn.addEventListener('click', () => choosePerk(key));
+      el.perkChoiceGrid.appendChild(btn);
+    }
+  }
+
+  function showPerkChoices() {
+    if (!el.perkOverlay) return;
+    if (!save.pendingPerks || save.pendingPerks <= 0) {
+      el.perkOverlay.classList.add('hidden');
+      return;
+    }
+    pendingPerkChoices = rollPerkChoices();
+    if (pendingPerkChoices.length === 0) {
+      save.pendingPerks = 0;
+      persist();
+      el.perkOverlay.classList.add('hidden');
+      toast('所有成长强化都已满级。');
+      return;
+    }
+    renderPerkChoices();
+    el.perkOverlay.classList.remove('hidden');
+  }
+
+  function choosePerk(key) {
+    const def = PERK_DEFS[key];
+    if (!def || !pendingPerkChoices.includes(key) || save.pendingPerks <= 0) return;
+    const rank = perkRank(key);
+    if (rank >= def.max) return;
+    save.perks[key] = rank + 1;
+    save.pendingPerks = Math.max(0, (save.pendingPerks || 0) - 1);
+    persist();
+    playSound('level');
+    toast(`${def.name}提升至 ${rank + 1} 级：${def.desc}`);
+    renderAllBase();
+    if (!el.equipOverlay.classList.contains('hidden')) renderEquipModal();
+    if (save.pendingPerks > 0) {
+      showPerkChoices();
+    } else {
+      pendingPerkChoices = [];
+      el.perkOverlay.classList.add('hidden');
+    }
   }
 
   function setXpBar() {
@@ -1024,6 +1127,13 @@
       </div>`;
     const unequipBtn = el.equippedSummary.querySelector('[data-unequip="armor"]');
     if (unequipBtn) unequipBtn.addEventListener('click', unequipArmor);
+    if (el.perkSummary) {
+      const unlocked = PERK_KEYS
+        .filter((key) => perkRank(key) > 0)
+        .map((key) => `${PERK_DEFS[key].name} ${perkRank(key)}`);
+      const pending = save.pendingPerks > 0 ? ` · 待选择 ${save.pendingPerks} 次` : '';
+      el.perkSummary.innerHTML = `<span>成长强化</span><strong>${unlocked.length ? unlocked.join(' · ') : '暂无'}${pending}</strong>`;
+    }
     renderEquipChoices('weapon', el.weaponChoices);
     renderEquipChoices('armor', el.armorChoices);
   }
@@ -1454,6 +1564,7 @@
     ensureFloor(extraction.x, extraction.y);
 
     const risk = riskDef();
+    const rareChance = clamp(risk.rareChance + perkRank('fortune') * 0.04, 0, 0.9);
     const containers = [];
     for (let i = 1; i < rooms.length; i++) {
       const room = rooms[i];
@@ -1466,7 +1577,7 @@
           y: spot.y,
           w: 30,
           h: 24,
-          rarity: Math.random() < risk.rareChance ? 'rare' : 'common',
+          rarity: Math.random() < rareChance ? 'rare' : 'common',
           searched: false,
           progress: 0,
           pulse: rand(0, TAU)
@@ -1740,6 +1851,7 @@
       const d = Math.sqrt(dist2(enemy.x, enemy.y, player.x, player.y));
       const enemyAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
       const diff = angleDiff(enemyAngle, aimAngle);
+      if (diff > AUTO_LOCK_CONE) continue;
       let score = d * (1 + diff * 1.85);
       if (diff < Math.PI / 3) score *= 0.72;
       if (enemy.isBoss) score *= 0.82;
@@ -1778,10 +1890,10 @@
       this.weaponKey = weaponType;
       this.weapon = WEAPON_DEFS[weaponType] || WEAPON_DEFS.pistol;
       this.mag = this.weapon.mag;
-      this.reserve = this.weapon.reserve + save.upgrades.ammo * 45;
+      this.reserve = Math.round((this.weapon.reserve + save.upgrades.ammo * 45) * (1 + perkRank('ammo') * 0.1));
       this.armorKey = save.equipped.armor ? defOf(save.equipped.armor).armor : 'none';
       this.armor = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
-      this.speed *= 1 + (this.armor.speedBonus || 0);
+      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
       this.capacity = backpackCapacity(save.level);
@@ -1917,7 +2029,7 @@
     startReload() {
       if (this.reloading || this.mag >= this.weapon.mag || this.reserve <= 0) return;
       this.reloading = true;
-      this.reloadTimer = this.weapon.reload;
+      this.reloadTimer = this.weapon.reload * Math.max(0.55, 1 - perkRank('quickhands') * 0.07);
       playSound('reload');
       updateHUD();
     }
@@ -1949,7 +2061,7 @@
     takeDamage(amount, sourceAngle = null) {
       if (this.hurtCd > 0 || mode !== 'raid' || raid.ended) return;
       this.hurtCd = 0.075;
-      const finalDamage = Math.max(1, amount * (1 - this.armor.reduction));
+      const finalDamage = Math.max(1, amount * (1 - this.armor.reduction) * (1 - perkRank('bulwark') * 0.03));
       this.hp -= finalDamage;
       world.shake = Math.max(world.shake, 6);
       showDamageFlash();
@@ -2972,7 +3084,7 @@
     }
 
     save.stats.kills += raid.kills;
-    const leveled = addXP(xpGain, true);
+    const levelsGained = addXP(xpGain, true);
     persist();
     renderAllBase();
 
@@ -3003,15 +3115,16 @@
       span.textContent = success ? '空手而归' : '没有物资被带回';
       el.debriefLoot.appendChild(span);
     }
-    if (leveled || save.level > levelBefore) {
+    if (levelsGained > 0 || save.level > levelBefore) {
       const span = document.createElement('span');
       span.style.color = '#d6ff4d';
-      span.textContent = `等级提升 → LV.${save.level}`;
+      span.textContent = `等级提升 → LV.${save.level} · 成长选择 +${levelsGained}`;
       el.debriefLoot.appendChild(span);
     }
 
     el.debriefOverlay.classList.remove('hidden');
     updateHUD();
+    if (levelsGained > 0) showPerkChoices();
   }
 
   function formatDuration(seconds) {
@@ -3020,6 +3133,10 @@
   }
 
   function returnToBase() {
+    if (save.pendingPerks > 0) {
+      showPerkChoices();
+      return;
+    }
     el.debriefOverlay.classList.add('hidden');
     el.bossHud.classList.add('hidden');
     if (el.raidTutorial) el.raidTutorial.classList.add('hidden');
@@ -4136,9 +4253,24 @@
       if (down) touch.aimPressAt = performance.now();
       else { touch.aimMag = 0; touch.aimPressAt = 0; touch.firing = false; }
     },
-    tick() { updateHUD(); }
+    tick() { updateHUD(); },
+    grantPerkChoices(count = 1) {
+      save.pendingPerks = Math.max(0, (save.pendingPerks || 0) + Math.floor(count || 1));
+      persist();
+      showPerkChoices();
+      return save.pendingPerks;
+    },
+    grantXP(amount) {
+      const levels = addXP(amount, true);
+      persist();
+      renderAllBase();
+      if (levels > 0) showPerkChoices();
+      return levels;
+    },
+    perkChoices() { return pendingPerkChoices.slice(); }
   };
   renderAllBase();
+  if (save.pendingPerks > 0) setTimeout(showPerkChoices, 250);
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
