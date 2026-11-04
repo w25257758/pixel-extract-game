@@ -1444,3 +1444,243 @@ body.touch-device.move-stick-fixed .move-pad {
   .manage-tabs button { min-height: 40px; font-size: 11px; }
   .manage-window-card .equip-choice-list { max-height: 220px; }
 }
+
+
+/* One-screen mobile landscape layout */
+@media (orientation: landscape) and (max-height: 520px) {
+  html, body { overflow: hidden; }
+  .base-screen {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .topbar {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0 auto 6px;
+    padding-bottom: 5px;
+    gap: 10px;
+    flex-direction: row;
+    align-items: center;
+  }
+  .brand { gap: 8px; }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+    box-shadow: 3px 3px 0 #31410f;
+  }
+  .brand-title { font-size: 16px; letter-spacing: 2px; }
+  .brand-sub { margin-top: 2px; font-size: 7px; letter-spacing: 1px; }
+  .top-stats { flex-wrap: nowrap; gap: 4px; }
+  .stat-chip { min-width: 52px; padding: 3px 5px; }
+  .stat-chip span { font-size: 7px; letter-spacing: .5px; }
+  .stat-chip strong { margin-top: 1px; font-size: 12px; }
+  .top-stats .ghost-btn { padding: 4px 6px; font-size: 8px; }
+
+  .base-layout {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(160px, 220px);
+    gap: 6px;
+    align-items: stretch;
+  }
+  .loadout-panel, .manage-center-panel, .right-column, .progression-panel {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+  .right-column {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .progression-panel { flex: 1; }
+  .panel-head { padding: 6px 8px; font-size: 10px; }
+  .panel-tag { font-size: 7px; letter-spacing: .8px; }
+
+  .loadout-panel .equip-card {
+    min-height: 0;
+    margin: 0 7px 4px;
+    padding: 5px 7px;
+  }
+  .equip-name { font-size: 11px; }
+  .equip-type { margin-top: 1px; font-size: 7px; }
+  .equip-icon { font-size: 16px; }
+  .equip-stats { margin-top: 3px; gap: 3px; font-size: 7px; }
+  .equip-stats span { padding: 0 3px; }
+  .supply-row { margin: 0 7px 4px; gap: 4px; }
+  .supply-box { padding: 3px 6px; }
+  .supply-box span { font-size: 7px; }
+  .supply-box strong { font-size: 12px; }
+  .risk-picker-wrap { margin: 3px 7px 4px; }
+  .risk-picker-label { margin-bottom: 2px; font-size: 7px; }
+  .risk-picker { gap: 3px; }
+  .risk-picker button { min-height: 28px; padding: 2px; font-size: 8px; line-height: 1.1; }
+  .risk-picker button small { margin-top: 0; font-size: 6px; }
+  .raid-btn {
+    width: calc(100% - 14px);
+    margin: 0 7px 4px;
+    padding: 7px 8px;
+    font-size: 11px;
+    box-shadow: 3px 3px 0 #35420f;
+  }
+  .raid-btn span { font-size: 9px; }
+  .utility-row { margin: 0 7px; gap: 4px; }
+  .utility-row .secondary-btn { min-height: 27px; padding: 4px 5px; font-size: 8px; }
+  .control-hint { display: none; }
+
+  .manage-center-body { padding: 10px; overflow: hidden; }
+  .manage-center-mark { width: 34px; height: 34px; font-size: 11px; box-shadow: 3px 3px 0 rgba(0,0,0,.28); }
+  .manage-center-kicker { margin-top: 7px; font-size: 6px; letter-spacing: 1px; }
+  .manage-center-body h3 { margin: 3px 0 4px; font-size: 16px; letter-spacing: 1px; }
+  .manage-center-body p { font-size: 8px; line-height: 1.5; }
+  .manage-center-stats { margin: 7px 0; }
+  .manage-center-stats div { padding: 4px; }
+  .manage-center-stats span { font-size: 6px; }
+  .manage-center-stats strong { margin-top: 2px; font-size: 8px; }
+  .manage-open-btn { padding: 7px 8px; font-size: 10px; box-shadow: 3px 3px 0 #35420f; }
+  .manage-open-btn span { font-size: 8px; }
+
+  .level-row { gap: 6px; padding: 7px 8px 4px; }
+  .level-badge { width: 38px; height: 38px; }
+  .level-badge span { font-size: 6px; }
+  .level-badge strong { font-size: 17px; }
+  .xp-label { margin-bottom: 2px; font-size: 7px; }
+  .xp-bar { height: 6px; }
+  .next-perk { margin: 3px 8px 6px; padding: 4px 6px; font-size: 7px; line-height: 1.35; }
+  .stat-grid { margin: 0 8px; }
+  .stat-grid > div { padding: 4px; }
+  .stat-grid span { font-size: 6px; }
+  .stat-grid strong { margin-top: 2px; font-size: 10px; }
+
+  .manage-window-card {
+    width: calc(100% - 12px);
+    height: calc(100dvh - 10px);
+    max-height: none;
+    padding: 10px 12px;
+  }
+  .manage-window-card .overlay-head { padding-bottom: 6px; }
+  .manage-window-card .overlay-head small { margin-left: 5px; font-size: 7px; }
+  .manage-tabs { margin-top: 6px; gap: 4px; }
+  .manage-tabs button { min-height: 30px; font-size: 9px; }
+  .manage-panel { padding-top: 6px; }
+  .manage-subhead { padding: 2px 1px 5px; font-size: 10px; }
+  .manage-window-card .overlay-note {
+    margin-top: 4px;
+    padding-top: 4px;
+    font-size: 7px;
+    line-height: 1.3;
+  }
+  .equipped-summary { margin: 6px 0; gap: 5px; }
+  .equipped-slot { padding: 6px 8px; }
+  .equipped-slot-label { font-size: 7px; }
+  .equipped-slot-name { margin-top: 2px; font-size: 11px; }
+  .equipped-slot-stats { margin-top: 3px; font-size: 7px; line-height: 1.4; }
+  .equip-columns { gap: 6px; }
+  .equip-col-title { padding: 6px 8px; font-size: 9px; }
+  .equip-choice-list { max-height: none; padding: 5px; }
+  .equip-choice { padding: 6px; }
+
+  #shopList { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; }
+  .shop-item { gap: 4px; padding: 3px 2px; }
+  .shop-icon { width: 24px; height: 24px; flex-basis: 24px; font-size: 13px; }
+  .shop-name { font-size: 8px; }
+  .shop-desc { margin-top: 0; font-size: 7px; line-height: 1.25; }
+  .shop-buy { padding: 3px 5px; font-size: 8px; }
+
+  .manage-panel .stash-grid {
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 5px;
+    padding-top: 6px;
+  }
+  .manage-panel .stash-slot { min-height: 60px; }
+  .manage-window-card .item-actions { margin-top: 6px; padding: 7px; }
+  .selected-icon { width: 32px; height: 32px; font-size: 18px; }
+  .selected-name { font-size: 10px; }
+  .selected-desc { font-size: 8px; }
+  .selected-value { font-size: 9px; }
+  .action-row { margin-top: 6px; }
+  .action-row button { padding: 5px 7px; font-size: 9px; }
+}
+
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 760px) {
+  .base-layout {
+    grid-template-columns: 210px minmax(0, 1fr) 150px;
+    gap: 4px;
+  }
+  .brand-title { font-size: 14px; }
+  .brand-sub { font-size: 6px; letter-spacing: .5px; }
+  .stat-chip { min-width: 44px; padding: 2px 4px; }
+  .stat-chip strong { font-size: 11px; }
+  .top-stats .ghost-btn { padding: 3px 4px; font-size: 7px; }
+  .loadout-panel .equip-card { margin: 0 5px 3px; padding: 4px 6px; }
+  .equip-name { font-size: 10px; }
+  .equip-stats { gap: 2px; font-size: 6px; }
+  .equip-stats span { padding: 0 2px; }
+  .supply-row { margin: 0 5px 3px; }
+  .risk-picker-wrap { margin: 2px 5px 3px; }
+  .risk-picker button { font-size: 7px; }
+  .risk-picker button small { font-size: 5px; }
+  .raid-btn { width: calc(100% - 10px); margin: 0 5px 3px; padding: 6px; }
+  .utility-row { margin: 0 5px; gap: 3px; }
+  .utility-row .secondary-btn { min-height: 25px; padding: 3px; font-size: 7px; }
+  .panel-head { padding: 5px 6px; font-size: 9px; }
+  .panel-tag { font-size: 6px; letter-spacing: .4px; }
+
+  .manage-center-body { padding: 8px; }
+  .manage-center-mark { width: 26px; height: 26px; font-size: 8px; }
+  .manage-center-kicker { margin-top: 5px; font-size: 5px; letter-spacing: .4px; }
+  .manage-center-body h3 { margin: 2px 0 3px; font-size: 13px; letter-spacing: 0; white-space: nowrap; }
+  .manage-center-body p { font-size: 7px; line-height: 1.4; }
+  .manage-center-stats { grid-template-columns: 1fr 1fr; margin: 5px 0; }
+  .manage-center-stats div { padding: 3px; }
+  .manage-center-stats div:nth-child(3) { display: none; }
+  .manage-center-stats span { font-size: 5px; }
+  .manage-center-stats strong { font-size: 7px; }
+  .manage-open-btn { padding: 6px; font-size: 9px; }
+
+  .level-row { gap: 4px; padding: 5px 6px 3px; }
+  .level-badge { width: 32px; height: 32px; }
+  .level-badge strong { font-size: 15px; }
+  .xp-label { font-size: 6px; }
+  .next-perk { margin: 2px 6px 4px; padding: 3px 5px; font-size: 6px; }
+  .stat-grid { margin: 0 6px; }
+  .stat-grid > div { padding: 3px; }
+  .stat-grid span { font-size: 5px; }
+  .stat-grid strong { margin-top: 1px; font-size: 9px; }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .base-screen { padding: 4px 6px; }
+  .topbar { margin-bottom: 4px; padding-bottom: 3px; }
+  .brand-mark { width: 28px; height: 28px; font-size: 9px; }
+  .brand-title { font-size: 13px; }
+  .brand-sub { display: none; }
+  .base-layout { grid-template-columns: 190px minmax(0, 1fr) 145px; gap: 4px; }
+  .loadout-panel .equip-card { padding: 3px 5px; }
+  .equip-stats { display: none; }
+  .supply-row { margin-bottom: 2px; }
+  .risk-picker-wrap { margin-bottom: 2px; }
+  .risk-picker button { min-height: 24px; }
+  .risk-picker button small { display: none; }
+  .raid-btn { padding: 5px; }
+  .utility-row .secondary-btn { min-height: 23px; }
+  .manage-center-mark, .manage-center-kicker, .manage-center-body p { display: none; }
+  .manage-center-body h3 { margin-top: 0; }
+  .manage-window-card { padding: 7px 9px; }
+  .manage-window-card .overlay-note { display: none; }
+  .manage-tabs button { min-height: 26px; }
+  .shop-item { padding: 2px 1px; }
+  .shop-icon { width: 20px; height: 20px; flex-basis: 20px; font-size: 11px; }
+  .shop-desc { display: none; }
+  .shop-buy { padding: 2px 4px; }
+}
