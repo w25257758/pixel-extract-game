@@ -11,20 +11,21 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v25
-- Save key: localStorage pixel_extract_save_v1, schema version 4
-- Latest maintenance: six-tier enhancement stones, enemy drops and equipment enhancement (see git log)
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v26
+- Save key: localStorage pixel_extract_save_v1, schema version 5
+- Latest maintenance: item-value transcendence with permanent account-wide stat growth (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
 - Top-left shows only the PX mark, base title and subtitle. There is no base level or XP bar.
-- Manage center directly shows four entry cards in a 2x2 grid: equipment, stash, black market, enhancement.
+- Manage center directly shows five entry cards in a 3x2 grid: equipment, stash, black market, enhancement, transcendence.
 - Each card opens its own independent window. No tabs, no extra manage-window entry.
-- All four windows fit without vertical scrolling at tested sizes; the enhancement stone list scrolls internally only if needed.
+- All five windows fit without vertical scrolling at tested sizes; item/stone lists scroll internally when needed.
 - The old progression panel was removed and must not be re-added.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys and backpack. The Tab inventory shows the equipped backpack name and live capacity.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
+- The transcendence window shows level, current value progress / next threshold, permanent bonuses, item conversion list and bulk common-loot conversion.
 - Bosses appear only on floors divisible by 5. Every other floor has no boss marker or boss HUD.
 - Every floor has one golden key guardian, one locked key-room chest and a high-value vault loot table.
 - War fog hides unseen tiles and entities. The minimap/full map only show explored tiles, with a cyan trail of the walked path.
@@ -50,6 +51,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the backpack equipment slot and exact bonuses: white +8, green +16, blue +24, purple +32, red +40, rainbow +50. Total capacity is base 8 + pack bonus + enhancement level + run-only scavenger perk.
 - Keep the enhancement system: enemy stone drops, six stone tiers, success rates 30/45/60/75/90/100%, +10 cap, failed attempts consume one stone without downgrading.
 - Keep enhancement effects: weapon damage +5% per level, armor damage reduction +1.5% per level, backpack capacity +1 per level; enhancement persists on the item.
+- Keep transcendence: convert stash items by sell value; first threshold 1000, each later threshold x1.25 rounded up; progress overflow carries over.
+- Keep transcendence permanent bonuses per level: max HP +10, weapon damage +2%, damage reduction +1%, move speed +1%. They persist across runs and floors.
 - Keep rarity-weighted loot: common/rare/vault containers use different rarity distributions and vault guarantees one rare+ item.
 - Keep the base one-screen on mobile landscape; do not add scrolling panels.
 - Mobile auto-lock must choose the nearest visible enemy in weapon range even when the player is moving backwards. Desktop auto-lock keeps the 75-degree front cone.
@@ -80,19 +83,22 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Verified save migration v2 -> v3, all six capacities (16/24/32/40/48/58 total), pack drop tiers, real container drop path and 568x320 layout with no JS errors.
 - Added the enhancement system: six stone tiers, real enemy drop/pickup, base enhancement window, +10 cap and per-gear combat effects.
 - Verified v3 -> v4 migration (including explicit pack:null), v4 plus levels, +10 cap, failure consumption, stone pickup/inventory detail, weapon damage multiplier, armor reduction and backpack capacity from enhancement.
-- Verified enemy stone drop path at F1, base 2x2 manage grid and enhancement window no-scroll at 932x430, 667x375 and 568x320 with no JS errors.
+- Verified enemy stone drop path at F1, base 3x2 manage grid and enhancement window no-scroll at 932x430, 667x375 and 568x320 with no JS errors.
+- Added transcendence: stash item-value conversion, 1000 first threshold, 1.25x scaling, permanent combat stats, bulk common-loot conversion and base/inventory displays.
+- Verified thresholds 1000/1250/1563/1954/2442/3052, v4 -> v5 migration, bulk conversion, +20 HP / +4% damage / +2% reduction at level 2, and 3x2 manage grid + transcendence panel no-scroll at all three test sizes.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
   - no script errors
   - movement, two-finger aim/fire, tutorial and combat feedback
   - enemy stone drop, enhancement success/failure, stone consumption and +10 cap
+  - transcendence conversion, 1000/1250 thresholds, permanent stat application and save persistence
 
 ## Release
 1. Edit and test locally.

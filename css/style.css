@@ -1552,6 +1552,100 @@ body.touch-device.move-stick-fixed .move-pad {
 }
 .manage-panel .empty-state { margin: 12px 0; }
 
+#manageTranscendPanel { display: flex; flex-direction: column; overflow: hidden; }
+.transcend-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 8px;
+  padding-top: 8px;
+}
+.transcend-summary {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  background: rgba(5,10,15,.42);
+}
+.transcend-rank { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 8px; }
+.transcend-rank strong { color: var(--lime); font-size: 21px; line-height: 1; }
+.transcend-progress-head { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font-size: 8px; }
+.transcend-progress-head b { color: var(--text); font-size: 9px; }
+.transcend-bar { height: 7px; flex: 0 0 auto; border: 1px solid var(--line-soft); background: #05090d; overflow: hidden; }
+.transcend-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #58a6ff, #6fe29a, #d6ff4d); transition: width .2s ease; }
+.transcend-bonus {
+  min-height: 28px;
+  padding: 5px 6px;
+  border: 1px solid rgba(88,166,255,.2);
+  background: rgba(88,166,255,.05);
+  color: #9fb6d1;
+  font-size: 7px;
+  line-height: 1.45;
+}
+.transcend-summary .primary-btn,
+.transcend-summary .secondary-btn {
+  width: 100%;
+  padding: 5px 7px;
+  font-size: 8px;
+  letter-spacing: .4px;
+}
+.transcend-summary .primary-btn { box-shadow: 2px 2px 0 #35420f; }
+.transcend-summary .primary-btn:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.6); }
+.transcend-hint { margin-top: auto; color: var(--dim); font-size: 7px; line-height: 1.4; }
+.transcend-value-col {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-soft);
+  background: rgba(5,10,15,.42);
+}
+.transcend-item-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 5px;
+}
+.transcend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 5px;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid #3b4a5c;
+  background: #090f16;
+}
+.transcend-item.rarity-common { border-left-color: #e8edf2; }
+.transcend-item.rarity-uncommon { border-left-color: #4c8f6a; }
+.transcend-item.rarity-rare { border-left-color: #58a6ff; }
+.transcend-item.rarity-epic { border-left-color: var(--purple); }
+.transcend-item.rarity-legendary { border-left-color: #ff536b; }
+.transcend-item.rarity-mythic { border-left-color: #ffd15c; background-image: linear-gradient(135deg, rgba(255,83,107,.06), rgba(255,209,92,.045), rgba(88,166,255,.06), rgba(192,132,255,.06)); }
+.transcend-item-icon { width: 21px; height: 21px; flex: 0 0 21px; display: grid; place-items: center; border: 1px solid var(--line-soft); font-size: 11px; }
+.transcend-item-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.transcend-item-mid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+.transcend-item-mid span { color: var(--dim); font-size: 7px; }
+.transcend-use-btn {
+  padding: 3px 5px;
+  border: 1px solid rgba(88,166,255,.4);
+  background: rgba(88,166,255,.08);
+  color: var(--cyan);
+  font: inherit;
+  font-size: 7px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.transcend-use-btn:hover { background: rgba(88,166,255,.18); }
+.transcend-empty { padding: 18px 8px; text-align: center; color: var(--dim); font-size: 9px; line-height: 1.65; }
+
 #manageEnhancePanel { display: flex; flex-direction: column; overflow: hidden; }
 .enhance-layout {
   flex: 1;
@@ -1962,10 +2056,10 @@ body.touch-device.move-stick-fixed .move-pad {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 9px;
 }
 .manage-entry-card {
   min-width: 0;
@@ -2033,6 +2127,18 @@ body.touch-device.move-stick-fixed .move-pad {
   .manage-entry-desc { font-size: 7px; line-height: 1.25; }
   .manage-entry-meta { padding-top: 4px; font-size: 7px; }
   .manage-entry-meta strong { font-size: 10px; }
+  .transcend-layout { gap: 5px; padding-top: 5px; }
+  .transcend-summary { gap: 3px; padding: 5px; }
+  .transcend-rank strong { font-size: 16px; }
+  .transcend-bonus { min-height: 22px; padding: 3px 4px; font-size: 6px; line-height: 1.3; }
+  .transcend-summary .primary-btn, .transcend-summary .secondary-btn { padding: 3px 5px; font-size: 7px; }
+  .transcend-hint { font-size: 6px; line-height: 1.25; }
+  .transcend-item-list { gap: 3px; padding: 4px; }
+  .transcend-item { gap: 4px; padding: 2px 4px; }
+  .transcend-item-icon { width: 18px; height: 18px; flex-basis: 18px; font-size: 10px; }
+  .transcend-item-mid strong { font-size: 7px; }
+  .transcend-item-mid span { font-size: 6px; }
+  .transcend-use-btn { padding: 2px 4px; font-size: 6px; }
   .enhance-layout { gap: 5px; padding-top: 5px; }
   .enhance-col-title { padding: 4px 5px; font-size: 7px; }
   .enhance-col-title span { font-size: 6px; }

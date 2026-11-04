@@ -91,6 +91,14 @@
   };
 
   const MAX_ENHANCE = 10;
+  const TRANSCEND_BASE_COST = 1000;
+  const TRANSCEND_COST_MULT = 1.25;
+  const TRANSCEND_RULES = {
+    hp: 10,
+    damage: 0.02,
+    reduction: 0.01,
+    speed: 0.01
+  };
   const ENHANCE_RULES = {
     weapon: { perLevel: 0.05, label: '伤害' },
     armor: { perLevel: 0.015, label: '减伤' },
@@ -290,7 +298,7 @@
 
   function defaultSave() {
     return {
-      version: 4,
+      version: 5,
       scrap: 80,
       stash: [],
       equipped: {
@@ -298,6 +306,7 @@
         armor: null,
         pack: createItem('p_white')
       },
+      transcend: { level: 0, progress: 0 },
       upgrades: { medkits: 0, ammo: 0 },
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
@@ -313,6 +322,10 @@
       upgrades: { ...base.upgrades, ...(raw.upgrades || {}) },
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
+      transcend: {
+        level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
+        progress: Math.max(0, Math.floor(Number(raw.transcend?.progress) || 0))
+      },
       stash: Array.isArray(raw.stash) ? raw.stash.map(normalizeItemInstance).filter(Boolean) : []
     };
     if (!raw.equipped || !ITEM_DEFS[raw.equipped.weapon?.type]) {
@@ -337,7 +350,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 4;
+    merged.version = 5;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
@@ -377,6 +390,32 @@
     if (!def) return 0;
     return clamp(Math.floor(Number(raid?.perks?.[key]) || 0), 0, def.max);
   }
+  function getTranscendLevel() {
+    return Math.max(0, Math.floor(Number(save?.transcend?.level) || 0));
+  }
+
+  function getTranscendProgress() {
+    return Math.max(0, Math.floor(Number(save?.transcend?.progress) || 0));
+  }
+
+  function transcendCostForLevel(level = getTranscendLevel()) {
+    return Math.ceil(TRANSCEND_BASE_COST * Math.pow(TRANSCEND_COST_MULT, Math.max(0, level)));
+  }
+
+  function transcendStats(level = getTranscendLevel()) {
+    return {
+      hp: level * TRANSCEND_RULES.hp,
+      damage: level * TRANSCEND_RULES.damage,
+      reduction: level * TRANSCEND_RULES.reduction,
+      speed: level * TRANSCEND_RULES.speed
+    };
+  }
+
+  function transcendBonusText(level = getTranscendLevel()) {
+    const bonus = transcendStats(level);
+    return `最大生命 +${bonus.hp} · 伤害 +${Math.round(bonus.damage * 100)}% · 减伤 +${Math.round(bonus.reduction * 100)}% · 移速 +${Math.round(bonus.speed * 100)}%`;
+  }
+
   function packCapacityBonus(item) {
     if (!item) return 0;
     const quality = PACK_QUALITIES[defOf(item).pack];
@@ -666,6 +705,7 @@
     openStashBtn: $('#openStashBtn'),
     openShopBtn: $('#openShopBtn'),
     openEnhanceBtn: $('#openEnhanceBtn'),
+    openTranscendBtn: $('#openTranscendBtn'),
     equipOverlay: $('#equipOverlay'),
     closeEquipBtn: $('#closeEquipBtn'),
     equipWindowTitle: $('#equipWindowTitle'),
@@ -677,6 +717,16 @@
     manageEquipPanel: $('#manageEquipPanel'),
     manageStashPanel: $('#manageStashPanel'),
     manageShopPanel: $('#manageShopPanel'),
+    manageTranscendPanel: $('#manageTranscendPanel'),
+    transcendLevelTag: $('#transcendLevelTag'),
+    transcendLevel: $('#transcendLevel'),
+    transcendProgressText: $('#transcendProgressText'),
+    transcendBarFill: $('#transcendBarFill'),
+    transcendBonus: $('#transcendBonus'),
+    transcendBtn: $('#transcendBtn'),
+    transcendBulkBtn: $('#transcendBulkBtn'),
+    transcendStashValue: $('#transcendStashValue'),
+    transcendItemList: $('#transcendItemList'),
     manageEnhancePanel: $('#manageEnhancePanel'),
     enhanceTargets: $('#enhanceTargets'),
     enhanceTargetSummary: $('#enhanceTargetSummary'),
@@ -687,6 +737,7 @@
     baseStashCount: $('#baseStashCount'),
     baseScrap: $('#baseScrap'),
     baseEnhanceSummary: $('#baseEnhanceSummary'),
+    baseTranscendSummary: $('#baseTranscendSummary'),
     baseEquipSummary: $('#baseEquipSummary'),
     touchControls: $('#touchControls'),
     moveZone: $('#moveZone'),
@@ -971,7 +1022,7 @@
       player.maxHp += 10;
       player.hp = Math.min(player.maxHp, player.hp + 10);
     } else if (key === 'runner') {
-      player.speed = 155 * (1 + (player.armor.speedBonus || 0) + perkRank('runner') * 0.04);
+      player.speed = 155 * (1 + (player.armor.speedBonus || 0) + perkRank('runner') * 0.04 + transcendStats().speed);
     } else if (key === 'scavenger') {
       player.capacity += 1;
     } else if (key === 'ammo') {
@@ -1012,14 +1063,15 @@
     if (weaponDef) {
       const rpm = Math.round(60 / weaponDef.cooldown);
       const plus = enhanceLevel(weaponItem);
-      const damage = Math.round(weaponDef.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel));
+      const tr = transcendStats();
+      const damage = Math.round(weaponDef.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel + tr.damage));
       el.loadoutWeapon.className = 'equip-card';
       el.loadoutWeapon.innerHTML = `
         <div class="equip-top">
           <div><div class="equip-name">${itemName(weaponItem)}</div><div class="equip-type">主武器 · ${weaponDef.code}${plus ? ` · 强化 +${plus}` : ''}</div></div>
           <div class="equip-icon" style="color:${weaponDef.color}">${weaponItem ? defOf(weaponItem).icon : '▰'}</div>
         </div>
-        <div class="equip-stats"><span>伤害 ${damage}${plus ? ` (${weaponDef.damage}+${plus * 5}%)` : ''}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}</div>`;
+        <div class="equip-stats"><span>伤害 ${damage}${plus ? ` (${weaponDef.damage}+${plus * 5}%)` : ''}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}${tr.damage > 0 ? `<span>蜕变 +${Math.round(tr.damage * 100)}%</span>` : ''}</div>`;
     } else {
       el.loadoutWeapon.className = 'equip-card empty';
       el.loadoutWeapon.innerHTML = '<div class="equip-name">未装备武器</div><div class="equip-desc">去仓库装备一把武器。</div>';
@@ -1028,14 +1080,18 @@
     const armorItem = save.equipped.armor;
     const armorDef = ARMOR_DEFS[armorItem ? defOf(armorItem).armor : 'none'];
     const armorPlus = enhanceLevel(armorItem);
-    const armorReduction = Math.min(0.75, armorDef.reduction + armorPlus * ENHANCE_RULES.armor.perLevel);
+    const armorTr = transcendStats();
+    const armorReduction = Math.min(0.75, armorDef.reduction + armorPlus * ENHANCE_RULES.armor.perLevel + armorTr.reduction);
+    const armorDesc = !armorItem && armorTr.reduction > 0
+      ? `基础护甲；蜕变提供 ${Math.round(armorTr.reduction * 100)}% 减伤。`
+      : armorDef.desc;
     el.loadoutArmor.className = 'equip-card';
     el.loadoutArmor.innerHTML = `
       <div class="equip-top">
         <div><div class="equip-name">${armorItem ? itemName(armorItem) : armorDef.name}</div><div class="equip-type">护甲 · ${armorItem ? RARITY_LABEL[defOf(armorItem).rarity] : '基础'}${armorPlus ? ` · 强化 +${armorPlus}` : ''}</div></div>
         <div class="equip-icon" style="color:${armorDef.color}">${armorItem ? defOf(armorItem).icon : '▤'}</div>
       </div>
-      <div class="equip-stats"><span>伤害减免 ${Math.round(armorReduction * 100)}%</span><span>${armorDef.desc}</span></div>`;
+      <div class="equip-stats"><span>伤害减免 ${Math.round(armorReduction * 100)}%</span><span>${armorDesc}</span>${armorTr.reduction > 0 ? `<span>蜕变 +${Math.round(armorTr.reduction * 100)}%</span>` : ''}</div>`;
 
     const packItem = save.equipped.pack;
     const packDef = packItem ? PACK_QUALITIES[defOf(packItem).pack] : null;
@@ -1050,7 +1106,8 @@
     el.loadoutSlots.textContent = backpackCapacity();
     if (el.baseEquipSummary) {
       const packText = packDef ? ` · 背包 +${packDef.bonus + packPlus}` : '';
-      el.baseEquipSummary.textContent = weaponDef ? `武器 · ${itemName(weaponItem)}${packText}` : `未装备武器${packText}`;
+      const trText = getTranscendLevel() > 0 ? ` · 蜕变Lv.${getTranscendLevel()}` : '';
+      el.baseEquipSummary.textContent = weaponDef ? `武器 · ${itemName(weaponItem)}${packText}${trText}` : `未装备武器${packText}${trText}`;
     }
   }
 
@@ -1323,7 +1380,7 @@
           ${armor ? '<button class="mini-ghost" type="button" data-unequip="armor">卸下</button>' : ''}
         </div>
         <div class="equipped-slot-name">${armorDef ? itemName(armor) : '无护甲'}</div>
-        <div class="equipped-slot-stats">${armor ? gearStatsText(armor) : '没有护甲，受到完整伤害。'}</div>
+        <div class="equipped-slot-stats">${armor ? gearStatsText(armor) : (getTranscendLevel() > 0 ? `没有护甲；蜕变提供 ${Math.round(transcendStats().reduction * 100)}% 减伤。` : '没有护甲，受到完整伤害。')}</div>
       </div>
       <div class="equipped-slot">
         <div class="equipped-slot-top">
@@ -1471,11 +1528,114 @@
     renderEnhance();
   }
 
+  function renderTranscend() {
+    if (!el.transcendItemList) return;
+    const level = getTranscendLevel();
+    const progress = getTranscendProgress();
+    const cost = transcendCostForLevel(level);
+    if (el.transcendLevelTag) el.transcendLevelTag.textContent = `蜕变 Lv.${level}`;
+    if (el.transcendLevel) el.transcendLevel.textContent = `Lv.${level}`;
+    if (el.transcendProgressText) el.transcendProgressText.textContent = `${progress} / ${cost}`;
+    if (el.transcendBarFill) el.transcendBarFill.style.width = `${clamp(progress / cost * 100, 0, 100)}%`;
+    if (el.transcendBonus) el.transcendBonus.textContent = `永久加成：${transcendBonusText(level)}`;
+    if (el.transcendBtn) {
+      el.transcendBtn.disabled = progress < cost;
+      el.transcendBtn.textContent = progress >= cost ? '蜕变' : `还差 ${cost - progress} 价值`;
+    }
+
+    const stashValue = save.stash.reduce((sum, item) => sum + itemSellValue(item), 0);
+    if (el.transcendStashValue) el.transcendStashValue.textContent = `总价值 ${stashValue}`;
+    const bulkItems = save.stash.filter((item) => {
+      const def = defOf(item);
+      return def.kind === 'loot' && ['common', 'uncommon'].includes(def.rarity) && itemSellValue(item) > 0;
+    });
+    if (el.transcendBulkBtn) el.transcendBulkBtn.disabled = bulkItems.length === 0;
+
+    const items = sortItemList(save.stash).slice().sort((a, b) => itemSellValue(b) - itemSellValue(a));
+    el.transcendItemList.innerHTML = '';
+    if (items.length === 0) {
+      el.transcendItemList.innerHTML = '<div class="transcend-empty">仓库里没有可转化的物品。带战利品撤离后再来。</div>';
+      return;
+    }
+    for (const item of items) {
+      const def = defOf(item);
+      const value = itemSellValue(item);
+      const row = document.createElement('div');
+      row.className = `transcend-item rarity-${def.rarity}`;
+      row.innerHTML = `
+        <span class="transcend-item-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
+        <span class="transcend-item-mid">
+          <strong>${itemName(item)}${item.qty > 1 ? ` ×${item.qty}` : ''}</strong>
+          <span>${RARITY_LABEL[def.rarity]} · 价值 +${value}</span>
+        </span>
+        <button class="transcend-use-btn" type="button">转化 +${value}</button>`;
+      row.querySelector('button').addEventListener('click', () => convertStashItemToTranscend(item.id));
+      el.transcendItemList.appendChild(row);
+    }
+  }
+
+  function convertStashItemToTranscend(itemId) {
+    const idx = save.stash.findIndex((item) => item.id === itemId);
+    if (idx < 0) return;
+    const item = save.stash[idx];
+    const value = itemSellValue(item);
+    if (value <= 0) return;
+    save.stash.splice(idx, 1);
+    save.transcend.progress = getTranscendProgress() + value;
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    renderTranscend();
+    playSound('pickup');
+    toast(`已将 ${itemName(item)} 转化为 ${value} 蜕变价值。`);
+  }
+
+  function bulkConvertTranscendCommon() {
+    const items = save.stash.filter((item) => {
+      const def = defOf(item);
+      return def.kind === 'loot' && ['common', 'uncommon'].includes(def.rarity) && itemSellValue(item) > 0;
+    });
+    if (items.length === 0) {
+      toast('仓库里没有可转化的普通物资。');
+      return;
+    }
+    const total = items.reduce((sum, item) => sum + itemSellValue(item), 0);
+    const count = items.reduce((sum, item) => sum + (item.qty || 1), 0);
+    if (!confirm(`确定转化 ${count} 件普通物资，获得 ${total} 蜕变价值吗？`)) return;
+    const ids = new Set(items.map((item) => item.id));
+    save.stash = save.stash.filter((item) => !ids.has(item.id));
+    save.transcend.progress = getTranscendProgress() + total;
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    renderTranscend();
+    playSound('pickup');
+    toast(`已转化 ${count} 件普通物资，获得 ${total} 蜕变价值。`);
+  }
+
+  function performTranscend() {
+    const level = getTranscendLevel();
+    const cost = transcendCostForLevel(level);
+    const progress = getTranscendProgress();
+    if (progress < cost) {
+      toast(`蜕变进度不足，还需要 ${cost - progress} 价值。`);
+      return;
+    }
+    save.transcend.level = level + 1;
+    save.transcend.progress = progress - cost;
+    persist();
+    renderAllBase();
+    renderTranscend();
+    playSound('level');
+    toast(`蜕变成功！当前 Lv.${save.transcend.level}：${transcendBonusText(save.transcend.level)}`);
+  }
+
   const MANAGE_VIEWS = {
     equip: { title: '装备', note: '装备会立即更新作战准备；进入行动后不能更换。' },
     stash: { title: '仓库', note: '仓库物资会即时保存；出售物品可以获得废料。' },
     shop: { title: '黑市', note: '使用废料购买武器、护甲和永久补给。' },
-    enhance: { title: '强化台', note: '强化石由敌人掉落；强化失败会消耗 1 颗强化石，装备等级不会下降。' }
+    enhance: { title: '强化台', note: '强化石由敌人掉落；强化失败会消耗 1 颗强化石，装备等级不会下降。' },
+    transcend: { title: '蜕变熔炉', note: '投入仓库物品会按出售价值增加蜕变进度；蜕变会永久提升角色属性。' }
   };
 
   function openEquipModal(view = 'equip') {
@@ -1485,12 +1645,14 @@
     renderStash();
     renderShop();
     renderEnhance();
+    renderTranscend();
     if (el.equipWindowTitle) el.equipWindowTitle.textContent = MANAGE_VIEWS[selected].title;
     if (el.manageNote) el.manageNote.textContent = MANAGE_VIEWS[selected].note;
     if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', selected !== 'equip');
     if (el.manageStashPanel) el.manageStashPanel.classList.toggle('hidden', selected !== 'stash');
     if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', selected !== 'shop');
     if (el.manageEnhancePanel) el.manageEnhancePanel.classList.toggle('hidden', selected !== 'enhance');
+    if (el.manageTranscendPanel) el.manageTranscendPanel.classList.toggle('hidden', selected !== 'transcend');
     el.equipOverlay.classList.remove('hidden');
   }
 
@@ -1534,9 +1696,11 @@
     renderStash();
     renderShop();
     renderEnhance();
+    renderTranscend();
     renderProgress();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
     if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石`;
+    if (el.baseTranscendSummary) el.baseTranscendSummary.textContent = `Lv.${getTranscendLevel()} · ${getTranscendProgress()}/${transcendCostForLevel()}`;
   }
 
   el.equipBtn.addEventListener('click', equipSelected);
@@ -1545,6 +1709,9 @@
   el.openStashBtn.addEventListener('click', () => openEquipModal('stash'));
   el.openShopBtn.addEventListener('click', () => openEquipModal('shop'));
   el.openEnhanceBtn.addEventListener('click', () => openEquipModal('enhance'));
+  el.openTranscendBtn.addEventListener('click', () => openEquipModal('transcend'));
+  if (el.transcendBtn) el.transcendBtn.addEventListener('click', performTranscend);
+  if (el.transcendBulkBtn) el.transcendBulkBtn.addEventListener('click', bulkConvertTranscendCommon);
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
   if (el.tutorialSkipBtn) {
     el.tutorialSkipBtn.addEventListener('click', () => {
@@ -2324,7 +2491,9 @@
       this.x = x;
       this.y = y;
       this.r = 10;
-      this.maxHp = 100 + perkRank('vitality') * 10;
+      this.transcendLevel = getTranscendLevel();
+      this.transcendStats = transcendStats(this.transcendLevel);
+      this.maxHp = 100 + perkRank('vitality') * 10 + this.transcendStats.hp;
       this.hp = this.maxHp;
       this.angle = 0;
       this.speed = 155;
@@ -2351,7 +2520,7 @@
       const armorBase = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
       this.armor = {
         ...armorBase,
-        reduction: Math.min(0.75, armorBase.reduction + this.armorPlus * ENHANCE_RULES.armor.perLevel)
+        reduction: Math.min(0.75, armorBase.reduction + this.armorPlus * ENHANCE_RULES.armor.perLevel + this.transcendStats.reduction)
       };
       this.packItem = save.equipped.pack || null;
       this.packKey = this.packItem ? defOf(this.packItem).pack : null;
@@ -2360,12 +2529,12 @@
         ...PACK_QUALITIES[this.packKey],
         bonus: PACK_QUALITIES[this.packKey].bonus + this.packPlus
       } : null;
-      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04;
+      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04 + this.transcendStats.speed;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
       this.capacity = backpackCapacity();
       this.backpack = [];
-      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel;
+      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel + this.transcendStats.damage;
     }
 
     update(dt) {
@@ -3350,7 +3519,8 @@
     el.hpFill.style.width = `${hpPct}%`;
     el.hpText.textContent = `${Math.ceil(player.hp)}/${player.maxHp}`;
     if (el.lowHpVignette) el.lowHpVignette.classList.toggle('active', player.hp > 0 && hpPct <= 30);
-    el.armorText.textContent = `护甲：${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}`;
+    const hudTr = transcendStats(player.transcendLevel);
+    el.armorText.textContent = `护甲：${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}${hudTr.reduction > 0 ? ` · 蜕变+${Math.round(hudTr.reduction * 100)}%` : ''}`;
     el.hudMeds.textContent = `医疗包 ×${player.medkits}`;
     if (el.hudKeys) el.hudKeys.textContent = `🔑 ×${raid ? (raid.keys || 0) : 0}`;
     el.hudScrap.textContent = `废料 +${raid ? raid.scrap : 0}`;
@@ -3446,6 +3616,7 @@
       <div>主武器<strong>${save.equipped.weapon ? itemName(save.equipped.weapon) : player.weapon.name}</strong></div>
       <div>护甲<strong>${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}</strong></div>
       <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}${player.packPlus ? ` · 强化+${player.packPlus}` : ''}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
+      <div>蜕变<strong>Lv.${player.transcendLevel} · 生命+${player.transcendStats.hp} · 伤害+${Math.round(player.transcendStats.damage * 100)}%</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
       <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
@@ -5027,16 +5198,18 @@
       return {
         mode,
         save: JSON.parse(JSON.stringify(save)),
+        transcend: { level: getTranscendLevel(), progress: getTranscendProgress(), cost: transcendCostForLevel(), bonus: transcendStats() },
         settings: JSON.parse(JSON.stringify(save.settings)),
         lockTarget: player && player.lockTarget ? { x: player.lockTarget.x, y: player.lockTarget.y, kind: player.lockTarget.kind, dead: player.lockTarget.dead } : null,
         player: player ? {
-          x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
+          x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp, speed: player.speed,
           mag: player.mag, reserve: player.reserve, medkits: player.medkits,
           backpack: JSON.parse(JSON.stringify(player.backpack)),
           weapon: player.weaponKey, armor: player.armorKey, pack: player.packKey, capacity: player.capacity,
           weaponPlus: player.weaponPlus, armorPlus: player.armorPlus, packPlus: player.packPlus,
           damageMultiplier: player.damageMultiplier, weaponDamage: player.weapon.damage * player.damageMultiplier,
-          armorReduction: player.armor.reduction, packBonus: player.pack ? player.pack.bonus : 0
+          armorReduction: player.armor.reduction, packBonus: player.pack ? player.pack.bonus : 0,
+          transcendLevel: player.transcendLevel, transcendStats: player.transcendStats
         } : null,
         raid: raid ? { ...raid, perkChoices: pendingPerkChoices.slice() } : null,
         touch: { ui: touch.ui, moveX: touch.moveX, moveY: touch.moveY, moveMag: touch.moveMag, aiming: touch.aiming, firing: touch.firing, angle: touch.aimAngle, aimPressAt: touch.aimPressAt },
@@ -5079,6 +5252,20 @@
       addToStash(createItem(type, Math.max(1, Math.floor(count))));
       persist();
       renderAllBase();
+      return this.snapshot();
+    },
+    grantTranscendProgress(value = 1000) {
+      save.transcend.progress = getTranscendProgress() + Math.max(0, Math.floor(Number(value) || 0));
+      persist();
+      renderAllBase();
+      return this.snapshot();
+    },
+    transcendNow() {
+      performTranscend();
+      return this.snapshot();
+    },
+    convertStashToTranscend(itemId) {
+      convertStashItemToTranscend(itemId);
       return this.snapshot();
     },
     enhanceEquipped(slot = 'weapon', stoneType = 'stone_white') {

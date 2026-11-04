@@ -70,7 +70,7 @@
         <section class="panel manage-center-panel">
           <div class="panel-head">
             <span>整备中心</span>
-            <span class="panel-tag">EQUIP / STASH / SUPPLY</span>
+            <span class="panel-tag">GEAR / STASH / SHOP / TR</span>
           </div>
           <div class="manage-center-body">
             <div class="manage-center-heading">
@@ -78,7 +78,7 @@
               <div class="manage-center-heading-copy">
                 <div class="manage-center-kicker">BASE SERVICES</div>
                 <h3>整备中心</h3>
-                <p>装备、仓库、黑市各自打开独立窗口。</p>
+                <p>装备、仓库、黑市、强化与蜕变各自打开独立窗口。</p>
               </div>
             </div>
             <div class="manage-entry-grid">
@@ -105,6 +105,12 @@
                 <span class="manage-entry-title">强化</span>
                 <span class="manage-entry-desc">消耗强化石提升装备</span>
                 <span class="manage-entry-meta" id="baseEnhanceSummary">0 颗强化石</span>
+              </button>
+              <button id="openTranscendBtn" class="manage-entry-card" type="button">
+                <span class="manage-entry-icon">TR</span>
+                <span class="manage-entry-title">蜕变</span>
+                <span class="manage-entry-desc">投入物品价值永久成长</span>
+                <span class="manage-entry-meta" id="baseTranscendSummary">Lv.0 · 0/1000</span>
               </button>
             </div>
           </div>
@@ -337,6 +343,28 @@
             <span id="shopScrap" class="panel-tag">废料 0</span>
           </div>
           <div id="shopList" class="shop-list"></div>
+        </div>
+
+        <div id="manageTranscendPanel" class="manage-panel hidden">
+          <div class="manage-subhead">
+            <span>蜕变熔炉</span>
+            <span id="transcendLevelTag" class="panel-tag">蜕变 Lv.0</span>
+          </div>
+          <div class="transcend-layout">
+            <section class="transcend-summary">
+              <div class="transcend-rank"><span>永久蜕变</span><strong id="transcendLevel">Lv.0</strong></div>
+              <div class="transcend-progress-head"><span>蜕变进度</span><b id="transcendProgressText">0 / 1000</b></div>
+              <div class="transcend-bar"><i id="transcendBarFill"></i></div>
+              <div id="transcendBonus" class="transcend-bonus"></div>
+              <button id="transcendBtn" class="primary-btn compact" type="button">蜕变</button>
+              <button id="transcendBulkBtn" class="secondary-btn compact" type="button">转化普通物资</button>
+              <div class="transcend-hint">仓库物品按出售价值转化为进度；每次蜕变后需求 ×1.25。</div>
+            </section>
+            <section class="transcend-value-col">
+              <div class="enhance-col-title">仓库物品价值 <span id="transcendStashValue">0</span></div>
+              <div id="transcendItemList" class="transcend-item-list"></div>
+            </section>
+          </div>
         </div>
 
         <div id="manageEnhancePanel" class="manage-panel hidden">
