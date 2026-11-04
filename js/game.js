@@ -512,6 +512,14 @@
     equippedSummary: $('#equippedSummary'),
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
+    manageTabs: $('#manageTabs'),
+    manageEquipPanel: $('#manageEquipPanel'),
+    manageStashPanel: $('#manageStashPanel'),
+    manageShopPanel: $('#manageShopPanel'),
+    manageStashBadge: $('#manageStashBadge'),
+    shopScrap: $('#shopScrap'),
+    baseStashCount: $('#baseStashCount'),
+    baseScrap: $('#baseScrap'),
     touchControls: $('#touchControls'),
     moveZone: $('#moveZone'),
     movePad: $('#movePad'),
@@ -761,6 +769,8 @@
 
   function renderStash() {
     el.stashCount.textContent = `${stashSlotCount()} / ∞`;
+    if (el.manageStashBadge) el.manageStashBadge.textContent = stashSlotCount();
+    if (el.baseStashCount) el.baseStashCount.textContent = `${stashSlotCount()} 件`;
     el.stashGrid.innerHTML = '';
     if (el.stashRarityFilter) {
       el.stashRarityFilter.querySelectorAll('button[data-rarity]').forEach((btn) => {
@@ -829,6 +839,7 @@
   }
 
   function renderShop() {
+    if (el.shopScrap) el.shopScrap.textContent = `废料 ${save.scrap}`;
     el.shopList.innerHTML = '';
     for (const entry of SHOP) {
       let level = 0;
@@ -1008,9 +1019,28 @@
     renderEquipChoices('armor', el.armorChoices);
   }
 
-  function openEquipModal() {
+  let activeManageTab = 'equip';
+
+  function switchManageTab(tab = 'equip') {
+    activeManageTab = ['equip', 'stash', 'shop'].includes(tab) ? tab : 'equip';
+    if (el.manageTabs) {
+      el.manageTabs.querySelectorAll('button[data-manage-tab]').forEach((btn) => {
+        const active = btn.dataset.manageTab === activeManageTab;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    }
+    if (el.manageEquipPanel) el.manageEquipPanel.classList.toggle('hidden', activeManageTab !== 'equip');
+    if (el.manageStashPanel) el.manageStashPanel.classList.toggle('hidden', activeManageTab !== 'stash');
+    if (el.manageShopPanel) el.manageShopPanel.classList.toggle('hidden', activeManageTab !== 'shop');
+  }
+
+  function openEquipModal(tab = 'equip') {
     if (mode !== 'base') return;
     renderEquipModal();
+    renderStash();
+    renderShop();
+    switchManageTab(tab);
     el.equipOverlay.classList.remove('hidden');
   }
 
@@ -1061,12 +1091,26 @@
     renderStash();
     renderShop();
     renderProgress();
+    if (el.baseScrap) el.baseScrap.textContent = save.scrap;
   }
 
   el.equipBtn.addEventListener('click', equipSelected);
   el.sellBtn.addEventListener('click', sellSelected);
-  el.changeEquipBtn.addEventListener('click', openEquipModal);
+  el.changeEquipBtn.addEventListener('click', () => openEquipModal('equip'));
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
+  if (el.manageTabs) {
+    el.manageTabs.addEventListener('click', (event) => {
+      const btn = event.target.closest('button[data-manage-tab]');
+      if (btn) switchManageTab(btn.dataset.manageTab);
+    });
+  }
+  if (el.loadoutWeapon) el.loadoutWeapon.addEventListener('click', () => openEquipModal('equip'));
+  if (el.loadoutArmor) el.loadoutArmor.addEventListener('click', () => openEquipModal('equip'));
+  if (el.equipOverlay) {
+    el.equipOverlay.addEventListener('click', (event) => {
+      if (event.target === el.equipOverlay) closeEquipModal();
+    });
+  }
   el.resetSaveBtn.addEventListener('click', () => {
     if (confirm('确定要清空全部仓库、等级和统计吗？')) {
       save = defaultSave();

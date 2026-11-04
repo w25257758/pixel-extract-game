@@ -42,7 +42,6 @@
           </div>
           <div id="loadoutWeapon" class="equip-card"></div>
           <div id="loadoutArmor" class="equip-card"></div>
-          <button id="changeEquipBtn" class="secondary-btn change-equip-btn" type="button">更换装备</button>
           <div class="supply-row">
             <div class="supply-box"><span>医疗包</span><strong id="loadoutMeds">2</strong></div>
             <div class="supply-box"><span>背包格</span><strong id="loadoutSlots">8</strong></div>
@@ -67,36 +66,22 @@
           </div>
         </section>
 
-        <section class="panel stash-panel">
+        <section class="panel manage-center-panel">
           <div class="panel-head">
-            <span>仓库</span>
-            <span class="panel-tag" id="stashCount">0 / ∞</span>
+            <span>整备中心</span>
+            <span class="panel-tag">EQUIP / STASH / SUPPLY</span>
           </div>
-          <div class="stash-toolbar">
-            <div id="stashRarityFilter" class="rarity-filter" role="group" aria-label="仓库品质筛选">
-              <button type="button" data-rarity="all" class="active">全部</button>
-              <button type="button" data-rarity="common">普通</button>
-              <button type="button" data-rarity="uncommon">精良</button>
-              <button type="button" data-rarity="rare">稀有</button>
-              <button type="button" data-rarity="epic">史诗</button>
+          <div class="manage-center-body">
+            <div class="manage-center-mark">PX</div>
+            <div class="manage-center-kicker">LOADOUT // STORAGE // BLACK MARKET</div>
+            <h3>装备、仓库、黑市</h3>
+            <p>已合并为一个整备窗口。点击打开后，在顶部切换装备、仓库和黑市。</p>
+            <div class="manage-center-stats">
+              <div><span>仓库物资</span><strong id="baseStashCount">0 件</strong></div>
+              <div><span>废料</span><strong id="baseScrap">0</strong></div>
+              <div><span>黑市</span><strong>进货 / 升级</strong></div>
             </div>
-            <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
-          </div>
-          <div id="stashGrid" class="stash-grid"></div>
-          <div id="stashEmpty" class="empty-state">仓库是空的。带战利品撤离，或去黑市进货。</div>
-          <div id="itemActions" class="item-actions hidden">
-            <div class="selected-info">
-              <div id="selectedIcon" class="selected-icon">?</div>
-              <div>
-                <div id="selectedName" class="selected-name">物品</div>
-                <div id="selectedDesc" class="selected-desc"></div>
-              </div>
-              <div id="selectedValue" class="selected-value"></div>
-            </div>
-            <div class="action-row">
-              <button id="equipBtn" class="secondary-btn hidden">装备</button>
-              <button id="sellBtn" class="danger-btn">出售</button>
-            </div>
+            <button id="changeEquipBtn" class="primary-btn manage-open-btn" type="button">打开整备窗口 <span>&gt;</span></button>
           </div>
         </section>
 
@@ -118,10 +103,6 @@
             </div>
           </section>
 
-          <section class="panel shop-panel">
-            <div class="panel-head"><span>黑市</span><span class="panel-tag">SUPPLY</span></div>
-            <div id="shopList" class="shop-list"></div>
-          </section>
         </section>
       </div>
     </main>
@@ -251,23 +232,73 @@
     </section>
 
     <div id="equipOverlay" class="overlay full-overlay hidden">
-      <div class="overlay-card equip-modal-card">
+      <div class="overlay-card equip-modal-card manage-window-card">
         <div class="overlay-head">
-          <span>更换装备</span>
+          <span>整备窗口 <small>装备 / 仓库 / 黑市</small></span>
           <button id="closeEquipBtn" class="ghost-btn small" type="button">关闭</button>
         </div>
-        <div id="equippedSummary" class="equipped-summary"></div>
-        <div class="equip-columns">
-          <section class="equip-column">
-            <div class="equip-col-title">武器 <span>从仓库选择</span></div>
-            <div id="weaponChoices" class="equip-choice-list"></div>
-          </section>
-          <section class="equip-column">
-            <div class="equip-col-title">护甲 <span>从仓库选择</span></div>
-            <div id="armorChoices" class="equip-choice-list"></div>
-          </section>
+        <div id="manageTabs" class="manage-tabs" role="tablist" aria-label="整备分类">
+          <button type="button" data-manage-tab="equip" class="active">装备</button>
+          <button type="button" data-manage-tab="stash">仓库 <span id="manageStashBadge">0</span></button>
+          <button type="button" data-manage-tab="shop">黑市</button>
         </div>
-        <p class="overlay-note">装备会立即更新作战准备；进入行动后不能更换。</p>
+
+        <div id="manageEquipPanel" class="manage-panel">
+          <div id="equippedSummary" class="equipped-summary"></div>
+          <div class="equip-columns">
+            <section class="equip-column">
+              <div class="equip-col-title">武器 <span>从仓库选择</span></div>
+              <div id="weaponChoices" class="equip-choice-list"></div>
+            </section>
+            <section class="equip-column">
+              <div class="equip-col-title">护甲 <span>从仓库选择</span></div>
+              <div id="armorChoices" class="equip-choice-list"></div>
+            </section>
+          </div>
+        </div>
+
+        <div id="manageStashPanel" class="manage-panel hidden">
+          <div class="manage-subhead">
+            <span>仓库</span>
+            <span id="stashCount" class="panel-tag">0 / ...</span>
+          </div>
+          <div class="stash-toolbar">
+            <div id="stashRarityFilter" class="rarity-filter" role="group" aria-label="仓库品质筛选">
+              <button type="button" data-rarity="all" class="active">全部</button>
+              <button type="button" data-rarity="common">普通</button>
+              <button type="button" data-rarity="uncommon">精良</button>
+              <button type="button" data-rarity="rare">稀有</button>
+              <button type="button" data-rarity="epic">史诗</button>
+            </div>
+            <button id="sellLowBtn" class="danger-btn compact" type="button">卖普通</button>
+          </div>
+          <div id="stashGrid" class="stash-grid"></div>
+          <div id="stashEmpty" class="empty-state">仓库是空的。带战利品撤离，或去黑市进货。</div>
+          <div id="itemActions" class="item-actions hidden">
+            <div class="selected-info">
+              <div id="selectedIcon" class="selected-icon">?</div>
+              <div>
+                <div id="selectedName" class="selected-name">物品</div>
+                <div id="selectedDesc" class="selected-desc"></div>
+              </div>
+              <div id="selectedValue" class="selected-value"></div>
+            </div>
+            <div class="action-row">
+              <button id="equipBtn" class="secondary-btn hidden">装备</button>
+              <button id="sellBtn" class="danger-btn">出售</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="manageShopPanel" class="manage-panel hidden">
+          <div class="manage-subhead">
+            <span>黑市补给</span>
+            <span id="shopScrap" class="panel-tag">废料 0</span>
+          </div>
+          <div id="shopList" class="shop-list"></div>
+        </div>
+
+        <p class="overlay-note">装备会立即更新作战准备；仓库物资和黑市交易会即时保存。进入行动后不能更换。</p>
       </div>
     </div>
 
