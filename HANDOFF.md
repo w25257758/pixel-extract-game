@@ -11,9 +11,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v28
-- Save key: localStorage pixel_extract_save_v1, schema version 6
-- Latest maintenance: four playable characters with universal dash, unique active skills and passives (see git log)
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v29
+- Save key: localStorage pixel_extract_save_v1, schema version 7
+- Latest maintenance: character skills, boss phase/core windows, random gear affixes/sets, status HUD and aimed skill targeting (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
@@ -37,9 +37,10 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Backpacks are a separate equipment drop: white/green/blue/purple/red/rainbow grant +8/+16/+24/+32/+40/+50 capacity on top of the base 8 slots.
 - Enemies drop enhancement stones by chance; stones are six quality levels with 30/45/60/75/90/100% success rates.
 - Level-up growth is a focused, paused 3-choice modal. Perks are run-only and disappear when the run ends.
-- Four characters: Pioneer (heal 10% / low-HP damage reduction), Sniper (1.5s lock, 7x defense-and-wall-ignoring shot / piercing bullets), Assault (4s fire-rate overdrive / faster reload), Juggernaut (60 shield / 12% damage reduction).
-- Universal Space dash: short directional displacement, 4s CD, brief invulnerability; touch dash button and Q active skill mirror it.
+- Four characters: Pioneer (heal 10% / low-HP damage reduction), Sniper (1.5s lock, 7x defense-and-wall-ignoring shot / piercing bullets), Assault (4s fire-rate overdrive / faster reload), Juggernaut (60 shield / 12% damage reduction). Sniper Q prefers a target in the aim cone before falling back to nearest visible.
+- Universal Space dash: short directional displacement, 4s CD, brief invulnerability; touch dash button and Q active skill mirror it. Character status badges show shield/overdrive/low-HP/dash/lock/set effects.
 - Debrief, perk-choice and extraction-choice cards fit without scrolling at 932x430, 667x375 and 568x320.
+- Base loadout has a compact set-bonus line; equipment cards display affix text and item names use a star for set pieces.
 
 ## Must keep
 - No separate fire button.
@@ -53,6 +54,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the four playable characters, their exact active/passive effects, save-persisted character selection and universal 4s dash with brief invulnerability.
 - Keep Sniper active at 1.5s lock / 7x weapon damage / ignore defense / ignore walls, and keep its passive bullets piercing all enemies.
 - Keep heavy/boss defense and ensure Sniper active ignores it; normal bullets must still be reduced by defense.
+- Keep boss phase thresholds at 65%/30%, phase-scaled attack density, the exposed-core damage window (x1.5) and the P1/P2/P3 HUD markers.
+- Keep random gear affixes and the three sets: raider (damage/crit), bulwark (reduction/max HP), specter (move speed/dash CD). Do not roll affixes on the starter pistol/pack.
+- Keep the character status-effect badges and cooldown rings on touch buttons.
 - Keep character HUD/touch cooldown displays and the six-card 3x2 manage grid.
 - Keep enemy attacks distinct and telegraphed: burst, charge, fan, sniper line, mortar circle and radial barrage. Do not collapse them back to one generic shot.
 - Keep boss full-map barrages blocked by walls and keep targeted slam zones telegraphed for roughly 1.5 seconds with large damage on failure to dodge.
@@ -105,10 +109,19 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Verified character panel at 932x430 and 568x320, six base cards, save character selection, and no JS errors.
 - Local tested at 932x430, 667x375 and 568x320: no page scroll, manage windows no scroll, debrief/perk/extraction cards no scroll; real 3-second extraction flow and multi-floor carry-over work.
 
+- Added boss phases and core windows: Enter phase 2 at 65% and phase 3 at 30%; phase scaling increases ring/fan/hazard counts and attack rate, phase transitions and completed barrages expose the core for 2.7s (phases 2/3 open a longer transition window), and weak-core damage is x1.5.
+- Added random gear affixes: 0-3 affixes by rarity across weapon/armor/pack, plus raider/bulwark/specter 2/3-piece sets; starter gear stays clean. Affixes affect damage, fire rate, crit, pierce, anti-boss, lifesteal, defense, move speed, dash CD, capacity and scrap.
+- Added character status badges (shield, overdrive, low-HP passive, dash invuln, sniper lock, active set), touch cooldown conic rings, aimed sniper target priority and a Q skill-target preview.
+- Verified v6->v7 save migration preserving gear/transcend/character; v7 affix/set persistence; gear sample 300 rare rifles: all modded, set items ~22.7%, all six weapon affixes represented.
+- Verified set effects: bulwark 3/3 max HP 100->120 and defense bonus; specter 3/3 dash CD 4->3 and move speed; raider 3/3 damage/crit. Verified precision rifle damage: 36 base * 1.18 gear damage * 0.78 heavy defense = 33.13 exact; lifesteal 4% healed 1.44 from a 36-base hit.
+- Verified boss phase 2 at 65%, phase 3 at 30%, core damage x1.5 (100 base -> 123 after 18% defense), barrage core timer, HUD `P2/3`/`P3/3` and no page overflow at 932x430.
+- Verified sniper aim-cone targeting: aimed far heavy locked while an off-angle near heavy was ignored; status badge `猎杀锁定`, touch skill ring at 360deg, and 568x320 no page scroll.
+- Verified base/loadout/equip/stash/character layouts at 932x430, 667x375 and 568x320, no page scroll and no inner panel overflow.
+
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -117,7 +130,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - enemy stone drop, enhancement success/failure, stone consumption and +10 cap
   - transcendence conversion, 1000/1250 thresholds, permanent stat application and save persistence
   - stage/boss rotation, telegraphs, wall-blocked boss barrage and slam dodge/damage behavior
-  - character selection persistence, v5->v6 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
+  - character selection persistence, v6->v7 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
+  - boss 3-phase thresholds/core windows, affix/set combat application, status badges, aimed sniper target and 568x320 layout
 
 ## Release
 1. Edit and test locally.
@@ -137,3 +151,4 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Check whether the radial fog is too dark or too permissive on a real phone and tune VISION_RADIUS only.
 - Verify old level/perk saves still migrate cleanly after the next data-format change.
 - Daily challenges are the next content candidate; keep them compact and avoid adding a base progression panel.
+- Monitor whether the exposed-core windows make boss fights too easy; tune weak-point duration or phase attack density rather than removing the phase system.

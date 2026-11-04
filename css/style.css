@@ -2515,3 +2515,70 @@ body.touch-device.move-stick-fixed .move-pad {
   .gear-compare-row { display: none; }
   .equip-choice-btn { padding: 3px 5px; font-size: 8px; }
 }
+
+
+/* Character status, gear mods and touch cooldown rings */
+.status-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.status-effects.hidden { display: none; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border: 1px solid rgba(170, 190, 215, .24);
+  background: rgba(5, 10, 16, .62);
+  color: var(--dim);
+  font-size: .55em;
+  font-weight: 900;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+.status-badge.shield { color: #8fc8ff; border-color: rgba(88, 166, 255, .48); }
+.status-badge.overdrive { color: #ffc46a; border-color: rgba(255, 173, 69, .48); }
+.status-badge.passive { color: #8ff0b0; border-color: rgba(123, 245, 168, .48); }
+.status-badge.dash { color: #8ff5e5; border-color: rgba(126, 232, 210, .48); }
+.status-badge.lock { color: #8bd3ff; border-color: rgba(88, 199, 255, .55); }
+.status-badge.set { color: #d7c0ff; border-color: rgba(169, 140, 255, .48); }
+
+.loadout-set-bonus {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 1px dashed rgba(170, 190, 215, .2);
+  color: var(--dim);
+  font-size: 8px;
+  line-height: 1.35;
+}
+.loadout-set-bonus.active {
+  color: #ffd15c;
+  border-color: rgba(255, 209, 92, .45);
+  background: rgba(255, 209, 92, .045);
+}
+.equip-stats .equip-mod {
+  color: #ffd15c;
+  border-color: rgba(255, 209, 92, .36);
+}
+
+.touch-btn.skill-btn {
+  position: relative;
+  overflow: hidden;
+  --cd: 0deg;
+}
+.touch-btn.skill-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(rgba(3, 8, 12, .72) var(--cd), transparent 0);
+}
+.touch-btn.skill-btn.cooling { color: #9aabc0; }
+
+@media (max-height: 520px) {
+  .status-effects { gap: 2px; margin-top: 2px; }
+  .status-badge { padding: 0 4px; font-size: .52em; }
+  .loadout-set-bonus { margin-top: 3px; padding: 2px 4px; font-size: 7px; }
+}

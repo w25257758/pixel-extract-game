@@ -2529,6 +2529,73 @@ body.touch-device.move-stick-fixed .move-pad {
   .equip-choice-btn { padding: 3px 5px; font-size: 8px; }
 }
 
+
+/* Character status, gear mods and touch cooldown rings */
+.status-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.status-effects.hidden { display: none; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border: 1px solid rgba(170, 190, 215, .24);
+  background: rgba(5, 10, 16, .62);
+  color: var(--dim);
+  font-size: .55em;
+  font-weight: 900;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+.status-badge.shield { color: #8fc8ff; border-color: rgba(88, 166, 255, .48); }
+.status-badge.overdrive { color: #ffc46a; border-color: rgba(255, 173, 69, .48); }
+.status-badge.passive { color: #8ff0b0; border-color: rgba(123, 245, 168, .48); }
+.status-badge.dash { color: #8ff5e5; border-color: rgba(126, 232, 210, .48); }
+.status-badge.lock { color: #8bd3ff; border-color: rgba(88, 199, 255, .55); }
+.status-badge.set { color: #d7c0ff; border-color: rgba(169, 140, 255, .48); }
+
+.loadout-set-bonus {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border: 1px dashed rgba(170, 190, 215, .2);
+  color: var(--dim);
+  font-size: 8px;
+  line-height: 1.35;
+}
+.loadout-set-bonus.active {
+  color: #ffd15c;
+  border-color: rgba(255, 209, 92, .45);
+  background: rgba(255, 209, 92, .045);
+}
+.equip-stats .equip-mod {
+  color: #ffd15c;
+  border-color: rgba(255, 209, 92, .36);
+}
+
+.touch-btn.skill-btn {
+  position: relative;
+  overflow: hidden;
+  --cd: 0deg;
+}
+.touch-btn.skill-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(rgba(3, 8, 12, .72) var(--cd), transparent 0);
+}
+.touch-btn.skill-btn.cooling { color: #9aabc0; }
+
+@media (max-height: 520px) {
+  .status-effects { gap: 2px; margin-top: 2px; }
+  .status-badge { padding: 0 4px; font-size: .52em; }
+  .loadout-set-bonus { margin-top: 3px; padding: 2px 4px; font-size: 7px; }
+}
+
 </style>
 </head>
 <body>
@@ -2562,6 +2629,7 @@ body.touch-device.move-stick-fixed .move-pad {
             <div class="supply-box"><span>背包容量</span><strong id="loadoutSlots">16</strong></div>
             <div class="supply-box pack-summary"><span>背包装备</span><strong id="loadoutPack">白色 +8</strong></div>
           </div>
+          <div id="loadoutSetBonus" class="loadout-set-bonus"></div>
           <div class="risk-picker-wrap">
             <div class="risk-picker-label">行动风险 <span id="riskHint">稳定收益</span></div>
             <div id="riskPicker" class="risk-picker" role="group" aria-label="行动风险">
@@ -2675,6 +2743,7 @@ body.touch-device.move-stick-fixed .move-pad {
               <span id="hudSkillCd">治疗 就绪</span>
               <span id="hudShield" class="hidden">护盾 0</span>
             </div>
+            <div id="statusEffects" class="status-effects" aria-live="polite"></div>
           </div>
 
           <div class="hud-top-center">
@@ -3199,6 +3268,37 @@ body.touch-device.move-stick-fixed .move-pad {
     return CHARACTER_DEFS[save.character] || CHARACTER_DEFS.pioneer;
   }
 
+  const AFFIX_DEFS = {
+    damage: { slot: 'weapon', name: '伤害校准', min: 0.06, max: 0.14, format: (v) => `伤害 +${Math.round(v * 100)}%` },
+    fireRate: { slot: 'weapon', name: '高速循环', min: 0.06, max: 0.14, format: (v) => `射速 +${Math.round(v * 100)}%` },
+    crit: { slot: 'weapon', name: '致命弱点', min: 0.05, max: 0.12, format: (v) => `暴击 +${Math.round(v * 100)}%` },
+    pierce: { slot: 'weapon', name: '贯穿弹头', fixed: 1, format: () => '子弹穿透敌人' },
+    antiBoss: { slot: 'weapon', name: '屠戮协议', min: 0.10, max: 0.20, format: (v) => `对首领伤害 +${Math.round(v * 100)}%` },
+    lifesteal: { slot: 'weapon', name: '吸血弹头', min: 0.02, max: 0.04, format: (v) => `伤害吸血 ${Math.round(v * 100)}%` },
+    defense: { slot: 'armor', name: '复合衬层', min: 0.03, max: 0.06, format: (v) => `伤害减免 +${Math.round(v * 100)}%` },
+    moveSpeed: { slot: 'armor', name: '轻量骨架', min: 0.04, max: 0.08, format: (v) => `移速 +${Math.round(v * 100)}%` },
+    dashCd: { slot: 'armor', name: '冲刺电容', min: 0.3, max: 0.8, format: (v) => `冲刺 CD -${v.toFixed(1)}s` },
+    capacity: { slot: 'pack', name: '扩容模块', min: 2, max: 5, format: (v) => `容量 +${Math.round(v)}` },
+    scrap: { slot: 'pack', name: '回收协议', min: 0.08, max: 0.18, format: (v) => `废料 +${Math.round(v * 100)}%` }
+  };
+  const AFFIX_KEYS = Object.keys(AFFIX_DEFS);
+
+  const SET_DEFS = {
+    raider: {
+      name: '荒原猎手', color: '#ffb35c',
+      bonuses: { 2: { damage: 0.08 }, 3: { crit: 0.10 } }
+    },
+    bulwark: {
+      name: '壁垒协议', color: '#58a6ff',
+      bonuses: { 2: { defense: 0.06 }, 3: { maxHp: 20 } }
+    },
+    specter: {
+      name: '幽灵协议', color: '#a98cff',
+      bonuses: { 2: { moveSpeed: 0.08 }, 3: { dashCd: 1.0 } }
+    }
+  };
+  const SET_IDS = Object.keys(SET_DEFS);
+
   const ITEM_DEFS = {
     w_pistol: { name: '旧式手枪', icon: '▰', kind: 'weapon', weapon: 'pistol', rarity: 'common', sell: 28, stack: false, desc: '标配副武器。伤害 24，弹匣 12 发。' },
     w_smg: { name: '蜂鸣冲锋枪', icon: '⌁', kind: 'weapon', weapon: 'smg', rarity: 'uncommon', sell: 95, stack: false, desc: '全自动冲锋枪。伤害 15，弹匣 30 发。' },
@@ -3394,9 +3494,44 @@ body.touch-device.move-stick-fixed .move-pad {
     });
   }
 
-  function createItem(type, qty = 1, plus = 0) {
+  function emptyGearBonus() {
+    return {
+      damage: 0, fireRate: 0, crit: 0, pierce: 0, antiBoss: 0, lifesteal: 0,
+      defense: 0, moveSpeed: 0, dashCd: 0, capacity: 0, scrap: 0, maxHp: 0
+    };
+  }
+
+  function addGearStats(target, source = {}) {
+    for (const key of Object.keys(source)) {
+      if (key in target) target[key] += Number(source[key]) || 0;
+    }
+    return target;
+  }
+
+  function rollItemMods(item) {
+    const def = defOf(item);
+    if (!['weapon', 'armor', 'pack'].includes(def.kind)) return;
+    const rarity = RARITY_ORDER[def.rarity] || 1;
+    const affixCount = rarity <= 1 ? 0 : rarity === 2 ? 1 : rarity === 3 ? 1 : rarity === 4 ? 2 : rarity === 5 ? 2 : 3;
+    const pool = AFFIX_KEYS.filter((key) => AFFIX_DEFS[key].slot === def.kind);
+    const chosen = [];
+    while (chosen.length < affixCount && pool.length) {
+      const key = pool.splice(randInt(0, pool.length - 1), 1)[0];
+      const defAffix = AFFIX_DEFS[key];
+      const value = defAffix.fixed != null
+        ? defAffix.fixed
+        : Math.round(rand(defAffix.min, defAffix.max) * 1000) / 1000;
+      chosen.push({ key, value });
+    }
+    if (chosen.length) item.affixes = chosen;
+    const setChance = { uncommon: 0.12, rare: 0.22, epic: 0.32, legendary: 0.42, mythic: 0.55 }[def.rarity] || 0;
+    if (Math.random() < setChance) item.setId = pick(SET_IDS);
+  }
+
+  function createItem(type, qty = 1, plus = 0, options = {}) {
     const item = { id: uid(), type, qty };
     if (plus > 0) item.plus = plus;
+    if (options.roll !== false) rollItemMods(item);
     return item;
   }
 
@@ -3417,8 +3552,21 @@ body.touch-device.move-stick-fixed .move-pad {
     const normalized = { ...item, id: item.id || uid(), qty: item.qty || 1 };
     if (['weapon', 'armor', 'pack'].includes(def.kind)) {
       normalized.plus = enhanceLevel(item);
+      if (Array.isArray(item.affixes)) {
+        normalized.affixes = item.affixes
+          .filter((affix) => affix && AFFIX_DEFS[affix.key] && AFFIX_DEFS[affix.key].slot === def.kind)
+          .slice(0, 3)
+          .map((affix) => ({ key: affix.key, value: Number(affix.value) || 0 }));
+        if (!normalized.affixes.length) delete normalized.affixes;
+      } else {
+        delete normalized.affixes;
+      }
+      if (item.setId && SET_DEFS[item.setId]) normalized.setId = item.setId;
+      else delete normalized.setId;
     } else {
       delete normalized.plus;
+      delete normalized.affixes;
+      delete normalized.setId;
     }
     return normalized;
   }
@@ -3426,13 +3574,82 @@ body.touch-device.move-stick-fixed .move-pad {
   function itemName(item) {
     const def = defOf(item);
     const plus = enhanceLevel(item);
-    return `${def.name}${plus ? ` +${plus}` : ''}`;
+    return `${def.name}${plus ? ` +${plus}` : ''}${item?.setId ? ' ★' : ''}`;
   }
 
   function itemSellValue(item) {
     const def = defOf(item);
     const plus = enhanceLevel(item);
-    return Math.round(def.sell * (item.qty || 1) * (1 + plus * 0.12));
+    const modMult = 1 + (item?.affixes?.length || 0) * 0.12 + (item?.setId ? 0.3 : 0);
+    return Math.round(def.sell * (item.qty || 1) * (1 + plus * 0.12) * modMult);
+  }
+
+  function affixValue(item, key) {
+    if (!item?.affixes) return 0;
+    return item.affixes.reduce((sum, affix) => sum + (affix.key === key ? Number(affix.value) || 0 : 0), 0);
+  }
+
+  function itemAffixText(item) {
+    if (!item?.affixes?.length && !item?.setId) return '';
+    const parts = (item.affixes || []).map((affix) => {
+      const def = AFFIX_DEFS[affix.key];
+      return def ? def.format(Number(affix.value) || 0) : '';
+    }).filter(Boolean);
+    if (item.setId && SET_DEFS[item.setId]) parts.push(`套装 · ${SET_DEFS[item.setId].name}`);
+    return parts.join(' · ');
+  }
+
+  function countEquippedSets() {
+    const counts = {};
+    for (const slot of ['weapon', 'armor', 'pack']) {
+      const item = save.equipped[slot];
+      if (item?.setId && SET_DEFS[item.setId]) counts[item.setId] = (counts[item.setId] || 0) + 1;
+    }
+    return counts;
+  }
+
+  function loadoutBonuses() {
+    const bonus = emptyGearBonus();
+    for (const slot of ['weapon', 'armor', 'pack']) {
+      const item = save.equipped[slot];
+      if (!item?.affixes) continue;
+      for (const affix of item.affixes) {
+        if (affix.key in bonus) bonus[affix.key] += Number(affix.value) || 0;
+      }
+    }
+    const counts = countEquippedSets();
+    for (const [setId, count] of Object.entries(counts)) {
+      const set = SET_DEFS[setId];
+      if (!set) continue;
+      for (const threshold of [2, 3]) {
+        if (count >= threshold) addGearStats(bonus, set.bonuses[threshold] || {});
+      }
+    }
+    return bonus;
+  }
+
+  function equippedSetSummary() {
+    const counts = countEquippedSets();
+    return Object.entries(counts).map(([setId, count]) => {
+      const set = SET_DEFS[setId];
+      if (!set) return null;
+      const active = [];
+      for (const threshold of [2, 3]) {
+        if (count >= threshold && set.bonuses[threshold]) {
+          active.push(set.bonuses[threshold]);
+        }
+      }
+      const stats = emptyGearBonus();
+      for (const group of active) addGearStats(stats, group);
+      const details = [];
+      if (stats.damage) details.push(`伤害+${Math.round(stats.damage * 100)}%`);
+      if (stats.crit) details.push(`暴击+${Math.round(stats.crit * 100)}%`);
+      if (stats.defense) details.push(`减伤+${Math.round(stats.defense * 100)}%`);
+      if (stats.maxHp) details.push(`生命+${stats.maxHp}`);
+      if (stats.moveSpeed) details.push(`移速+${Math.round(stats.moveSpeed * 100)}%`);
+      if (stats.dashCd) details.push(`冲刺CD-${stats.dashCd.toFixed(1)}s`);
+      return `${set.name} ${count}/3${details.length ? ` · ${details.join(' ')}` : ''}`;
+    }).filter(Boolean).join(' ｜ ');
   }
 
   function addItemToArray(list, item) {
@@ -3471,14 +3688,14 @@ body.touch-device.move-stick-fixed .move-pad {
 
   function defaultSave() {
     return {
-      version: 6,
+      version: 7,
       character: 'pioneer',
       scrap: 80,
       stash: [],
       equipped: {
-        weapon: createItem('w_pistol'),
+        weapon: createItem('w_pistol', 1, 0, { roll: false }),
         armor: null,
-        pack: createItem('p_white')
+        pack: createItem('p_white', 1, 0, { roll: false })
       },
       transcend: { level: 0, progress: 0 },
       upgrades: { medkits: 0, ammo: 0 },
@@ -3504,7 +3721,7 @@ body.touch-device.move-stick-fixed .move-pad {
       stash: Array.isArray(raw.stash) ? raw.stash.map(normalizeItemInstance).filter(Boolean) : []
     };
     if (!raw.equipped || !ITEM_DEFS[raw.equipped.weapon?.type]) {
-      merged.equipped.weapon = createItem('w_pistol');
+      merged.equipped.weapon = createItem('w_pistol', 1, 0, { roll: false });
     } else {
       merged.equipped.weapon = { ...normalizeItemInstance(raw.equipped.weapon), qty: 1 };
     }
@@ -3518,14 +3735,14 @@ body.touch-device.move-stick-fixed .move-pad {
     } else if (raw.equipped && defOf(raw.equipped.pack).kind === 'pack' && ITEM_DEFS[raw.equipped.pack?.type]) {
       merged.equipped.pack = { ...normalizeItemInstance(raw.equipped.pack), qty: 1 };
     } else {
-      merged.equipped.pack = createItem('p_white');
+      merged.equipped.pack = createItem('p_white', 1, 0, { roll: false });
     }
     // Level and perks are run-only now. Old saves are upgraded by dropping those fields.
     delete merged.level;
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 6;
+    merged.version = 7;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     const touchSettings = merged.settings;
     touchSettings.moveStickMode = touchSettings.moveStickMode === 'fixed' ? 'fixed' : 'floating';
@@ -3768,6 +3985,7 @@ body.touch-device.move-stick-fixed .move-pad {
     loadoutMeds: $('#loadoutMeds'),
     loadoutSlots: $('#loadoutSlots'),
     loadoutPack: $('#loadoutPack'),
+    loadoutSetBonus: $('#loadoutSetBonus'),
     startRaidBtn: $('#startRaidBtn'),
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
@@ -3829,6 +4047,7 @@ body.touch-device.move-stick-fixed .move-pad {
     hudDashCd: $('#hudDashCd'),
     hudSkillCd: $('#hudSkillCd'),
     hudShield: $('#hudShield'),
+    statusEffects: $('#statusEffects'),
     hudLevel: $('#hudLevel'),
     hudFloor: $('#hudFloor'),
     hudLockState: $('#hudLockState'),
@@ -4211,7 +4430,7 @@ body.touch-device.move-stick-fixed .move-pad {
       player.maxHp += 10;
       player.hp = Math.min(player.maxHp, player.hp + 10);
     } else if (key === 'runner') {
-      player.speed = 155 * (1 + (player.armor.speedBonus || 0) + perkRank('runner') * 0.04 + transcendStats().speed);
+      player.speed = 155 * (1 + (player.armor.speedBonus || 0) + perkRank('runner') * 0.04 + transcendStats().speed + (player.gearBonus?.moveSpeed || 0));
     } else if (key === 'scavenger') {
       player.capacity += 1;
     } else if (key === 'ammo') {
@@ -4247,20 +4466,21 @@ body.touch-device.move-stick-fixed .move-pad {
   }
 
   function renderLoadout() {
+    const loadout = loadoutBonuses();
     const weaponItem = save.equipped.weapon;
     const weaponDef = weaponItem ? WEAPON_DEFS[defOf(weaponItem).weapon] : null;
     if (weaponDef) {
       const rpm = Math.round(60 / weaponDef.cooldown);
       const plus = enhanceLevel(weaponItem);
       const tr = transcendStats();
-      const damage = Math.round(weaponDef.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel + tr.damage));
+      const damage = Math.round(weaponDef.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel + tr.damage + loadout.damage));
       el.loadoutWeapon.className = 'equip-card';
       el.loadoutWeapon.innerHTML = `
         <div class="equip-top">
           <div><div class="equip-name">${itemName(weaponItem)}</div><div class="equip-type">主武器 · ${weaponDef.code}${plus ? ` · 强化 +${plus}` : ''}</div></div>
           <div class="equip-icon" style="color:${weaponDef.color}">${weaponItem ? defOf(weaponItem).icon : '▰'}</div>
         </div>
-        <div class="equip-stats"><span>伤害 ${damage}${plus ? ` (${weaponDef.damage}+${plus * 5}%)` : ''}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}${tr.damage > 0 ? `<span>蜕变 +${Math.round(tr.damage * 100)}%</span>` : ''}</div>`;
+        <div class="equip-stats"><span>伤害 ${damage}${plus ? ` (${weaponDef.damage}+${plus * 5}%)` : ''}</span><span>射速 ${rpm}/min</span><span>弹匣 ${weaponDef.mag}</span><span>${weaponDef.auto || likelyTouch ? '全自动' : '半自动'}</span>${weaponDef.pellets > 1 ? `<span>弹丸 ${weaponDef.pellets}</span>` : ''}${tr.damage > 0 ? `<span>蜕变 +${Math.round(tr.damage * 100)}%</span>` : ''}${itemAffixText(weaponItem) ? `<span class="equip-mod">${itemAffixText(weaponItem)}</span>` : ''}</div>`;
     } else {
       el.loadoutWeapon.className = 'equip-card empty';
       el.loadoutWeapon.innerHTML = '<div class="equip-name">未装备武器</div><div class="equip-desc">去仓库装备一把武器。</div>';
@@ -4270,7 +4490,7 @@ body.touch-device.move-stick-fixed .move-pad {
     const armorDef = ARMOR_DEFS[armorItem ? defOf(armorItem).armor : 'none'];
     const armorPlus = enhanceLevel(armorItem);
     const armorTr = transcendStats();
-    const armorReduction = Math.min(0.75, armorDef.reduction + armorPlus * ENHANCE_RULES.armor.perLevel + armorTr.reduction);
+    const armorReduction = Math.min(0.75, armorDef.reduction + armorPlus * ENHANCE_RULES.armor.perLevel + armorTr.reduction + loadout.defense);
     const armorDesc = !armorItem && armorTr.reduction > 0
       ? `基础护甲；蜕变提供 ${Math.round(armorTr.reduction * 100)}% 减伤。`
       : armorDef.desc;
@@ -4280,7 +4500,7 @@ body.touch-device.move-stick-fixed .move-pad {
         <div><div class="equip-name">${armorItem ? itemName(armorItem) : armorDef.name}</div><div class="equip-type">护甲 · ${armorItem ? RARITY_LABEL[defOf(armorItem).rarity] : '基础'}${armorPlus ? ` · 强化 +${armorPlus}` : ''}</div></div>
         <div class="equip-icon" style="color:${armorDef.color}">${armorItem ? defOf(armorItem).icon : '▤'}</div>
       </div>
-      <div class="equip-stats"><span>伤害减免 ${Math.round(armorReduction * 100)}%</span><span>${armorDesc}</span>${armorTr.reduction > 0 ? `<span>蜕变 +${Math.round(armorTr.reduction * 100)}%</span>` : ''}</div>`;
+      <div class="equip-stats"><span>伤害减免 ${Math.round(armorReduction * 100)}%</span><span>${armorDesc}</span>${armorTr.reduction > 0 ? `<span>蜕变 +${Math.round(armorTr.reduction * 100)}%</span>` : ''}${armorItem && itemAffixText(armorItem) ? `<span class="equip-mod">${itemAffixText(armorItem)}</span>` : ''}</div>`;
 
     const packItem = save.equipped.pack;
     const packDef = packItem ? PACK_QUALITIES[defOf(packItem).pack] : null;
@@ -4289,10 +4509,15 @@ body.touch-device.move-stick-fixed .move-pad {
       el.loadoutPack.textContent = packDef ? `${packDef.label} +${packDef.bonus + packPlus}` : '未装备';
       el.loadoutPack.style.color = packDef ? packDef.color : 'var(--dim)';
       el.loadoutPack.classList.toggle('rainbow-text', !!packItem && defOf(packItem).pack === 'rainbow');
-      el.loadoutPack.title = packDef ? `${packDef.name}${packPlus ? ` · 强化 +${packPlus}` : ''}` : '';
+      el.loadoutPack.title = packDef ? `${packDef.name}${packPlus ? ` · 强化 +${packPlus}` : ''}${itemAffixText(packItem) ? ` · ${itemAffixText(packItem)}` : ''}` : '';
     }
     el.loadoutMeds.textContent = startingMedkits() + (armorDef.medkitBonus || 0);
-    el.loadoutSlots.textContent = backpackCapacity();
+    el.loadoutSlots.textContent = backpackCapacity() + loadout.capacity;
+    if (el.loadoutSetBonus) {
+      const setText = equippedSetSummary();
+      el.loadoutSetBonus.textContent = setText || '套装效果：收集同套装 2 / 3 件激活';
+      el.loadoutSetBonus.classList.toggle('active', !!setText);
+    }
     if (el.baseEquipSummary) {
       const packText = packDef ? ` · 背包 +${packDef.bonus + packPlus}` : '';
       const trText = getTranscendLevel() > 0 ? ` · 蜕变Lv.${getTranscendLevel()}` : '';
@@ -4346,7 +4571,7 @@ body.touch-device.move-stick-fixed .move-pad {
     el.selectedIcon.textContent = def.icon;
     el.selectedIcon.style.color = choiceIconColor(def);
     el.selectedName.textContent = `${itemName(selected)}${selected.qty > 1 ? ` ×${selected.qty}` : ''}`;
-    el.selectedDesc.textContent = `${def.desc} · ${RARITY_LABEL[def.rarity]}`;
+    el.selectedDesc.textContent = `${def.desc} · ${RARITY_LABEL[def.rarity]}${itemAffixText(selected) ? ` · ${itemAffixText(selected)}` : ''}`;
     el.selectedValue.textContent = `出售 +${itemSellValue(selected)}`;
     el.equipBtn.classList.toggle('hidden', !['weapon', 'armor', 'pack'].includes(def.kind));
     el.sellBtn.textContent = `出售 ×${selected.qty || 1}`;
@@ -4411,24 +4636,25 @@ body.touch-device.move-stick-fixed .move-pad {
   function gearStatsText(item) {
     const def = defOf(item);
     const plus = enhanceLevel(item);
+    const mods = itemAffixText(item);
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
-      const damage = Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel));
+      const damage = Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel + affixValue(item, 'damage')));
       const pelletText = w.pellets > 1 ? ` · 弹丸 ${w.pellets}` : '';
-      return `伤害 ${damage}${plus ? ` (强化 +${plus})` : ''}${pelletText} · 弹匣 ${w.mag} · ${w.auto || likelyTouch ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min`;
+      return `伤害 ${damage}${plus ? ` (强化 +${plus})` : ''}${pelletText} · 弹匣 ${w.mag} · ${w.auto || likelyTouch ? '全自动' : '半自动'} · 射速 ${Math.round(60 / w.cooldown)}/min${mods ? ` · ${mods}` : ''}`;
     }
     if (def.kind === 'armor') {
       const a = ARMOR_DEFS[def.armor];
-      const reduction = Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel);
+      const reduction = Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel + affixValue(item, 'defense'));
       const extras = [];
       if (a.speedBonus) extras.push(`移速 +${Math.round(a.speedBonus * 100)}%`);
       if (a.medkitBonus) extras.push(`医疗包 +${a.medkitBonus}`);
       if (a.stealth) extras.push(`敌人视野 -${Math.round((1 - a.stealth) * 100)}%`);
-      return `伤害减免 ${Math.round(reduction * 100)}%${plus ? ` (强化 +${plus})` : ''}${extras.length ? ` · ${extras.join(' · ')}` : ''} · ${RARITY_LABEL[def.rarity]}`;
+      return `伤害减免 ${Math.round(reduction * 100)}%${plus ? ` (强化 +${plus})` : ''}${extras.length ? ` · ${extras.join(' · ')}` : ''} · ${RARITY_LABEL[def.rarity]}${mods ? ` · ${mods}` : ''}`;
     }
     if (def.kind === 'pack') {
       const pack = PACK_QUALITIES[def.pack];
-      return `背包装备 · ${pack.label}品质 · 容量 +${pack.bonus + plus}${plus ? ` (强化 +${plus})` : ''}`;
+      return `背包装备 · ${pack.label}品质 · 容量 +${pack.bonus + plus + affixValue(item, 'capacity')}${plus ? ` (强化 +${plus})` : ''}${mods ? ` · ${mods}` : ''}`;
     }
     if (def.kind === 'stone') {
       return `强化石 Lv.${def.stoneLevel} · 成功率 ${Math.round(def.success * 100)}% · ${RARITY_LABEL[def.rarity]}`;
@@ -4443,8 +4669,10 @@ body.touch-device.move-stick-fixed .move-pad {
       if (!save.equipped.weapon) return '<span class="compare up">当前武器槽为空 · 可直接装备</span>';
       const currentItem = save.equipped.weapon;
       const current = WEAPON_DEFS[defOf(currentItem).weapon];
-      const nextDps = next.damage * (1 + enhanceLevel(item) * ENHANCE_RULES.weapon.perLevel) * (next.pellets || 1) / next.cooldown;
-      const currentDps = current.damage * (1 + enhanceLevel(currentItem) * ENHANCE_RULES.weapon.perLevel) * (current.pellets || 1) / current.cooldown;
+      const nextDps = next.damage * (1 + enhanceLevel(item) * ENHANCE_RULES.weapon.perLevel + affixValue(item, 'damage'))
+        * (1 + affixValue(item, 'fireRate')) * (next.pellets || 1) / next.cooldown;
+      const currentDps = current.damage * (1 + enhanceLevel(currentItem) * ENHANCE_RULES.weapon.perLevel + affixValue(currentItem, 'damage'))
+        * (1 + affixValue(currentItem, 'fireRate')) * (current.pellets || 1) / current.cooldown;
       const pct = Math.round((nextDps / currentDps - 1) * 100);
       if (Math.abs(pct) <= 2) return '<span class="compare">DPS 与当前武器基本持平</span>';
       return `<span class="compare ${pct > 0 ? 'up' : 'down'}">DPS ${pct > 0 ? '+' : ''}${pct}% · 对比当前武器</span>`;
@@ -4454,13 +4682,15 @@ body.touch-device.move-stick-fixed .move-pad {
       if (!save.equipped.armor) return '<span class="compare up">当前没有护甲 · 可直接装备</span>';
       const currentItem = save.equipped.armor;
       const current = ARMOR_DEFS[defOf(currentItem).armor];
-      const nextReduction = Math.min(0.75, next.reduction + enhanceLevel(item) * ENHANCE_RULES.armor.perLevel);
-      const currentReduction = Math.min(0.75, current.reduction + enhanceLevel(currentItem) * ENHANCE_RULES.armor.perLevel);
+      const nextReduction = Math.min(0.75, next.reduction + enhanceLevel(item) * ENHANCE_RULES.armor.perLevel + affixValue(item, 'defense'));
+      const currentReduction = Math.min(0.75, current.reduction + enhanceLevel(currentItem) * ENHANCE_RULES.armor.perLevel + affixValue(currentItem, 'defense'));
       const diff = Math.round((nextReduction - currentReduction) * 100);
       const extras = [];
       if (next.speedBonus) extras.push(`移速 +${Math.round(next.speedBonus * 100)}%`);
       if (next.medkitBonus) extras.push(`医疗包 +${next.medkitBonus}`);
       if (next.stealth) extras.push(`匿踪 +${Math.round((1 - next.stealth) * 100)}%`);
+      if (affixValue(item, 'moveSpeed')) extras.push(`移速 +${Math.round(affixValue(item, 'moveSpeed') * 100)}%`);
+      if (affixValue(item, 'dashCd')) extras.push(`冲刺CD -${affixValue(item, 'dashCd').toFixed(1)}s`);
       const extraText = extras.length ? ` · ${extras.join(' · ')}` : '';
       return `<span class="compare ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">减伤 ${diff > 0 ? '+' : ''}${diff}%${extraText}</span>`;
     }
@@ -4469,7 +4699,7 @@ body.touch-device.move-stick-fixed .move-pad {
       if (!save.equipped.pack) return '<span class="compare up">当前没有背包装备 · 可直接装备</span>';
       const currentItem = save.equipped.pack;
       const current = PACK_QUALITIES[defOf(currentItem).pack];
-      const diff = (next.bonus + enhanceLevel(item)) - (current.bonus + enhanceLevel(currentItem));
+      const diff = (next.bonus + enhanceLevel(item) + affixValue(item, 'capacity')) - (current.bonus + enhanceLevel(currentItem) + affixValue(currentItem, 'capacity'));
       if (diff === 0) return '<span class="compare">容量与当前背包相同</span>';
       return `<span class="compare ${diff > 0 ? 'up' : 'down'}">容量 ${diff > 0 ? '+' : ''}${diff} · 对比当前背包</span>`;
     }
@@ -5740,6 +5970,14 @@ body.touch-device.move-stick-fixed .move-pad {
     return best;
   }
 
+  function findSniperTarget(maxRange = 1000) {
+    if (!player || !world) return null;
+    const aimed = touch.ui && touch.hasAim
+      ? touch.aimAngle
+      : player.angle;
+    return findPlayerLockTarget(maxRange, aimed, false) || findNearestVisibleEnemy(maxRange);
+  }
+
   function findNearestVisibleEnemy(maxRange = 1000) {
     if (!world || !player) return null;
     let best = null;
@@ -5770,7 +6008,8 @@ body.touch-device.move-stick-fixed .move-pad {
       this.r = 10;
       this.transcendLevel = getTranscendLevel();
       this.transcendStats = transcendStats(this.transcendLevel);
-      this.maxHp = 100 + perkRank('vitality') * 10 + this.transcendStats.hp;
+      this.gearBonus = loadoutBonuses();
+      this.maxHp = 100 + perkRank('vitality') * 10 + this.transcendStats.hp + this.gearBonus.maxHp;
       this.hp = this.maxHp;
       this.angle = 0;
       this.speed = 155;
@@ -5787,6 +6026,7 @@ body.touch-device.move-stick-fixed .move-pad {
       this.charId = this.char.id;
       this.activeCd = 0;
       this.activeCdMax = this.char.skill.cd;
+      this.dashCdMax = Math.max(2.2, 4 - this.gearBonus.dashCd);
       this.dashCd = 0;
       this.dashTimer = 0;
       this.dashInvuln = 0;
@@ -5809,7 +6049,7 @@ body.touch-device.move-stick-fixed .move-pad {
       const armorBase = ARMOR_DEFS[this.armorKey] || ARMOR_DEFS.none;
       this.armor = {
         ...armorBase,
-        reduction: Math.min(0.75, armorBase.reduction + this.armorPlus * ENHANCE_RULES.armor.perLevel + this.transcendStats.reduction)
+        reduction: Math.min(0.75, armorBase.reduction + this.armorPlus * ENHANCE_RULES.armor.perLevel + this.transcendStats.reduction + this.gearBonus.defense)
       };
       this.packItem = save.equipped.pack || null;
       this.packKey = this.packItem ? defOf(this.packItem).pack : null;
@@ -5818,12 +6058,16 @@ body.touch-device.move-stick-fixed .move-pad {
         ...PACK_QUALITIES[this.packKey],
         bonus: PACK_QUALITIES[this.packKey].bonus + this.packPlus
       } : null;
-      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04 + this.transcendStats.speed;
+      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04 + this.transcendStats.speed + this.gearBonus.moveSpeed;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
-      this.capacity = backpackCapacity();
+      this.capacity = backpackCapacity() + this.gearBonus.capacity;
       this.backpack = [];
-      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel + this.transcendStats.damage;
+      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel + this.transcendStats.damage + this.gearBonus.damage;
+      this.critChance = this.gearBonus.crit;
+      this.lifesteal = this.gearBonus.lifesteal;
+      this.antiBoss = this.gearBonus.antiBoss;
+      this.bulletPierce = this.charId === 'sniper' || this.gearBonus.pierce > 0;
     }
 
     update(dt) {
@@ -5948,6 +6192,7 @@ body.touch-device.move-stick-fixed .move-pad {
       let muzzleY = this.y + Math.sin(this.angle) * 20;
       for (let i = 0; i < pellets; i++) {
         const angle = this.angle + rand(-this.weapon.spread, this.weapon.spread);
+        const isCrit = Math.random() < this.critChance;
         muzzleX = this.x + Math.cos(angle) * 20;
         muzzleY = this.y + Math.sin(angle) * 20;
         world.bullets.push({
@@ -5957,17 +6202,18 @@ body.touch-device.move-stick-fixed .move-pad {
           prevY: muzzleY,
           vx: Math.cos(angle) * this.weapon.speed,
           vy: Math.sin(angle) * this.weapon.speed,
-          damage: this.weapon.damage * this.damageMultiplier,
+          damage: this.weapon.damage * this.damageMultiplier * (isCrit ? 2 : 1),
           owner: 'player',
-          color: this.weapon.color,
+          color: isCrit ? '#ffd15c' : this.weapon.color,
           life: this.weapon.range / this.weapon.speed,
           maxLife: this.weapon.range / this.weapon.speed,
-          pierce: this.charId === 'sniper',
+          pierce: this.bulletPierce,
+          crit: isCrit,
           hitEnemies: []
         });
       }
       this.mag -= 1;
-      this.fireCd = this.weapon.cooldown * (this.overdriveTimer > 0 ? 0.69 : 1);
+      this.fireCd = this.weapon.cooldown * (this.overdriveTimer > 0 ? 0.69 : 1) * Math.max(0.55, 1 - this.gearBonus.fireRate);
       world.shake = Math.max(world.shake, this.weapon.shake || 2.1);
       addParticle(muzzleX, muzzleY, '#ffd875', pellets > 1 ? 6 : 3, 90, 2, 0.16);
       addParticle(muzzleX, muzzleY, this.weapon.color, 2, 45, 2, 0.12);
@@ -6069,7 +6315,7 @@ body.touch-device.move-stick-fixed .move-pad {
       this.dashAngle = len > 0.05 ? Math.atan2(dy, dx) : this.angle;
       this.dashTimer = 0.18;
       this.dashInvuln = 0.34;
-      this.dashCd = 4;
+      this.dashCd = this.dashCdMax;
       this.lockTarget = null;
       addParticle(this.x, this.y, this.char.color || '#d6ff4d', 9, 90, 2, 0.4);
       playSound('reload');
@@ -6094,7 +6340,7 @@ body.touch-device.move-stick-fixed .move-pad {
         addLootFeed(`应急治疗：生命 +${Math.round(amount)}`, false);
         playSound('pickup');
       } else if (skill.type === 'snipe') {
-        const target = findNearestVisibleEnemy(1000);
+        const target = findSniperTarget(1000);
         if (!target) {
           toast('没有可见的锁定目标。');
           return false;
@@ -6128,7 +6374,7 @@ body.touch-device.move-stick-fixed .move-pad {
       if (!lock || !lock.target || lock.target.dead) return;
       const target = lock.target;
       const angle = Math.atan2(target.y - this.y, target.x - this.x);
-      const damage = this.weapon.damage * this.damageMultiplier * 7;
+      const damage = this.weapon.damage * this.damageMultiplier * 7 * (target.isBoss ? 1 + (this.antiBoss || 0) : 1);
       spawnBeam(this.x, this.y, target.x, target.y, '#58c7ff', 4, 0.32);
       addParticle(this.x + Math.cos(angle) * 20, this.y + Math.sin(angle) * 20, '#8bd3ff', 8, 120, 2, 0.35);
       addParticle(target.x, target.y, '#bfeaff', 14, 110, 3, 0.65);
@@ -6190,6 +6436,10 @@ body.touch-device.move-stick-fixed .move-pad {
       this.barrageTimer = 0;
       this.barrageAngle = 0;
       this.bossVariant = null;
+      this.bossPhase = 1;
+      this.weakPointTimer = 0;
+      this.weakPointMax = 0;
+      this.phaseFlash = 0;
 
       const risk = riskDef();
       const floor = Math.max(1, raid?.floor || 1);
@@ -6240,6 +6490,8 @@ body.touch-device.move-stick-fixed .move-pad {
       this.attackCd = Math.max(0, this.attackCd - dt);
       this.hitFlash = Math.max(0, this.hitFlash - dt);
       this.muzzleFlash = Math.max(0, this.muzzleFlash - dt);
+      this.weakPointTimer = Math.max(0, this.weakPointTimer - dt);
+      this.phaseFlash = Math.max(0, this.phaseFlash - dt);
 
       const dxToPlayer = player.x - this.x;
       const dyToPlayer = player.y - this.y;
@@ -6311,7 +6563,8 @@ body.touch-device.move-stick-fixed .move-pad {
       if (moveX || moveY) {
         const oldX = this.x;
         const oldY = this.y;
-        moveWithCollision(this, moveX * this.speed * dt, moveY * this.speed * dt);
+        const moveSpeed = this.speed * (this.isBoss && this.weakPointTimer > 0 ? 0.6 : 1);
+        moveWithCollision(this, moveX * moveSpeed * dt, moveY * moveSpeed * dt);
         this.walkPhase += dt * 8;
         if (dist2(oldX, oldY, this.x, this.y) < 0.02) {
           this.stuckTimer += dt;
@@ -6444,10 +6697,10 @@ body.touch-device.move-stick-fixed .move-pad {
             addLootFeed('首领发动全图弹幕：寻找墙体掩体！', true);
           } else if (type === 'slam') {
             this.spawnBossHazards();
-            this.attackCd = 3.1;
+            this.attackCd = this.bossAttackDelay(3.1);
           } else if (type === 'fan') {
             this.fireBossFan();
-            this.attackCd = 2.35;
+            this.attackCd = this.bossAttackDelay(2.35);
           }
         }
         return;
@@ -6459,11 +6712,16 @@ body.touch-device.move-stick-fixed .move-pad {
           this.fireBossRing();
           this.barrageWaves -= 1;
           this.barrageTimer = 0.24;
-          if (this.barrageWaves <= 0) this.attackCd = 3.25;
+          if (this.barrageWaves <= 0) {
+            this.attackCd = this.bossAttackDelay(3.25);
+            this.openBossWeakPoint(2.7);
+          }
         }
         return;
       }
 
+      // Exposed cores are a deliberate damage window: no new cast, slower movement.
+      if (this.weakPointTimer > 0) return;
       if (!canSee && distToPlayer > 460) return;
       if (this.attackCd <= 0) {
         this.bossCycle += 1;
@@ -6473,8 +6731,43 @@ body.touch-device.move-stick-fixed .move-pad {
       }
     }
 
+    bossAttackDelay(base) {
+      return base * (this.bossPhase === 3 ? 0.72 : this.bossPhase === 2 ? 0.86 : 1);
+    }
+
+    openBossWeakPoint(seconds) {
+      this.weakPointTimer = Math.max(this.weakPointTimer, seconds);
+      this.weakPointMax = this.weakPointTimer;
+      this.phaseFlash = Math.max(this.phaseFlash, 0.45);
+      addLootFeed('首领核心暴露：伤害 ×1.5，趁现在集火！', true);
+      addFloatText(this.x, this.y - 48, '核心暴露 ×1.5', '#ffd15c');
+      world.shake = Math.max(world.shake, 4);
+      playSound('level');
+    }
+
+    enterBossPhase(phase) {
+      this.bossPhase = phase;
+      this.castType = null;
+      this.barrageWaves = 0;
+      this.casting = false;
+      this.castLabel = '';
+      this.shotWindup = 0;
+      this.bossCycle = 0;
+      this.attackCd = 1.0;
+      this.speed *= phase === 2 ? 1.08 : 1.14;
+      this.damage *= phase === 2 ? 1.06 : 1.12;
+      this.phaseFlash = 1.2;
+      this.openBossWeakPoint(phase === 3 ? 3.5 : 2.8);
+      addLootFeed(`首领进入阶段 ${phase}/3：攻击密度提升！`, true);
+      addFloatText(this.x, this.y - 54, `阶段 ${phase} / 3`, phase === 3 ? '#ff5b6e' : '#ffad45');
+      world.shake = Math.max(world.shake, 9);
+      playSound('level');
+    }
+
     beginBossCast(type, duration, label) {
       this.castType = type;
+      const phaseScale = this.bossPhase === 3 ? 0.78 : this.bossPhase === 2 ? 0.9 : 1;
+      duration *= phaseScale;
       this.castTimer = duration;
       this.castMax = duration;
       this.castLabel = label;
@@ -6488,10 +6781,11 @@ body.touch-device.move-stick-fixed .move-pad {
 
     fireBossRing() {
       const variant = this.bossVariant;
-      const count = variant.ringCount;
+      const count = variant.ringCount + (this.bossPhase - 1) * 4;
+      const ringSpeed = variant.ringSpeed + (this.bossPhase - 1) * 18;
       for (let i = 0; i < count; i++) {
         const angle = this.barrageAngle + (i / count) * TAU;
-        spawnEnemyBullet(this.x, this.y, angle, variant.ringSpeed, this.damage * 0.58, {
+        spawnEnemyBullet(this.x, this.y, angle, ringSpeed, this.damage * 0.58, {
           color: variant.color, life: 4.6, radius: 3, kind: 'bossRing'
         });
       }
@@ -6505,8 +6799,9 @@ body.touch-device.move-stick-fixed .move-pad {
     fireBossFan() {
       const variant = this.bossVariant;
       const base = Math.atan2(player.y - this.y, player.x - this.x);
-      for (let i = -5; i <= 5; i++) {
-        spawnEnemyBullet(this.x, this.y, base + i * 0.1, 500, this.damage * 0.85, {
+      const spreadCount = 5 + (this.bossPhase - 1) * 1;
+      for (let i = -spreadCount; i <= spreadCount; i++) {
+        spawnEnemyBullet(this.x, this.y, base + i * 0.1, 500 + (this.bossPhase - 1) * 25, this.damage * 0.85, {
           color: variant.color, life: 1.35, radius: 2.5, kind: 'bossFan'
         });
       }
@@ -6517,7 +6812,7 @@ body.touch-device.move-stick-fixed .move-pad {
 
     spawnBossHazards() {
       const variant = this.bossVariant;
-      const count = variant.slamCount;
+      const count = variant.slamCount + (this.bossPhase - 1);
       for (let i = 0; i < count; i++) {
         let hx = player.x;
         let hy = player.y;
@@ -6531,7 +6826,7 @@ body.touch-device.move-stick-fixed .move-pad {
             hy = player.y;
           }
         }
-        spawnHazard(hx, hy, variant.slamRadius, 1.55 + i * 0.12, this.damage * 3.1, variant.color, '重击');
+        spawnHazard(hx, hy, variant.slamRadius + (this.bossPhase - 1) * 4, 1.55 + i * 0.12, this.damage * 3.1, variant.color, '重击');
       }
       addLootFeed('首领锁定区域，立刻离开红色警示圈！', true);
       playSound('enemyShoot');
@@ -6582,17 +6877,24 @@ body.touch-device.move-stick-fixed .move-pad {
 
     takeDamage(amount, hitAngle, options = {}) {
       if (this.dead) return;
-      const perHit = options.ignoreDefense ? amount : amount * (1 - (this.defense || 0));
+      let perHit = options.ignoreDefense ? amount : amount * (1 - (this.defense || 0));
+      if (this.isBoss && this.weakPointTimer > 0) perHit *= 1.5;
       this.hp -= perHit;
       this.hitFlash = 0.12;
       this.state = 'chase';
       this.alertTimer = 4;
       this.lastSeen = { x: player.x, y: player.y };
       addParticle(this.x, this.y, '#ff6d78', 5, 75, 2, 0.4);
-      addFloatText(this.x + rand(-6, 6), this.y - 18, `-${Math.round(perHit)}`, options.characterSkill ? '#8bd3ff' : '#ff9aa4');
+      addFloatText(this.x + rand(-6, 6), this.y - 18, `${options.crit ? '暴击 ' : ''}-${Math.round(perHit)}`, options.crit ? '#ffd15c' : options.characterSkill ? '#8bd3ff' : '#ff9aa4');
       playSound('hit');
       showHitMarker(this.hp <= 0);
-      if (this.hp <= 0) this.die();
+      if (this.hp <= 0) {
+        this.die();
+      } else if (this.isBoss) {
+        const pct = this.hp / this.maxHp;
+        if (this.bossPhase === 1 && pct <= 0.65) this.enterBossPhase(2);
+        else if (this.bossPhase === 2 && pct <= 0.3) this.enterBossPhase(3);
+      }
     }
 
     die() {
@@ -6601,7 +6903,7 @@ body.touch-device.move-stick-fixed .move-pad {
       this.hp = 0;
       raid.kills += 1;
       gainRaidXP(this.xp, true);
-      raid.scrap += this.scrap;
+      raid.scrap += Math.round(this.scrap * (1 + (player?.gearBonus?.scrap || 0)));
       addParticle(this.x, this.y, '#b83d52', 12, 110, 3, 0.8);
       addParticle(this.x, this.y, '#2e3645', 8, 65, 3, 0.6);
       addFloatText(this.x, this.y - 28, `+${this.xp} XP`, '#d6ff4d');
@@ -7011,8 +7313,10 @@ body.touch-device.move-stick-fixed .move-pad {
           if (enemy.dead) continue;
           if (b.pierce && b.hitEnemies.includes(enemy)) continue;
           if (segmentHitsCircle(b.prevX, b.prevY, b.x, b.y, enemy.x, enemy.y, enemy.r + 2)) {
-            enemy.takeDamage(b.damage, Math.atan2(b.vy, b.vx));
-            world.shake = Math.max(world.shake, 2.4);
+            const hitDamage = b.damage * (enemy.isBoss ? 1 + (player.antiBoss || 0) : 1);
+            enemy.takeDamage(hitDamage, Math.atan2(b.vy, b.vx), { crit: !!b.crit });
+            if (player.lifesteal > 0) player.heal(hitDamage * player.lifesteal);
+            world.shake = Math.max(world.shake, b.crit ? 3.4 : 2.4);
             if (b.pierce) {
               b.hitEnemies.push(enemy);
             } else {
@@ -7316,6 +7620,27 @@ body.touch-device.move-stick-fixed .move-pad {
       el.hudShield.textContent = player.shield > 0 ? `护盾 ${Math.ceil(player.shield)}` : '';
       el.hudShield.classList.toggle('hidden', player.shield <= 0);
     }
+    if (el.statusEffects) {
+      const badges = [];
+      if (player.shield > 0) badges.push({ cls: 'shield', text: `护盾 ${Math.ceil(player.shield)} · ${player.shieldTimer.toFixed(1)}s` });
+      if (player.overdriveTimer > 0) badges.push({ cls: 'overdrive', text: `过载 ${player.overdriveTimer.toFixed(1)}s` });
+      if (player.charId === 'pioneer' && player.hp / player.maxHp <= 0.35) badges.push({ cls: 'passive', text: '求生本能 · 减伤20%' });
+      if (player.dashInvuln > 0) badges.push({ cls: 'dash', text: '冲刺无敌' });
+      if (skillLocked) badges.push({ cls: 'lock', text: `猎杀锁定 ${Math.max(0, player.sniperLock.timer).toFixed(1)}s` });
+      const setText = equippedSetSummary();
+      if (setText) badges.push({ cls: 'set', text: setText });
+      el.statusEffects.innerHTML = badges.map((b) => `<span class="status-badge ${b.cls}">${b.text}</span>`).join('');
+      el.statusEffects.classList.toggle('hidden', badges.length === 0);
+    }
+    // Cooldown rings for touch actions (--cd is a conic-gradient stop).
+    if (el.touchDash) {
+      const pct = player.dashCdMax > 0 ? clamp(player.dashCd / player.dashCdMax, 0, 1) : 0;
+      el.touchDash.style.setProperty('--cd', `${(pct * 360).toFixed(1)}deg`);
+    }
+    if (el.touchSkill) {
+      const pct = player.activeCdMax > 0 ? clamp(player.activeCd / player.activeCdMax, 0, 1) : 0;
+      el.touchSkill.style.setProperty('--cd', `${(pct * 360).toFixed(1)}deg`);
+    }
     if (el.touchDash) {
       el.touchDash.textContent = dashReady ? '冲刺' : `冲刺 ${player.dashCd.toFixed(1)}`;
       el.touchDash.classList.toggle('cooling', !dashReady);
@@ -7390,15 +7715,19 @@ body.touch-device.move-stick-fixed .move-pad {
           const casting = !!boss.castType;
           const barrage = boss.barrageWaves > 0;
           const hazardsActive = world.hazards.some((h) => !h.exploded);
+          const weak = boss.weakPointTimer > 0;
           const seconds = boss.castType ? Math.max(0, boss.castTimer).toFixed(1) : '';
-          el.bossSkill.textContent = casting
-            ? `${boss.castLabel} · ${seconds}s`
-            : barrage
-              ? '全图弹幕展开中 · 躲到墙后'
-              : hazardsActive
-                ? '重击锁定 · 离开红色警示圈'
-                : '全图弹幕 · 重击锁定';
-          el.bossSkill.classList.toggle('warning', casting || barrage || hazardsActive);
+          const phaseTag = `P${boss.bossPhase || 1}/3`;
+          el.bossSkill.textContent = weak
+            ? `${phaseTag} · 核心暴露 ${boss.weakPointTimer.toFixed(1)}s · 伤害 ×1.5`
+            : casting
+              ? `${phaseTag} · ${boss.castLabel} · ${seconds}s`
+              : barrage
+                ? `${phaseTag} · 全图弹幕展开中 · 躲到墙后`
+                : hazardsActive
+                  ? `${phaseTag} · 重击锁定 · 离开红色警示圈`
+                  : `${phaseTag} · 全图弹幕 · 重击锁定`;
+          el.bossSkill.classList.toggle('warning', casting || barrage || hazardsActive || weak);
         }
       } else {
         el.bossHud.classList.add('hidden');
@@ -7417,6 +7746,7 @@ body.touch-device.move-stick-fixed .move-pad {
       <div>护甲<strong>${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}</strong></div>
       <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}${player.packPlus ? ` · 强化+${player.packPlus}` : ''}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
       <div>蜕变<strong>Lv.${player.transcendLevel} · 生命+${player.transcendStats.hp} · 伤害+${Math.round(player.transcendStats.damage * 100)}%</strong></div>
+      <div>套装<strong>${equippedSetSummary() || '未激活'}</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
       <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
@@ -7467,7 +7797,7 @@ body.touch-device.move-stick-fixed .move-pad {
     if (def.kind === 'weapon') {
       const w = WEAPON_DEFS[def.weapon];
       const plus = enhanceLevel(selectedItem);
-      stats.push(`伤害 <b>${Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel))}</b>${plus ? ` · 强化 +${plus}` : ''}`);
+      stats.push(`伤害 <b>${Math.round(w.damage * (1 + plus * ENHANCE_RULES.weapon.perLevel + affixValue(selectedItem, 'damage')))}</b>${plus ? ` · 强化 +${plus}` : ''}`);
       stats.push(`弹匣 <b>${w.mag}</b>`);
       stats.push(w.auto || likelyTouch ? '全自动' : '半自动');
       stats.push(`射速 <b>${Math.round(60 / w.cooldown)}/min</b>`);
@@ -7476,7 +7806,7 @@ body.touch-device.move-stick-fixed .move-pad {
     } else if (def.kind === 'armor') {
       const a = ARMOR_DEFS[def.armor];
       const plus = enhanceLevel(selectedItem);
-      stats.push(`伤害减免 <b>${Math.round(Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel) * 100)}%</b>${plus ? ` · 强化 +${plus}` : ''}`);
+      stats.push(`伤害减免 <b>${Math.round(Math.min(0.75, a.reduction + plus * ENHANCE_RULES.armor.perLevel + affixValue(selectedItem, 'defense')) * 100)}%</b>${plus ? ` · 强化 +${plus}` : ''}`);
       if (a.speedBonus) stats.push(`移速 <b>+${Math.round(a.speedBonus * 100)}%</b>`);
       if (a.medkitBonus) stats.push(`医疗包 <b>+${a.medkitBonus}</b>`);
       if (a.stealth) stats.push(`敌人视野 <b>-${Math.round((1 - a.stealth) * 100)}%</b>`);
@@ -7484,7 +7814,7 @@ body.touch-device.move-stick-fixed .move-pad {
       const pack = PACK_QUALITIES[def.pack];
       const plus = enhanceLevel(selectedItem);
       stats.push(`品质 <b>${pack.label}</b>`);
-      stats.push(`容量 <b>+${pack.bonus + plus}</b>${plus ? ` · 强化 +${plus}` : ''}`);
+      stats.push(`容量 <b>+${pack.bonus + plus + affixValue(selectedItem, 'capacity')}</b>${plus ? ` · 强化 +${plus}` : ''}`);
       stats.push('撤离后在仓库装备');
     } else if (def.kind === 'stone') {
       stats.push(`等级 <b>Lv.${def.stoneLevel}</b>`);
@@ -7494,6 +7824,7 @@ body.touch-device.move-stick-fixed .move-pad {
       stats.push(`数量 <b>×${selectedItem.qty || 1}</b>`);
       stats.push(`单价 <b>+${def.sell}</b>`);
     }
+    if (itemAffixText(selectedItem)) stats.push(`<span style="color:#ffd15c">${itemAffixText(selectedItem)}</span>`);
     const unitValue = Math.round(itemSellValue(selectedItem) / (selectedItem.qty || 1));
     el.inventoryDetail.classList.remove('hidden');
     el.inventoryDetail.innerHTML = `
@@ -7898,6 +8229,7 @@ body.touch-device.move-stick-fixed .move-pad {
     for (const enemy of world.enemies) if (!enemy.dead && isPointVisible(enemy.x, enemy.y)) drawCharacter(enemy, false);
     drawCharacter(player, true);
     drawLockOn();
+    drawSkillTarget();
     for (const p of world.particles) drawParticle(p);
     for (const t of world.floatTexts) drawFloatText(t);
 
@@ -8356,6 +8688,11 @@ body.touch-device.move-stick-fixed .move-pad {
       : 'rgba(255,91,110,.45)';
     ctx.lineWidth = 1;
     ctx.strokeRect(-barW / 2 - 0.5, barY - 0.5, barW + 1, barH + 1);
+    if (isBoss) {
+      ctx.fillStyle = 'rgba(255,255,255,.62)';
+      ctx.fillRect(-barW / 2 + barW * 0.65, barY - 1, 1, barH + 2);
+      ctx.fillRect(-barW / 2 + barW * 0.30, barY - 1, 1, barH + 2);
+    }
 
     if (isPlayer) {
       // A faint player ring helps readability in corridors.
@@ -8384,10 +8721,29 @@ body.touch-device.move-stick-fixed .move-pad {
       ctx.beginPath();
       ctx.arc(0, 0, 24, 0, TAU);
       ctx.stroke();
+      if (entity.phaseFlash > 0) {
+        ctx.strokeStyle = `rgba(255,173,69,${clamp(entity.phaseFlash, 0, 1) * 0.75})`;
+        ctx.lineWidth = 2 + entity.phaseFlash * 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 32 + (1.2 - entity.phaseFlash) * 16, 0, TAU);
+        ctx.stroke();
+      }
+      if (entity.weakPointTimer > 0) {
+        const pulse = 0.5 + 0.5 * Math.sin(world.time * 10);
+        ctx.strokeStyle = `rgba(255,209,92,${0.55 + pulse * 0.35})`;
+        ctx.lineWidth = 2 + pulse;
+        ctx.beginPath();
+        ctx.arc(0, 0, 29 + pulse * 5, 0, TAU);
+        ctx.stroke();
+        ctx.fillStyle = '#ffd15c';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('核心 ×1.5', 0, barY - 20);
+      }
       ctx.fillStyle = '#ff5b7f';
       ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('BOSS', 0, barY - 7);
+      ctx.fillText(`BOSS · P${entity.bossPhase || 1}`, 0, barY - 7);
     } else if (entity.state === 'chase') {
       ctx.fillStyle = '#ff9c47';
       ctx.font = 'bold 14px monospace';
@@ -8535,6 +8891,28 @@ body.touch-device.move-stick-fixed .move-pad {
     ctx.fillStyle = t.color;
     ctx.fillText(t.text, Math.round(t.x), Math.round(t.y));
     ctx.globalAlpha = 1;
+  }
+
+  function drawSkillTarget() {
+    if (!player || player.charId !== 'sniper' || player.activeCd > 0 || !world) return;
+    const target = player.sniperLock?.target || findSniperTarget(1000);
+    if (!target || target.dead || target === player.lockTarget) return;
+    const pulse = 0.5 + 0.5 * Math.sin(world.time * 7);
+    const radius = (target.isBoss ? 34 : 21) + pulse * 2;
+    ctx.save();
+    ctx.translate(Math.round(target.x), Math.round(target.y));
+    ctx.strokeStyle = `rgba(88,199,255,${0.45 + pulse * 0.35})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#8bd3ff';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(touch.ui ? '猎杀目标' : 'Q · 猎杀', 0, -radius - 6);
+    ctx.restore();
   }
 
   function drawLockOn() {
@@ -9256,6 +9634,9 @@ body.touch-device.move-stick-fixed .move-pad {
           charId: player.charId, charName: player.char.name, charSkill: player.char.skill.name, charPassive: player.char.passive.name,
           activeCd: player.activeCd, activeCdMax: player.activeCdMax, dashCd: player.dashCd, dashInvuln: player.dashInvuln,
           shield: player.shield, shieldTimer: player.shieldTimer, overdriveTimer: player.overdriveTimer,
+          gearBonus: JSON.parse(JSON.stringify(player.gearBonus || {})), critChance: player.critChance || 0,
+          lifesteal: player.lifesteal || 0, antiBoss: player.antiBoss || 0, dashCdMax: player.dashCdMax || 4,
+          damageMultiplier: player.damageMultiplier, bulletPierce: !!player.bulletPierce, capacity: player.capacity,
           sniperLock: player.sniperLock && player.sniperLock.target && !player.sniperLock.target.dead
             ? { timer: player.sniperLock.timer, target: { x: player.sniperLock.target.x, y: player.sniperLock.target.y, kind: player.sniperLock.target.kind, name: player.sniperLock.target.name } }
             : null,
@@ -9272,8 +9653,8 @@ body.touch-device.move-stick-fixed .move-pad {
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
           altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
           containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0, locked: !!c.locked, vault: !!c.vault })),
-          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, carriesKey: !!e.carriesKey, elite: !!e.elite })),
-          boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
+          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite })),
+          boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, defense: world.boss.defense, bossPhase: world.boss.bossPhase, weakPointTimer: world.boss.weakPointTimer, phaseFlash: world.boss.phaseFlash, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
           beams: world.beams.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, life: b.life, color: b.color })),
@@ -9308,6 +9689,36 @@ body.touch-device.move-stick-fixed .move-pad {
       touch.aimPressAt = performance.now();
     },
     damageBoss(amount) { if (world && world.boss && !world.boss.dead) world.boss.takeDamage(amount, 0); },
+    setBossHp(hp = 1000) { if (world && world.boss) { world.boss.maxHp = Math.max(1, Number(hp) || 1); world.boss.hp = world.boss.maxHp; } return this.snapshot(); },
+    forceBossPhase(phase = 2) { if (world && world.boss && !world.boss.dead) { world.boss.enterBossPhase(clamp(Math.floor(Number(phase) || 2), 2, 3)); } return this.snapshot(); },
+    gearSample(type = 'w_rifle', count = 200) {
+      const total = Math.max(1, Math.min(5000, Math.floor(Number(count) || 1)));
+      const affixes = {};
+      const sets = {};
+      let modded = 0;
+      let setItems = 0;
+      for (let i = 0; i < total; i++) {
+        const item = createItem(type);
+        if (item.affixes?.length) modded++;
+        for (const affix of item.affixes || []) affixes[affix.key] = (affixes[affix.key] || 0) + 1;
+        if (item.setId) { sets[item.setId] = (sets[item.setId] || 0) + 1; setItems++; }
+      }
+      return { type, total, modded, setItems, affixes, sets };
+    },
+    grantGear(type = 'w_rifle', setId = null, affixes = []) {
+      if (!ITEM_DEFS[type]) return null;
+      const item = createItem(type, 1, 0, { roll: false });
+      if (setId && SET_DEFS[setId]) item.setId = setId;
+      if (Array.isArray(affixes) && affixes.length) {
+        item.affixes = affixes.filter((a) => AFFIX_DEFS[a.key] && AFFIX_DEFS[a.key].slot === defOf(item).kind)
+          .map((a) => ({ key: a.key, value: Number(a.value) || 0 }));
+      }
+      addToStash(item);
+      persist();
+      renderAllBase();
+      return JSON.parse(JSON.stringify(item));
+    },
+    equipById(id) { equipStashItem(id); return this.snapshot(); },
     jumpFloor(floor) { if (raid && !raid.ended) { raid.floor = Math.max(1, Math.floor(Number(floor) || 1)); beginFloor(false); return this.snapshot(); } },
     bossAttack(type = 'barrage') { if (world && world.boss && !world.boss.dead) { if (type === 'slam') { world.boss.spawnBossHazards(); } else if (type === 'fan') { world.boss.fireBossFan(); } else { world.boss.barrageWaves = world.boss.bossVariant.ringWaves; world.boss.barrageTimer = 0; } return this.snapshot(); } },
     spawnEnemy(kind = 'grunt') { if (world && player) { const room = world.rooms[1] || world.rooms[0]; const e = new Enemy(player.x + 70, player.y + 30, kind, room); e.state = 'chase'; e.alertTimer = 12; e.lastSeen = { x: player.x, y: player.y }; world.enemies.push(e); return this.snapshot(); } },
