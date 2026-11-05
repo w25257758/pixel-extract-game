@@ -564,6 +564,9 @@ kbd {
 .inventory-detail-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .inventory-detail-stats span { padding: 3px 6px; border: 1px solid var(--line-soft); color: var(--dim); font-size: 8px; }
 .inventory-detail-stats b { color: var(--text); font-weight: 800; }
+.inventory-head-actions { display: flex; align-items: center; gap: 6px; }
+.inventory-head-actions .danger-btn:disabled { opacity: .42; cursor: not-allowed; }
+.inventory-discard-hint { margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(170,190,215,.18); color: var(--dim); font-size: 8px; line-height: 1.45; }
 @media (max-width: 680px) {
   .inventory-card { width: 95%; padding: 13px; }
   .inventory-loadout { grid-template-columns: 1fr 1fr; gap: 5px; }
@@ -2489,6 +2492,7 @@ body.touch-device.move-stick-fixed .move-pad {
   .inventory-detail-desc { margin-top: 5px; padding-top: 5px; font-size: 8px; line-height: 1.45; }
   .inventory-detail-stats { gap: 4px; margin-top: 5px; }
   .inventory-detail-stats span { padding: 2px 4px; font-size: 7px; }
+  .inventory-discard-hint { margin-top: 5px; padding-top: 4px; font-size: 7px; }
 }
 
 /* Backpack equipment: keep all three gear columns visible in compact landscape. */

@@ -11,7 +11,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v30
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v31
 - Save key: localStorage pixel_extract_save_v1, schema version 8
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics (see git log)
 
@@ -31,7 +31,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Enemy archetypes: assault burst, charging hound, heavy fan, sniper laser, mortar hazard and orbiting radial barrage.
 - Bosses cycle through six named variants and use wall-blocked full-map bullet rings, targeted telegraphed slam zones and a suppression fan.
 - Every floor has one golden key guardian, one locked key-room chest and a high-value vault loot table.
-- War fog hides unseen tiles and entities. The minimap/full map only show explored tiles, with a cyan trail of the walked path.
+- Main raid view is fog-free and draws all nearby tiles/entities. The minimap/full map still hide unexplored tiles, with a cyan trail of the walked path.
 - Map size is 72x54 tiles with 13-18 rooms, 31-43 searchable containers and more enemies than the old 52x40 map.
 - Loot rarity is weighted by container quality (common/rare/vault), floor depth and risk. Rare caches use cyan world/map accents.
 - Backpacks are a separate equipment drop: white/green/blue/purple/red/rainbow grant +8/+16/+24/+32/+40/+50 capacity on top of the base 8 slots.
@@ -74,7 +74,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep boss full-map barrages blocked by walls and keep targeted slam zones telegraphed for roughly 1.5 seconds with large damage on failure to dodge.
 - Keep six stage palettes and stage-specific enemy pools; HUD objective must show the current stage name.
 - Keep airdrops removed. The rare-loot source is the key-room chest.
-- Keep fog of war and persistent explored-path display on both minimap and full map.
+- Keep fog of war on the minimap/full map and persistent explored-path display. Main raid view must stay fog-free.
 - Keep the enlarged map and loot density; room generation must still produce at least 12 rooms.
 - Keep the backpack equipment slot and exact bonuses: white +8, green +16, blue +24, purple +32, red +40, rainbow +50. Total capacity is base 8 + pack bonus + enhancement level + run-only scavenger perk.
 - Keep the enhancement system: enemy stone drops, six stone tiers, success rates 30/45/60/75/90/100%, +10 cap, failed attempts consume one stone without downgrading.
@@ -87,7 +87,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep level-up choices as an in-raid compact modal, not a base progression panel.
 - Continuing to the next floor keeps the current run's level, perks, HP, ammo and backpack.
 - Enemy HP, damage, count and rare-loot chance scale with floor depth.
-- Main-view visibility is a radial fog with LOS checks; map markers must never reveal unseen enemies or the boss.
+- Main-view rendering must not apply radial fog or LOS culling; map markers must still never reveal unseen enemies or the boss.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -100,7 +100,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Auto-lock now works on desktop hold-fire with the front cone, while mobile touch lock chooses the nearest visible enemy regardless of facing; HUD shows state.
 - Added every-5-floor boss spawning, golden key guardians, locked key-room chests, key HUD/inventory count and vault loot.
 - Removed the airdrop event and all airdrop rendering/map references.
-- Added radial war fog, LOS-filtered entity rendering, explored-tile fog masks, persisted walk trails, and fog-aware minimap/full map markers.
+- Earlier fog implementation added explored-tile masks and fog-aware map markers; current build removes the main-view radial fog/LOS culling while keeping minimap/full-map fog.
 - Compacted the map card so the expanded key/path legend fits without scrolling at 568x320.
 - Local/offline smoke-tested: F1-F4 have no boss, F5 boss HP 666; key guard drop, one-key chest unlock and vault loot; fog reveal/path growth; mobile fire lock at F5; no JS errors.
 - Enlarged map to 72x54 tiles: 8 consecutive generations produced 13-18 rooms, 31-43 containers, 9-11 F1 enemies and 60 FPS in headless Edge.
@@ -136,12 +136,15 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Added room-based enemy squad leaders and squadmates with small stat buffs and a `队长` label; verified F1 generated one leader and two members at 568x320 without overflow.
 - Added boss signatures for titan/prism/tyrant/omega/wraith/architect; verified F5/F10/F15/F20/F25/F30 signatures generated 5 hazards, 28 prism bullets, 6 lava hazards, 24 gravity bullets + hazard, 11 wraith fan bullets, and 10 array bullets + 4 hazards respectively.
 - Added full debrief stats and best-drop summary; verified debrief at 568x320 reports damage, highest hit, elite kills, objectives, scrap and mod parts with no page overflow.
-- Bumped save schema to v8 and PWA cache to v30.
+- Bumped save schema to v8; PWA cache is currently v31 after the fog/backpack/movement fixes.
+- Movement fix: pointer tracking moved to window-level handlers so horizontal drags survive leaving the target element; added cardinal assist (>=0.9 axis component snaps minor axis to 0). Verified horizontal, diagonal, and drag-beyond-zone input at 568x320.
+- Backpack discard: inventory header button drops the selected item(s) near the player with a 2-second pickup delay and a `走开` arming check; added a ground countdown label. Verified dropped item stayed after walking away, then re-entered backpack when revisited.
+- Removed the main-view fog overlay and LOS draw filters; minimap and full map still use `world.fogMini` and exploration masks.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature().
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -153,6 +156,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - character selection persistence, v6->v7 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
   - boss 3-phase thresholds/core windows, signature casts, affix/set combat application, gear lock/reroll/filter, elite affixes, objectives and 568x320 layout
   - v7->v8 migration, mod parts persistence and debrief statistics
+  - fog-free main view with fogged minimap; backpack discard -> ground pickup after walking away; cardinal-assist movement with global pointer tracking
 
 ## Release
 1. Edit and test locally.
@@ -168,8 +172,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Suggested next steps
 - Test floating and fixed sticks on a real phone.
 - Check long combat sessions on a low-end phone.
-- Test fog visibility, key/chest flow, floor-5 boss transition, in-raid perk selection and the extraction choice on a real phone.
-- Check whether the radial fog is too dark or too permissive on a real phone and tune VISION_RADIUS only.
+- Verify the main view has no radial fog while the minimap/full map still hide unexplored tiles; test discard/repick and touch movement on a real phone.
+- Check minimap fog readability and touch movement feel on a real phone; adjust VISION_RADIUS only for exploration/minimap, not main-view rendering.
 - Verify old level/perk saves still migrate cleanly after the next data-format change.
 - Daily challenges are the next content candidate; keep them compact and avoid adding a base progression panel.
 - Monitor whether the exposed-core windows make boss fights too easy; tune weak-point duration or phase attack density rather than removing the phase system.

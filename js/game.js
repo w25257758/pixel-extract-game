@@ -1107,6 +1107,7 @@
     closeMapBtn: $('#closeMapBtn'),
     fullMapCanvas: $('#fullMapCanvas'),
     closeInventoryBtn: $('#closeInventoryBtn'),
+    discardInventoryBtn: $('#discardInventoryBtn'),
     pauseOverlay: $('#pauseOverlay'),
     resumeBtn: $('#resumeBtn'),
     abandonBtn: $('#abandonBtn'),
@@ -4629,6 +4630,16 @@
         world.pickups.splice(i, 1);
         continue;
       }
+      if (p.pickupDelay > 0) {
+        p.pickupDelay = Math.max(0, p.pickupDelay - dt);
+        continue;
+      }
+      if (p.dropped && !p.dropArmed) {
+        // Do not instantly vacuum the item back up while the player is
+        // still standing on the drop spot; walking away arms it.
+        if (dist2(p.dropX, p.dropY, player.x, player.y) > 34 * 34) p.dropArmed = true;
+        continue;
+      }
       if (dist2(p.x, p.y, player.x, player.y) > 24 * 24) continue;
 
       if (p.type === 'ammo') {
@@ -5131,8 +5142,59 @@
     }
   }
 
+  function findDropSpot(x, y) {
+    const baseAngle = player?.angle || 0;
+    for (let i = 0; i < 16; i++) {
+      const angle = baseAngle + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * 0.35;
+      const distance = 18 + Math.floor(i / 4) * 8;
+      const px = x + Math.cos(angle) * distance;
+      const py = y + Math.sin(angle) * distance;
+      if (canStandAt(px, py, 9)) return { x: px, y: py };
+    }
+    return { x, y };
+  }
+
+  function discardInventoryItem(itemId) {
+    if (!raid || !player || mode !== 'raid' || !itemId) return false;
+    const index = player.backpack.findIndex((item) => item.id === itemId);
+    if (index < 0) return false;
+    const item = player.backpack.splice(index, 1)[0];
+    const spot = findDropSpot(player.x, player.y);
+    world.pickups.push({
+      x: spot.x,
+      y: spot.y,
+      type: 'item',
+      item,
+      life: 300,
+      bob: rand(0, TAU),
+      pickupDelay: 2,
+      dropped: true,
+      dropX: spot.x,
+      dropY: spot.y,
+      dropArmed: false
+    });
+    if (selectedInventoryItemId === itemId) {
+      selectedInventoryItemId = player.backpack[0]?.id || null;
+    }
+    updateBackpackHud();
+    addLootFeed(`已丢弃 ${itemName(item)} · 走开 2 秒后可拾取`, false);
+    addFloatText(spot.x, spot.y - 22, '已丢弃', '#ffad45');
+    playSound('reload');
+    buildInventoryOverlay();
+    return true;
+  }
+
   function buildInventoryOverlay() {
     if (!player) return;
+    const selectedForDiscard = player.backpack.find((item) => item.id === selectedInventoryItemId)
+      || player.backpack[0] || null;
+    if (!selectedForDiscard) selectedInventoryItemId = null;
+    if (el.discardInventoryBtn) {
+      el.discardInventoryBtn.disabled = !selectedForDiscard;
+      el.discardInventoryBtn.textContent = selectedForDiscard
+        ? `丢弃${(selectedForDiscard.qty || 1) > 1 ? ` ×${selectedForDiscard.qty}` : ''}`
+        : '丢弃';
+    }
     const totalValue = player.backpack.reduce((sum, item) => sum + itemSellValue(item), 0);
     el.inventoryLoadout.innerHTML = `
       <div>角色<strong style="color:${player.char.color}">${player.char.name} · ${player.char.skill.name}</strong></div>
@@ -5232,7 +5294,8 @@
       </div>
       <div class="inventory-detail-desc">${def.desc}</div>
       <div class="inventory-detail-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>
-      ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<div class="inventory-detail-compare">${gearCompareText(selectedItem)}</div>` : ''}`;
+      ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<div class="inventory-detail-compare">${gearCompareText(selectedItem)}</div>` : ''}
+      <div class="inventory-discard-hint">右上角「丢弃」会把整组物品放到地上；走开约 2 秒后可再次拾取。</div>`;
   }
 
   function openInventory() {
@@ -5635,13 +5698,15 @@
     drawAltExtraction();
     drawKeyRoom();
     drawObjective();
-    for (const c of world.containers) if (isPointVisible(c.x, c.y)) drawContainer(c);
-    for (const p of world.pickups) if (isPointVisible(p.x, p.y)) drawPickup(p);
+    // Main view is fog-free: draw every nearby object regardless of LOS.
+    // The minimap/full map still use world.fogMini and exploration state.
+    for (const c of world.containers) drawContainer(c);
+    for (const p of world.pickups) drawPickup(p);
     drawHazards();
     drawEnemyTelegraphs();
     drawBeams();
     for (const bullet of world.bullets) drawBullet(bullet);
-    for (const enemy of world.enemies) if (!enemy.dead && isPointVisible(enemy.x, enemy.y)) drawCharacter(enemy, false);
+    for (const enemy of world.enemies) if (!enemy.dead) drawCharacter(enemy, false);
     drawCharacter(player, true);
     drawLockOn();
     drawSkillTarget();
@@ -5649,8 +5714,6 @@
     for (const t of world.floatTexts) drawFloatText(t);
 
     ctx.restore();
-
-    drawFogOfWar(camX, camY);
 
     // Vignette / atmosphere. Cache the gradient instead of rebuilding it every frame.
     if (!save.settings.performanceMode) {
@@ -5678,18 +5741,6 @@
     drawCrosshair();
   }
 
-  function drawFogOfWar(camX, camY) {
-    const px = player.x - camX;
-    const py = player.y - camY;
-    const fog = ctx.createRadialGradient(px, py, VISION_RADIUS * 0.24, px, py, VISION_RADIUS);
-    fog.addColorStop(0, 'rgba(3,7,11,0)');
-    fog.addColorStop(0.62, 'rgba(3,7,11,.08)');
-    fog.addColorStop(0.84, 'rgba(3,7,11,.55)');
-    fog.addColorStop(1, 'rgba(3,7,11,.94)');
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  }
-
   function drawKeyRoom() {
     const room = world.keyRoom;
     if (!room) return;
@@ -5710,7 +5761,7 @@
 
   function drawObjective() {
     const obj = world?.objective;
-    if (!obj || !isPointVisible(obj.x, obj.y, VISION_RADIUS + 80)) return;
+    if (!obj) return;
     const def = OBJECTIVE_DEFS[obj.type];
     const pulse = (Math.sin(obj.pulse) + 1) * 0.5;
     const radius = obj.r + pulse * 5;
@@ -5937,6 +5988,12 @@
       ctx.fillRect(-5, -5, 10, 10);
       ctx.fillStyle = '#0a1016';
       ctx.fillRect(-2, -2, 4, 4);
+    }
+    if (p.pickupDelay > 0) {
+      ctx.fillStyle = '#ffad45';
+      ctx.font = 'bold 8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${Math.ceil(p.pickupDelay)}s`, 0, -22);
     }
     ctx.restore();
   }
@@ -6780,11 +6837,20 @@
       const dy = event.clientY - padCenterY;
       const distance = Math.hypot(dx, dy);
       const clamped = Math.min(distance, padRadius);
-      const nx = distance > 0.001 ? dx / distance : 0;
-      const ny = distance > 0.001 ? dy / distance : 0;
+      let nx = distance > 0.001 ? dx / distance : 0;
+      let ny = distance > 0.001 ? dy / distance : 0;
       const rawMag = padRadius > 0 ? Math.min(1, distance / padRadius) : 0;
       const deadZone = 0.06;
       const mag = rawMag > deadZone ? clamp((rawMag - deadZone) / (1 - deadZone), 0, 1) : 0;
+      // Cardinal assist: a mostly horizontal/vertical drag should not drift
+      // into a diagonal because of small thumb jitter.
+      if (Math.abs(nx) >= 0.9) {
+        nx = Math.sign(nx);
+        ny = 0;
+      } else if (Math.abs(ny) >= 0.9) {
+        ny = Math.sign(ny);
+        nx = 0;
+      }
       el.moveKnob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
       touch.moveX = nx;
       touch.moveY = ny;
@@ -6844,15 +6910,23 @@
         if (fixedMode() !== isPad) return;
         begin(event, target);
       });
-      target.addEventListener('pointermove', (event) => {
-        if (event.pointerId !== pointerId || target !== activeTarget) return;
-        move(event);
-        event.preventDefault();
-      });
-      target.addEventListener('pointerup', end);
-      target.addEventListener('pointercancel', end);
       target.addEventListener('lostpointercapture', end);
     };
+
+    // Track the active pointer on window, not only on the original target.
+    // This keeps movement alive if a mobile browser loses capture or the thumb
+    // slides outside the left move zone midway through a horizontal drag.
+    window.addEventListener('pointermove', (event) => {
+      if (event.pointerId !== pointerId) return;
+      move(event);
+      event.preventDefault();
+    }, { passive: false });
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    window.addEventListener('blur', () => end());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) end();
+    });
 
     bindTarget(el.moveZone, false);
     bindTarget(el.movePad, true);
@@ -7098,6 +7172,10 @@
   el.closeMapBtn.addEventListener('click', closeMap);
 
   el.closeInventoryBtn.addEventListener('click', closeInventory);
+  el.discardInventoryBtn.addEventListener('click', () => {
+    const item = player?.backpack.find((entry) => entry.id === selectedInventoryItemId);
+    if (item) discardInventoryItem(item.id);
+  });
   el.resumeBtn.addEventListener('click', togglePause);
   el.abandonBtn.addEventListener('click', () => {
     if (confirm('放弃行动会丢失本次携带的物资，确定返回基地吗？')) {
@@ -7175,7 +7253,7 @@
           exploredCount: world.explored ? world.explored.reduce((sum, v) => sum + v, 0) : 0,
           trailLength: world.trail ? world.trail.length : 0,
           visibleEnemies: world.enemies.filter((e) => !e.dead && isPointVisible(e.x, e.y)).length,
-          pickups: world.pickups.map((p) => ({ x: p.x, y: p.y, type: p.type, amount: p.amount || 0, itemType: p.item?.type || null, itemName: p.item ? itemName(p.item) : null }))
+          pickups: world.pickups.map((p) => ({ x: p.x, y: p.y, type: p.type, amount: p.amount || 0, itemType: p.item?.type || null, itemName: p.item ? itemName(p.item) : null, pickupDelay: p.pickupDelay || 0, dropped: !!p.dropped, dropArmed: !!p.dropArmed }))
         } : null
       };
     },
@@ -7190,6 +7268,7 @@
     chooseCharacter(id) { selectCharacter(id); return this.snapshot(); },
     enableTouch() { enableTouchUI(); },
     touchMove(x, y, mag) { touch.moveX = x; touch.moveY = y; touch.moveMag = mag; touch.moveTargetMag = mag; },
+    discardBackpackItem(id) { return discardInventoryItem(id); },
     touchAim(x, y, mag) {
       touch.aimAngle = Math.atan2(y, x);
       touch.aimTargetAngle = touch.aimAngle;
