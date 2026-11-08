@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v35
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v36
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -29,6 +29,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Art pass: pre-rendered floors now carry grout, noise, cracks, grime/blood/water decals and wall contact shadows; walls have panel seams, rivets and a top highlight; characters/elites get a 1px dark outline, shoulder highlights and per-character gear silhouettes; muzzle flashes spill light; a faint CRT scanline overlay is drawn in normal mode only.
 - Art pass 2: every room gets an overhead radial light pool baked into the map canvas, plus deterministic crates/barrels/pipes as pre-rendered props (kept clear of room centres); floating dust motes drift in the world layer. All of it lives in `buildMapCanvas` (zero per-frame cost), dust is skipped in performance mode.
 - Art pass 3 (reference-driven): all six stage palettes brightened and desaturated less; walls are now offset brick courses with a face highlight; floors carry emissive specks plus cross-shaped glints; sprite scale is 1.5 for the player / 1.4 for enemies so silhouettes match the reference's chunky look; player ground ring widened; vignette eased to .38.
+- Art pass 4: characters now render as standing side-view chibi sprites — the body mirrors horizontally (`ctx.scale(-1,1)` when facing left) instead of rotating with the aim angle, so heads stay up like the reference; the aim direction still reads through bullets/lock-on. UI switched to a heavy frame: 2px borders plus cut corners (clip-path) on panels, stat chips, manage cards, primary buttons and overlay cards. Verified base layout at 932x430 and 568x320 with no overflow.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.

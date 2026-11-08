@@ -2724,3 +2724,25 @@ body.touch-device.move-stick-fixed .move-pad {
   .daily-reward-hint { display: none; }
   .daily-item-foot { font-size: 7px; }
 }
+
+/* ---- Heavy UI frame (reference-driven) ---- */
+.panel {
+  border-width: 2px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.stat-chip {
+  border-width: 2px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.manage-entry-card {
+  border-width: 2px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.primary-btn {
+  border-width: 2px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.overlay-card {
+  border-width: 2px;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}

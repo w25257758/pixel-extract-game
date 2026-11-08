@@ -6803,7 +6803,9 @@
       ctx.fillText('!', 0, barY - 18);
     }
 
-    ctx.rotate(entity.angle || 0);
+    // Standing side-view: mirror the body left/right instead of rotating it,
+    // so characters read like the reference's chibi sprites.
+    if (Math.cos(entity.angle || 0) < 0) ctx.scale(-1, 1);
     // Chunkier sprites read better and match the reference silhouette scale.
     const spriteScale = isPlayer ? 1.5 : isBoss ? 1.45 : 1.4;
     ctx.scale(spriteScale, spriteScale);
