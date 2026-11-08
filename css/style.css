@@ -2824,3 +2824,20 @@ body.touch-device.move-stick-fixed .move-pad {
   .loot-card .overlay-note { display: none; }
   .loot-grid { max-height: 178px; }
 }
+
+.loot-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+.loot-actions .secondary-btn { padding: 5px 14px; font-size: 10px; }
+
+@media (max-height: 520px) {
+  .loot-grid { max-height: 156px; }
+  .loot-actions { margin-top: 5px; }
+  .loot-actions .secondary-btn { padding: 3px 10px; font-size: 9px; }
+}
+
+@media (max-height: 520px) {
+  .loot-card .inventory-loadout { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .loot-card .inventory-loadout > div:nth-child(1),
+  .loot-card .inventory-loadout > div:nth-child(6) { display: none; }
+}
+
+.loot-card { max-height: 95%; }

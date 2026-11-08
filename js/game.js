@@ -1300,6 +1300,7 @@
     secureGrid: $('#secureGrid'),
     lootBackpackCount: $('#lootBackpackCount'),
     lootSecureCount: $('#lootSecureCount'),
+    tidyBackpackBtn: $('#tidyBackpackBtn'),
     hudInventoryBtn: $('#hudInventoryBtn'),
     hudMapBtn: $('#hudMapBtn'),
     mapOverlay: $('#mapOverlay'),
@@ -2567,6 +2568,7 @@
     });
   }
   if (el.closeDailyBtn) el.closeDailyBtn.addEventListener('click', () => el.dailyOverlay.classList.add('hidden'));
+  if (el.tidyBackpackBtn) el.tidyBackpackBtn.addEventListener('click', tidyBackpack);
   if (el.claimDailyBtn) el.claimDailyBtn.addEventListener('click', claimDailyRewards);
   if (el.dailyOverlay) {
     el.dailyOverlay.addEventListener('click', (event) => {
@@ -5667,6 +5669,28 @@
     buildInventoryOverlay();
   }
 
+  // Tidy the backpack: group by item kind, then rarity, then value.
+  function tidyBackpack() {
+    if (!player) return;
+    const kindOrder = { weapon: 0, armor: 1, pack: 2, stone: 3 };
+    const rarityRank = { mythic: 6, legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+    player.backpack.sort((a, b) => {
+      const da = defOf(a);
+      const db = defOf(b);
+      const ka = kindOrder[da.kind] ?? 4;
+      const kb = kindOrder[db.kind] ?? 4;
+      if (ka !== kb) return ka - kb;
+      const ra = rarityRank[da.rarity] || 0;
+      const rb = rarityRank[db.rarity] || 0;
+      if (ra !== rb) return rb - ra;
+      return itemSellValue(b) - itemSellValue(a);
+    });
+    selectedInventoryItemId = player.backpack[0]?.id || null;
+    updateBackpackHud();
+    buildInventoryOverlay();
+    toast('背包已整理。');
+  }
+
   function buildInventoryOverlay() {
     if (!player) return;
     const selectedForDiscard = player.backpack.find((item) => item.id === selectedInventoryItemId)
@@ -5694,7 +5718,7 @@
     if (!player.backpack.some((item) => item.id === selectedInventoryItemId)) {
       selectedInventoryItemId = null;
     }
-    const sortedBackpack = sortItemList(player.backpack);
+    const sortedBackpack = player.backpack;
     for (let i = 0; i < player.capacity; i += 1) {
       const item = sortedBackpack[i] || null;
       const cell = lootCell(item);
@@ -8108,6 +8132,7 @@
     },
     moveToSecure(id) { moveToSecure(id); return this.secureState(); },
     moveFromSecure(id) { moveFromSecure(id); return this.secureState(); },
+    tidyBackpack() { tidyBackpack(); return this.secureState(); },
     recordDailyRun(run = {}) {
       recordDailyProgress(run);
       renderAllBase();

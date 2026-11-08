@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v37
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v38
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -31,6 +31,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Art pass 3 (reference-driven): all six stage palettes brightened and desaturated less; walls are now offset brick courses with a face highlight; floors carry emissive specks plus cross-shaped glints; sprite scale is 1.5 for the player / 1.4 for enemies so silhouettes match the reference's chunky look; player ground ring widened; vignette eased to .38.
 - Art pass 4: characters now render as standing side-view chibi sprites — the body mirrors horizontally (`ctx.scale(-1,1)` when facing left) instead of rotating with the aim angle, so heads stay up like the reference; the aim direction still reads through bullets/lock-on. UI switched to a heavy frame: 2px borders plus cut corners (clip-path) on panels, stat chips, manage cards, primary buttons and overlay cards. Verified base layout at 932x430 and 568x320 with no overflow.
 - Loot window rebuilt from the owner's second reference: title "战利品包", a 6-cell summary row, a capacity-sized backpack grid (empty slots drawn, rarity-tinted borders, quantity badge) and a 3x3 secure box ("倒下也不会丢失"). Click a backpack item to select it, then click an empty secure cell to bank it; click a filled secure cell to take it back. `raid.secureBox` holds up to 9 items and its contents go to the stash even when the raid fails (death), while the backpack is still lost. Verified: 16 backpack cells and 9 secure cells render, move in/out both directions, death settlement banks exactly the secure items, no JS errors.
+- Loot window also has a 整理背包 button (bottom right): sorts the live backpack array by kind (weapon/armor/pack/stone/loot), then rarity, then value, so the grid order is stable. The grid renders `player.backpack` directly (not `sortItemList`) so tidy has a visible effect. In short landscape the summary row collapses to 4 cells (role/value hidden) to keep the card near its max height.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
