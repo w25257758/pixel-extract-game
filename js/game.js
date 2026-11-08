@@ -262,43 +262,43 @@
   const STAGE_DEFS = [
     {
       id: 'industrial', name: '废弃工业区', tag: '锈蚀厂房',
-      floorPalette: ['#1b2531', '#1e2937', '#19232f', '#202b39'],
-      wallColor: '#0a0e14', edgePalette: ['#34445c', '#2b394d'],
+      floorPalette: ['#26333f', '#2a3a48', '#22303c', '#2d3d4c'],
+      wallColor: '#151d26', edgePalette: ['#4a5f7a', '#3a4b62'],
       miniPalette: ['#304052', '#293747'], accent: 'rgba(85,217,255,.055)',
       enemyPool: ['grunt', 'grunt', 'scout', 'sniper', 'heavy']
     },
     {
       id: 'redline', name: '赤色封锁线', tag: '军事检查站',
-      floorPalette: ['#2a1e24', '#2f2228', '#261b21', '#33242b'],
-      wallColor: '#120a0d', edgePalette: ['#5a3740', '#3f2930'],
+      floorPalette: ['#3a2730', '#412d35', '#332129', '#46313a'],
+      wallColor: '#1d1013', edgePalette: ['#7a4a56', '#56333d'],
       miniPalette: ['#4d303a', '#3b252d'], accent: 'rgba(255,91,110,.06)',
       enemyPool: ['grunt', 'heavy', 'scout', 'bomber', 'sniper']
     },
     {
       id: 'quantum', name: '量子深渊', tag: '失控实验层',
-      floorPalette: ['#151f35', '#18243d', '#122038', '#1b2944'],
-      wallColor: '#060a12', edgePalette: ['#2f4270', '#1e2c4e'],
+      floorPalette: ['#1e2a4a', '#233154', '#1a2642', '#27365c'],
+      wallColor: '#0d1222', edgePalette: ['#41598f', '#2c3f68'],
       miniPalette: ['#2e4068', '#243454'], accent: 'rgba(88,166,255,.07)',
       enemyPool: ['orbiter', 'sniper', 'scout', 'grunt', 'bomber']
     },
     {
       id: 'foundry', name: '熔核铸造厂', tag: '高温禁区',
-      floorPalette: ['#2b211a', '#33261d', '#281d17', '#38291f'],
-      wallColor: '#130c08', edgePalette: ['#5e4029', '#3f2b1c'],
+      floorPalette: ['#3a2c22', '#423327', '#33261e', '#4a3829'],
+      wallColor: '#1e130c', edgePalette: ['#7a5535', '#54402a'],
       miniPalette: ['#4d3525', '#3c291b'], accent: 'rgba(255,173,69,.06)',
       enemyPool: ['heavy', 'bomber', 'orbiter', 'grunt', 'scout']
     },
     {
       id: 'void', name: '虚空回廊', tag: '相位裂隙',
-      floorPalette: ['#211a2d', '#261e35', '#1b1627', '#2c2240'],
-      wallColor: '#090611', edgePalette: ['#4a3568', '#31234a'],
+      floorPalette: ['#2c2240', '#332748', '#241c36', '#3a2c50'],
+      wallColor: '#120d1c', edgePalette: ['#5f4485', '#432f63'],
       miniPalette: ['#3e2e5c', '#2f2346'], accent: 'rgba(192,132,255,.065)',
       enemyPool: ['orbiter', 'sniper', 'bomber', 'heavy', 'scout']
     },
     {
       id: 'citadel', name: '终焉要塞', tag: '最后防线',
-      floorPalette: ['#222b2c', '#282f30', '#1d2526', '#2e3536'],
-      wallColor: '#0b0f10', edgePalette: ['#4a5b5d', '#304042'],
+      floorPalette: ['#2c3738', '#333e3f', '#263132', '#3a4547'],
+      wallColor: '#121718', edgePalette: ['#5d7072', '#40525a'],
       miniPalette: ['#3b494b', '#2c383a'], accent: 'rgba(214,255,77,.045)',
       enemyPool: ['heavy', 'orbiter', 'sniper', 'bomber', 'grunt']
     }
@@ -3298,6 +3298,22 @@
             g.ellipse(wx, wy, 13, 8, 0, 0, TAU);
             g.fill();
           }
+          // Emissive floor specks (the reference has tiny glowing dots everywhere).
+          if (h % 5 === 0) {
+            const gx = px + 2 + (h % 28);
+            const gy = py + 2 + ((h >> 3) % 28);
+            g.fillStyle = 'rgba(255,226,255,.18)';
+            g.fillRect(gx, gy, 2, 2);
+            g.fillStyle = 'rgba(255,255,255,.3)';
+            g.fillRect(gx, gy, 1, 1);
+          }
+          if (h % 41 === 0) {
+            const gx = px + 12 + (h % 10);
+            const gy = py + 12 + ((h >> 2) % 10);
+            g.fillStyle = 'rgba(255,255,255,.14)';
+            g.fillRect(gx - 2, gy, 5, 1);
+            g.fillRect(gx, gy - 2, 1, 5);
+          }
           // Contact shadow cast by adjacent walls.
           if (y > 0 && tiles[y - 1][x] === 0) {
             const sh = g.createLinearGradient(px, py, px, py + 11);
@@ -3317,16 +3333,26 @@
           g.fillStyle = wallColor;
           g.fillRect(px, py, TILE, TILE);
           const wh = hash2(x + 91, y + 37);
-          // Wall panel seams, rivets and grime so walls read as solid surfaces.
-          g.fillStyle = wh % 5 === 0 ? 'rgba(255,255,255,.035)' : 'rgba(0,0,0,.12)';
-          g.fillRect(px + 4 + (wh % 9), py + 5 + (wh % 11), TILE - 12, 1);
+          // Brick courses: two rows per tile, vertical joints offset each row.
+          g.fillStyle = 'rgba(0,0,0,.32)';
+          g.fillRect(px, py + 15, TILE, 1);
+          g.fillRect(px, py + 31, TILE, 1);
+          const shift = y % 2 ? 6 : 0;
+          g.fillRect(px + ((10 + shift) % 32), py, 1, 15);
+          g.fillRect(px + ((24 + shift) % 32), py, 1, 15);
+          g.fillRect(px + ((4 + shift) % 32), py + 16, 1, 15);
+          g.fillRect(px + ((18 + shift) % 32), py + 16, 1, 15);
+          // Brick face highlight so each course reads as raised masonry.
+          g.fillStyle = 'rgba(255,255,255,.045)';
+          g.fillRect(px, py + 1, TILE, 2);
+          g.fillRect(px, py + 17, TILE, 2);
           if (wh % 7 === 0) {
             g.fillStyle = 'rgba(255,255,255,.07)';
             g.fillRect(px + 6 + (wh % 13), py + 8 + (wh % 9), 2, 2);
           }
           if (wh % 13 === 0) {
-            g.fillStyle = 'rgba(0,0,0,.3)';
-            g.fillRect(px + 4, py + 20, TILE - 8, 2);
+            g.fillStyle = 'rgba(0,0,0,.26)';
+            g.fillRect(px + 4, py + 22, TILE - 8, 2);
           }
           const belowFloor = y + 1 < MAP_H && tiles[y + 1][x] === 1;
           const rightFloor = x + 1 < MAP_W && tiles[y][x + 1] === 1;
@@ -6171,7 +6197,7 @@
       if (!raidVignetteGradient) {
         raidVignetteGradient = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
         raidVignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
-        raidVignetteGradient.addColorStop(1, 'rgba(0,0,0,.46)');
+        raidVignetteGradient.addColorStop(1, 'rgba(0,0,0,.38)');
       }
       ctx.fillStyle = raidVignetteGradient;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -6679,10 +6705,15 @@
 
     if (isPlayer) {
       // A faint player ring helps readability in corridors.
-      ctx.strokeStyle = `${playerColor}38`;
+      ctx.strokeStyle = `${playerColor}55`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 23, 0, TAU);
+      ctx.stroke();
+      ctx.strokeStyle = `${playerColor}20`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(0, 0, 16, 0, TAU);
+      ctx.arc(0, 0, 28, 0, TAU);
       ctx.stroke();
       if (player.shield > 0) {
         ctx.strokeStyle = 'rgba(88,166,255,.7)';
@@ -6773,6 +6804,9 @@
     }
 
     ctx.rotate(entity.angle || 0);
+    // Chunkier sprites read better and match the reference silhouette scale.
+    const spriteScale = isPlayer ? 1.5 : isBoss ? 1.45 : 1.4;
+    ctx.scale(spriteScale, spriteScale);
 
     // Dark 1px outline keeps silhouettes readable against dark floors.
     const px = (x, y, w, h, color, outline = '#04070b') => {
@@ -6861,7 +6895,6 @@
         }
       }
     } else {
-      if (isBoss) ctx.scale(1.45, 1.45);
       const kind = entity.kind;
       if (kind === 'orbiter') {
         ctx.strokeStyle = entity.color;
