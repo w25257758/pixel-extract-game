@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 (() => {
   // ---------------------------------------------------------------------------
@@ -23,6 +23,19 @@
   const MAP_PW = MAP_W * TILE;
   const MAP_PH = MAP_H * TILE;
   const SAVE_KEY = 'pixel_extract_save_v1';
+
+  // Daily contracts: three seeded goals per local day, ticked at raid settlement.
+  const DAILY_BONUS = { scrap: 160, parts: 2 };
+  const DAILY_DEFS = [
+    { id: 'kills', label: '清剿', mode: 'sum', targets: [8, 12, 16], text: (n) => `累计击倒 ${n} 名敌人`, reward: { scrap: 80, parts: 1 } },
+    { id: 'containers', label: '搜刮', mode: 'sum', targets: [6, 9, 12], text: (n) => `累计搜刮 ${n} 个补给箱`, reward: { scrap: 70, parts: 1 } },
+    { id: 'extracts', label: '撤离', mode: 'sum', targets: [1, 2], text: (n) => `成功撤离 ${n} 次`, reward: { scrap: 90, parts: 1 } },
+    { id: 'objectives', label: '目标', mode: 'sum', targets: [1, 2, 3], text: (n) => `完成 ${n} 个房间目标`, reward: { scrap: 80, parts: 1 } },
+    { id: 'elites', label: '精英', mode: 'sum', targets: [1, 2], text: (n) => `击倒 ${n} 名精英敌人`, reward: { scrap: 100, parts: 1 } },
+    { id: 'bosses', label: '首领', mode: 'sum', targets: [1], text: (n) => `击倒 ${n} 名首领`, reward: { scrap: 120, parts: 2 } },
+    { id: 'depth', label: '深入', mode: 'max', targets: [5, 8], text: (n) => `单局撤离到 F${n} 层`, reward: { scrap: 110, parts: 1 } },
+    { id: 'damage', label: '火力', mode: 'max', targets: [1500, 2500, 4000], text: (n) => `单局造成 ${n} 点伤害`, reward: { scrap: 80, parts: 1 } }
+  ];
 
   let uidCounter = 0;
   function uid() {
@@ -701,7 +714,7 @@
 
   function defaultSave() {
     return {
-      version: 8,
+      version: 9,
       character: 'pioneer',
       scrap: 80,
       modParts: 0,
@@ -714,7 +727,8 @@
       transcend: { level: 0, progress: 0 },
       upgrades: { medkits: 0, ammo: 0 },
       settings: { ...DEFAULT_SETTINGS },
-      stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 }
+      stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 },
+      daily: normalizeDaily(null)
     };
   }
 
@@ -728,6 +742,7 @@
       upgrades: { ...base.upgrades, ...(raw.upgrades || {}) },
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
+      daily: normalizeDaily(raw.daily),
       transcend: {
         level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
         progress: Math.max(0, Math.floor(Number(raw.transcend?.progress) || 0))
@@ -756,7 +771,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 8;
+    merged.version = 9;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     merged.modParts = Math.max(0, Math.floor(Number(merged.modParts) || 0));
     const touchSettings = merged.settings;
@@ -789,6 +804,187 @@
     } catch (err) {
       console.warn('Save write failed.', err);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Daily contracts
+  // ---------------------------------------------------------------------------
+  function dailyDateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function dailySeedOf(key) {
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i += 1) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function dailyRng(seed) {
+    let a = seed >>> 0;
+    return function next() {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function dailyDef(id) {
+    return DAILY_DEFS.find((def) => def.id === id) || null;
+  }
+
+  function rollDailyList(key) {
+    const rng = dailyRng(dailySeedOf(key));
+    const pool = DAILY_DEFS.slice();
+    const list = [];
+    while (list.length < 3 && pool.length) {
+      const def = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+      const tier = Math.min(def.targets.length - 1, Math.floor(rng() * def.targets.length));
+      list.push({ id: def.id, target: def.targets[tier], value: 0, claimed: false });
+    }
+    return list;
+  }
+
+  function normalizeDaily(rawDaily) {
+    const key = dailyDateKey();
+    const fresh = () => ({ date: key, list: rollDailyList(key), bonusClaimed: false });
+    if (!rawDaily || rawDaily.date !== key || !Array.isArray(rawDaily.list)) return fresh();
+    const list = [];
+    const seen = new Set();
+    for (const entry of rawDaily.list) {
+      const def = entry && dailyDef(entry.id);
+      if (!def || seen.has(def.id)) continue;
+      seen.add(def.id);
+      const target = Math.max(1, Math.floor(Number(entry.target) || def.targets[0]));
+      const value = clamp(Math.floor(Number(entry.value) || 0), 0, target);
+      list.push({ id: def.id, target, value, claimed: entry.claimed === true });
+    }
+    if (list.length !== 3) return fresh();
+    return { date: key, list, bonusClaimed: rawDaily.bonusClaimed === true };
+  }
+
+  function ensureDaily() {
+    const key = dailyDateKey();
+    if (!save.daily || save.daily.date !== key) {
+      save.daily = normalizeDaily(null);
+      persist();
+    }
+    return save.daily;
+  }
+
+  function dailyDoneCount(data = ensureDaily()) {
+    return data.list.filter((entry) => entry.value >= entry.target).length;
+  }
+
+  function dailyClaimableCount(data = ensureDaily()) {
+    return data.list.filter((entry) => entry.value >= entry.target && !entry.claimed).length;
+  }
+
+  function dailyRewardText(def) {
+    return `+${def.reward.scrap} 废料 · +${def.reward.parts} 零件`;
+  }
+
+  // run: kills / containers / extracts / objectives / elites / bosses / depth / damage
+  function recordDailyProgress(run) {
+    const data = ensureDaily();
+    let changed = false;
+    for (const entry of data.list) {
+      if (entry.claimed) continue;
+      const def = dailyDef(entry.id);
+      if (!def) continue;
+      const source = Math.max(0, Math.floor(Number(run[entry.id]) || 0));
+      if (!source) continue;
+      const next = def.mode === 'max' ? Math.max(entry.value, source) : entry.value + source;
+      const capped = Math.min(entry.target, next);
+      if (capped !== entry.value) {
+        entry.value = capped;
+        changed = true;
+      }
+    }
+    if (changed) persist();
+    return data;
+  }
+
+  function renderDaily() {
+    const data = ensureDaily();
+    const done = dailyDoneCount(data);
+    const claimable = dailyClaimableCount(data);
+    if (el.statDaily) el.statDaily.textContent = `${done}/3`;
+    if (el.openDailyBtn) el.openDailyBtn.classList.toggle('ready', claimable > 0);
+    if (!el.dailyList) return;
+    if (el.dailyDate) el.dailyDate.textContent = `${data.date} · DAILY CONTRACTS`;
+    if (el.dailyProgressTag) el.dailyProgressTag.textContent = `${done} / 3`;
+    if (el.dailyRewardHint) {
+      el.dailyRewardHint.textContent = claimable > 0
+        ? `可领取 ${claimable} 条合约奖励`
+        : done >= 3
+          ? '今日合约奖励已全部领取'
+          : '行动结算时记录进度';
+    }
+    if (el.claimDailyBtn) {
+      el.claimDailyBtn.disabled = claimable <= 0;
+      el.claimDailyBtn.textContent = claimable > 0 ? `领取奖励 (${claimable})` : '暂无奖励';
+    }
+    el.dailyList.innerHTML = '';
+    for (const entry of data.list) {
+      const def = dailyDef(entry.id);
+      if (!def) continue;
+      const complete = entry.value >= entry.target;
+      const item = document.createElement('div');
+      item.className = `daily-item${complete ? ' done' : ''}${entry.claimed ? ' claimed' : ''}`;
+      item.innerHTML = `
+        <div class="daily-item-head">
+          <span class="daily-tag">${def.label}</span>
+          <span class="daily-item-name">${def.text(entry.target)}</span>
+          <span class="daily-item-value">${entry.value}/${entry.target}</span>
+        </div>
+        <div class="daily-bar"><i style="width:${Math.round((entry.value / entry.target) * 100)}%"></i></div>
+        <div class="daily-item-foot">
+          <span>${dailyRewardText(def)}</span>
+          <b>${entry.claimed ? '已领取' : complete ? '可领取' : '进行中'}</b>
+        </div>`;
+      el.dailyList.appendChild(item);
+    }
+  }
+
+  function claimDailyRewards() {
+    const data = ensureDaily();
+    let scrap = 0;
+    let parts = 0;
+    let count = 0;
+    for (const entry of data.list) {
+      if (entry.claimed || entry.value < entry.target) continue;
+      const def = dailyDef(entry.id);
+      if (!def) continue;
+      entry.claimed = true;
+      count += 1;
+      scrap += def.reward.scrap;
+      parts += def.reward.parts;
+    }
+    if (!count) {
+      renderDaily();
+      return;
+    }
+    let bonus = false;
+    if (data.list.every((entry) => entry.claimed) && !data.bonusClaimed) {
+      data.bonusClaimed = true;
+      bonus = true;
+      scrap += DAILY_BONUS.scrap;
+      parts += DAILY_BONUS.parts;
+    }
+    save.scrap += scrap;
+    save.modParts += parts;
+    persist();
+    renderAllBase();
+    renderDaily();
+    toast(`合约奖励：+${scrap} 废料 · +${parts} 零件${bonus ? '（含全清奖励）' : ''}`);
   }
 
   function raidXpToNext(level) { return 80 + (level - 1) * 50; }
@@ -1123,6 +1319,15 @@
     debriefStats: $('#debriefStats'),
     debriefLoot: $('#debriefLoot'),
     debriefCloseBtn: $('#debriefCloseBtn'),
+    statDaily: $('#statDaily'),
+    openDailyBtn: $('#openDailyBtn'),
+    dailyOverlay: $('#dailyOverlay'),
+    dailyDate: $('#dailyDate'),
+    dailyProgressTag: $('#dailyProgressTag'),
+    dailyList: $('#dailyList'),
+    dailyRewardHint: $('#dailyRewardHint'),
+    claimDailyBtn: $('#claimDailyBtn'),
+    closeDailyBtn: $('#closeDailyBtn'),
     perkOverlay: $('#perkOverlay'),
     perkChoiceGrid: $('#perkChoiceGrid'),
     perkPending: $('#perkPending'),
@@ -2332,6 +2537,7 @@
     renderTranscend();
     renderCharacterPanel();
     renderProgress();
+    renderDaily();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
     if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石 · 零件 ${save.modParts}`;
     if (el.stashModParts) el.stashModParts.textContent = `零件 ${save.modParts}`;
@@ -2351,6 +2557,19 @@
   el.openEnhanceBtn.addEventListener('click', () => openEquipModal('enhance'));
   el.openTranscendBtn.addEventListener('click', () => openEquipModal('transcend'));
   if (el.openCharacterBtn) el.openCharacterBtn.addEventListener('click', () => openEquipModal('character'));
+  if (el.openDailyBtn) {
+    el.openDailyBtn.addEventListener('click', () => {
+      renderDaily();
+      el.dailyOverlay.classList.remove('hidden');
+    });
+  }
+  if (el.closeDailyBtn) el.closeDailyBtn.addEventListener('click', () => el.dailyOverlay.classList.add('hidden'));
+  if (el.claimDailyBtn) el.claimDailyBtn.addEventListener('click', claimDailyRewards);
+  if (el.dailyOverlay) {
+    el.dailyOverlay.addEventListener('click', (event) => {
+      if (event.target === el.dailyOverlay) el.dailyOverlay.classList.add('hidden');
+    });
+  }
   if (el.transcendBtn) el.transcendBtn.addEventListener('click', performTranscend);
   if (el.transcendBulkBtn) el.transcendBulkBtn.addEventListener('click', bulkConvertTranscendCommon);
   el.closeEquipBtn.addEventListener('click', closeEquipModal);
@@ -4485,6 +4704,7 @@
       addLootFeed('已消耗 🔑 ×1，钥匙房宝箱开启。', false);
     }
     container.searched = true;
+    raid.containersSearched = (raid.containersSearched || 0) + 1;
     playSound('open');
     const quality = container.vault ? 'vault' : container.rarity;
     const count = container.vault ? randInt(4, 5) : container.rarity === 'rare' ? randInt(2, 4) : randInt(1, 3);
@@ -5509,6 +5729,7 @@
       parts: 0,
       keys: 0,
       kills: 0,
+      containersSearched: 0,
       paused: false,
       ended: false,
       inventoryOpen: false,
@@ -5538,6 +5759,8 @@
     beginFloor(true);
     const risk = riskDef();
     addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，寻找钥匙房宝箱。`, false);
+    const dailyData = ensureDaily();
+    addLootFeed(`今日合约 ${dailyDoneCount(dailyData)}/3 已完成 · 基地「合约」查看`, false);
     if (raid.event) {
       addLootFeed(`随机事件：${raid.event.label}${raid.event.timer > 0 ? `（${raid.event.timer}秒）` : ''}`, false);
       toast(`随机事件：${raid.event.label}`);
@@ -5594,6 +5817,17 @@
 
     save.stats.kills += raid.kills;
     persist();
+    const dailyStats = raid.stats || { damageDealt: 0, eliteKills: 0, bossKills: 0, objectives: 0 };
+    recordDailyProgress({
+      kills: raid.kills,
+      containers: raid.containersSearched || 0,
+      extracts: success ? 1 : 0,
+      objectives: dailyStats.objectives || 0,
+      elites: dailyStats.eliteKills || 0,
+      bosses: dailyStats.bossKills || 0,
+      depth: success ? raid.floor : 0,
+      damage: Math.round(dailyStats.damageDealt || 0)
+    });
     renderAllBase();
 
     el.debriefTag.textContent = success ? 'EXTRACTION COMPLETE // 返回基地' : 'SIGNAL LOST // 行动失败';
@@ -7427,7 +7661,66 @@
     openExtractionChoice,
     continueToNextFloor,
     returnFromExtraction,
-    perkChoices() { return pendingPerkChoices.slice(); }
+    perkChoices() { return pendingPerkChoices.slice(); },
+    dailyState() {
+      const data = ensureDaily();
+      return {
+        date: data.date,
+        list: data.list.map((entry) => ({
+          id: entry.id,
+          label: dailyDef(entry.id)?.label || entry.id,
+          text: dailyDef(entry.id)?.text(entry.target) || '',
+          target: entry.target,
+          value: entry.value,
+          claimed: entry.claimed,
+          mode: dailyDef(entry.id)?.mode || 'sum'
+        })),
+        done: dailyDoneCount(data),
+        claimable: dailyClaimableCount(data),
+        bonusClaimed: data.bonusClaimed
+      };
+    },
+    setDailyValue(id, value) {
+      const data = ensureDaily();
+      const entry = data.list.find((item) => item.id === id);
+      if (!entry) return null;
+      entry.value = clamp(Math.floor(Number(value) || 0), 0, entry.target);
+      persist();
+      renderAllBase();
+      return this.dailyState();
+    },
+    resetDaily() {
+      save.daily = normalizeDaily(null);
+      persist();
+      renderAllBase();
+      return this.dailyState();
+    },
+    claimDaily() { claimDailyRewards(); return this.dailyState(); },
+    recordDailyRun(run = {}) {
+      recordDailyProgress(run);
+      renderAllBase();
+      return this.dailyState();
+    },
+    forceDaily(list = []) {
+      save.daily = {
+        date: dailyDateKey(),
+        bonusClaimed: false,
+        list: list.map((entry) => {
+          const def = dailyDef(entry.id);
+          if (!def) return null;
+          const target = Math.max(1, Math.floor(Number(entry.target) || def.targets[0]));
+          return {
+            id: def.id,
+            target,
+            value: clamp(Math.floor(Number(entry.value) || 0), 0, target),
+            claimed: entry.claimed === true
+          };
+        }).filter(Boolean)
+      };
+      persist();
+      renderAllBase();
+      return this.dailyState();
+    }
   };
   renderAllBase();
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {

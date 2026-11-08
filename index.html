@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -30,6 +30,7 @@
           <div class="stat-chip scrap"><span>废料</span><strong id="statScrap">0</strong></div>
           <div class="stat-chip"><span>行动</span><strong id="statRaids">0</strong></div>
           <div class="stat-chip"><span>撤离</span><strong id="statExtracts">0</strong></div>
+          <button id="openDailyBtn" class="stat-chip daily-chip" type="button" title="查看每日合约"><span>合约</span><strong id="statDaily">0/3</strong></button>
           <button id="resetSaveBtn" class="ghost-btn small" title="清空存档">重置存档</button>
         </div>
       </header>
@@ -302,6 +303,27 @@
         <span class="touch-pad-label">移动</span>
       </div>
     </section>
+
+    <div id="dailyOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card daily-card manage-window-card">
+        <div class="overlay-head">
+          <span>每日合约</span>
+          <button id="closeDailyBtn" class="ghost-btn small" type="button">关闭</button>
+        </div>
+        <div class="daily-head">
+          <div class="daily-head-copy">
+            <div class="daily-date" id="dailyDate">—</div>
+            <p class="daily-sub">每天三条独立合约，行动结算时记录进度；完成一条领一条。</p>
+          </div>
+          <div class="daily-progress-tag" id="dailyProgressTag">0 / 3</div>
+        </div>
+        <div id="dailyList" class="daily-list"></div>
+        <div class="daily-foot">
+          <span id="dailyRewardHint" class="daily-reward-hint">完成合约可领取废料与改装零件</span>
+          <button id="claimDailyBtn" class="primary-btn compact" type="button" disabled>领取奖励</button>
+        </div>
+      </div>
+    </div>
 
     <div id="equipOverlay" class="overlay full-overlay hidden">
       <div class="overlay-card equip-modal-card manage-window-card">

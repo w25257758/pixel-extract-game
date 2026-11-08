@@ -1,4 +1,4 @@
-﻿# GitHub 自动部署配置
+# GitHub 自动部署配置
 
 本目录已经初始化成 Git 仓库，并创建了第一次提交。
 
@@ -11,7 +11,7 @@
 3. 点击 `File` → `Add local repository`
 4. 选择目录：
 
-   `C:\Users\86158\Documents\deepseek-harness\default-workspace`
+   `C:\Users\86158\Documents\deepseek-harness\default-workspace\games`
 
 5. 点击 `Publish repository`
 6. 仓库名可以填 `pixel-extract`，公开或私有都可以

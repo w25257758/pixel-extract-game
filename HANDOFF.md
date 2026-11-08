@@ -1,19 +1,21 @@
 # Pixel Extract - Handoff
 
+> **WORKING RULES (mandatory): see `..\AGENTS.md`.** Never read all of `js/game.js` (312 KB) at once — grep for the line, then `read offset/limit`. A previous session was killed by 413 Request Entity Too Large because it re-read whole large files and screenshots into context.
+
 ## Summary
 Pure frontend single-player pixel extraction shooter. Read this file before continuing; do not paste the whole chat history.
 
 ## Paths
-- Workspace: C:\Users\86158\Documents\deepseek-harness\default-workspace
+- Workspace: C:\Users\86158\Documents\deepseek-harness\default-workspace\games
 - Live: https://shiny-lolly-80eafb.netlify.app
 - GitHub: https://github.com/w25257758/pixel-extract-game
 - Stack: HTML + CSS + vanilla JavaScript + Canvas 2D, no build step.
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v31
-- Save key: localStorage pixel_extract_save_v1, schema version 8
-- Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics (see git log)
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v32
+- Save key: localStorage pixel_extract_save_v1, schema version 9
+- Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
 ## Current UI
 - Mobile landscape one-screen layout; base has two columns: loadout and manage center.
@@ -22,6 +24,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Each card opens its own independent window. No tabs, no extra manage-window entry.
 - All six windows fit without vertical scrolling at tested sizes; item/stone lists and character detail scroll internally when needed.
 - The old progression panel was removed and must not be re-added.
+- Top-right stat chips now include a 合约 (daily contracts) chip showing today's cleared count; it opens a standalone overlay, not a seventh manage card.
+- Daily contracts overlay: date, 3 compact goal cards with progress bars and rewards, plus one claim button; it fits at 932x430, 667x375 and 568x320 without page or card scrolling.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
@@ -88,6 +92,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Continuing to the next floor keeps the current run's level, perks, HP, ammo and backpack.
 - Enemy HP, damage, count and rare-loot chance scale with floor depth.
 - Main-view rendering must not apply radial fog or LOS culling; map markers must still never reveal unseen enemies or the boss.
+- Keep daily contracts compact: three seeded goals per local day, progress recorded only at raid settlement, per-goal claim plus a full-clear bonus, and do not turn it into a base progression panel or a seventh manage card.
+- Keep the daily chip in the top-right stat row; the 3x2 manage grid stays at six cards.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -140,11 +146,13 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Movement fix: pointer tracking moved to window-level handlers so horizontal drags survive leaving the target element; added cardinal assist (>=0.9 axis component snaps minor axis to 0). Verified horizontal, diagonal, and drag-beyond-zone input at 568x320.
 - Backpack discard: inventory header button drops the selected item(s) near the player with a 2-second pickup delay and a `走开` arming check; added a ground countdown label. Verified dropped item stayed after walking away, then re-entered backpack when revisited.
 - Removed the main-view fog overlay and LOS draw filters; minimap and full map still use `world.fogMini` and exploration masks.
+- Added daily contracts (save schema v9): three goals generated per local date from an 8-goal pool (kills/containers/extracts/objectives/elites/bosses use sum mode, depth/damage use best-single-run mode), recorded at `endRaid`, per-goal claim with a full-clear bonus, and a compact overlay opened from the new top-right 合约 chip.
+- Verified daily contracts: seed-stable generation, sum accumulation and max-mode best-run, cap at target, claim once (440 scrap / 6 parts for the seeded day, then 0 on a second claim), real settlement path (search -> endRaid adds containers/extracts/depth), v8 -> v9 migration keeping scrap/character/mod parts while rebuilding the daily block, and no overflow at 932x430 / 667x375 / 568x320.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id).
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -156,6 +164,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
   - character selection persistence, v6->v7 migration, universal dash dodge, all four active skills/passives and sniper lock visuals
   - boss 3-phase thresholds/core windows, signature casts, affix/set combat application, gear lock/reroll/filter, elite affixes, objectives and 568x320 layout
   - v7->v8 migration, mod parts persistence and debrief statistics
+  - v8->v9 daily contract migration, daily chip/overlay layout at all three test sizes and claim-once behavior
   - fog-free main view with fogged minimap; backpack discard -> ground pickup after walking away; cardinal-assist movement with global pointer tracking
 
 ## Release
@@ -176,4 +185,5 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Check minimap fog readability and touch movement feel on a real phone; adjust VISION_RADIUS only for exploration/minimap, not main-view rendering.
 - Verify old level/perk saves still migrate cleanly after the next data-format change.
 - Daily challenges are the next content candidate; keep them compact and avoid adding a base progression panel.
+- Daily contracts shipped in v32 — next candidates: a weekly streak line inside the same overlay, or per-contract bonus modifiers (e.g. "clear F5 with a boss contract"). Keep the 3-goal cap and the claim-once rule.
 - Monitor whether the exposed-core windows make boss fights too easy; tune weak-point duration or phase attack density rather than removing the phase system.
