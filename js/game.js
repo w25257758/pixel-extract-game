@@ -4699,7 +4699,12 @@
       }
 
       if (this.isBounty) {
-        const rewardType = pick(LOOT_POOLS.legendary || ['w_plasma']);
+        // 1 in 4 bounties pay out a legendary; the rest drop epic gear plus scrap.
+        const isLegendary = Math.random() < 0.25;
+        const rewardType = isLegendary
+          ? pick(LOOT_POOLS.legendary || ['w_plasma'])
+          : pick(LOOT_POOLS.epic || ['w_dmr']);
+        const bonusScrap = isLegendary ? 0 : Math.round(rand(80, 160));
         world.pickups.push({
           x: this.x,
           y: this.y,
@@ -4709,9 +4714,12 @@
           bob: rand(0, TAU),
           bossDrop: true
         });
+        raid.scrap += bonusScrap;
         raid.parts = (raid.parts || 0) + 5;
-        addFloatText(this.x, this.y - 48, '传说掉落 + 5 零件', '#ffd15c');
-        addLootFeed('高危目标击倒：传说掉落 + 5 改装零件', true);
+        addFloatText(this.x, this.y - 48, isLegendary ? '传说掉落 + 5 零件' : `高价值物资 +${bonusScrap} 废料`, '#ffd15c');
+        addLootFeed(isLegendary
+          ? '高危目标击倒：传说掉落 + 5 改装零件'
+          : `高危目标击倒：高价值物资 + ${bonusScrap} 废料 + 5 零件`, true);
         // The kill is loud: every living enemy converges on the player.
         for (const enemy of world.enemies) {
           if (enemy.dead) continue;
