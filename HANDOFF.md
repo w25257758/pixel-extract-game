@@ -223,9 +223,9 @@ Each boss gets its own legendary weapon instead of the shared `w_boss`:
 ## Planned: collector room (design agreed, not started)
 
 - Entry: a new 「收藏」 chip in the top-right stat row next to 合约 (do NOT add a seventh manage card).
-- Accepts only legendary (red) items. The Nth donation costs N items (1, 2, 3, ...).
-- Each donation grants a permanent, fixed-order bonus. Save schema goes to v10.
-- Tier 1 (the owner lowered these once): search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop chance +8%. Cap at 8 tiers for now.
+- It only accepts a new item kind: **收藏品 / relics** (cannot be equipped or enhanced, sellable). The six boss materials (泰坦合金 / 棱镜碎片 / 熔渣核心 / 虚空残片 / 相位碎片 / 终焉核心) are this kind and are the main source. Weapons, backpacks and enhancement stones must NOT be accepted — the owner rejected donating usable gear.
+- The Nth donation costs N relics (1, 2, 3, ...), each donation grants a permanent, fixed-order bonus. Save schema goes to v10.
+- Tier 1 (owner lowered once): search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop chance +8%. Cap at 8 tiers for now.
 - Extension pool for later tiers (all cheap to wire into existing systems): medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
 
 ## Planned: side systems backlog (agreed order, not started)
@@ -234,12 +234,32 @@ Owner approved these; pick one when work resumes. None of them change the six-ca
 
 1. **Weapon mods** — three slots per weapon (optic: spread/range/crit, magazine: capacity/reload/fire rate, barrel: damage/pierce/knockback). Mods drop from enemies/containers/bosses, have rarity tiers, install on a weapon and can be removed at a mod-part cost.
 2. **Faction reputation** — three factions (拾荒者 / 军方 / 黑市) each with exclusive gear and a reputation shop: 拾荒者 = recycler mods + salvage station, 军方 = standard-issue guns + armory discount + supply drop, 黑市 = smuggler affix gear + reroll discount + legendary pity box. Reputation rises from extractions/kills/objectives; leaning into one faction levels it faster.
-3. **Daily seeded run** — single-player, so no leaderboard: one fixed-seed map per day, compare against your own best (kills / loot value / survival time) and reward a personal best.
+3. **Daily survival run** — single-player, so no leaderboard and no "beat yesterday": one fixed-seed map per day, and the goal is a concrete survival target (reach X minutes alive). Hitting the target grants the reward; tie tiers to the target (e.g. 3/5/8 minutes) with escalating payouts instead of comparing personal records.
 4. **Radio logs / lore fragments** — 1-2 audio logs per floor, collected into an archive, a finished series unlocks background story plus a small reward.
 5. **Kill slow-mo** — ~0.15s slow motion + slight zoom + shake on the final hit. Must ship with its own settings toggle.
 6. **Weather / time of day** — visual + vision only (no audio, no hearing mechanics): rain = rain streaks + wet floor + slightly shorter sight, fog = shorter enemy aggro range, night = darker with a light radius near the player.
 7. **Rescue objective** — a trapped NPC/ally spawns on the map; escort them to extraction for bonus rewards, they take damage on the way.
 8. **Raid insurance** — pay scrap before deploying; on death, refund 30-50% of the loot value estimate, premium is lost on success.
+9. **Summoner enemy** — a support archetype that keeps spawning minions until killed; forces target priority.
+10. **Package thief (softened)** — a rare elite that grabs one backpack item and runs instead of shooting; the item is dropped back when it dies, and only truly lost if it escapes the map edge. Always show a "被偷了：xxx" toast.
+11. **Black market auction / daily deals** — 3 random items per day at a discount, refreshed daily, gone next day.
+12. **Achievements** — kill counts, extraction totals, boss clears; grant titles and small rewards.
+13. **More weapon types** — grenade launcher and flamethrower (numbers below).
+
+### Planned weapon numbers (for the new types)
+
+- **榴弹发射器 GL-40** (epic): damage 70, cooldown 1.1s, mag 4, reload 2.4s, spread 0.02, speed 620, range 520, semi-auto, reserve 20. Shells explode on impact: 60px radius, 60% splash damage, brief camera shake. Needs a new bullet kind that spawns a hazard/AOE on hit.
+- **火焰喷射器 FT-13** (epic): damage 12 per puff, cooldown 0.06s, mag 80, reload 3.0s, spread 0.18, speed 520, range 260, full-auto, reserve 240. Hits apply a 2s burn (4 dmg/s). Needs a burning status on enemies plus a short flame particle stream instead of bullet sprites.
+
+## Planned: enhancement rework (design agreed, not started)
+
+Owner wants the enhancement stone tiers to actually matter. Keep "failure consumes one stone and never downgrades" (owner explicitly rejected the downgrade rule).
+
+- **Tier gate**: +1~+2 white, +3~+5 green, +6~+7 blue, +8~+9 purple, +10 red. Colorful works anywhere. Using a stone below the gate is refused with a hint instead of a roll.
+- **Success decay**: `actual = max(0.05, stone.success - targetLevel * 0.03)`. Examples: +8 purple = 51%, +10 red = 60%, colorful stays 100%.
+- **Luck pity**: each failure adds +10% luck; at 100% the next attempt is guaranteed; luck resets on success.
+- **Fusion**: 3 stones of the same tier fuse into 1 of the next tier (white→green→blue→purple→red), always succeeds, colorful is top tier and cannot be fused. UI goes in the enhancement window below the stone list, showing owned counts per tier.
+- Expected math: getting one item to +10 costs roughly 5-6 red stones (60% + pity), i.e. ~400-500 white-stone equivalents.
 
 ## Suggested next steps
 - Test floating and fixed sticks on a real phone.
