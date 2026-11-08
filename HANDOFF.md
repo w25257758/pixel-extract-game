@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v32
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v33
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -26,6 +26,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - The old progression panel was removed and must not be re-added.
 - Top-right stat chips now include a 合约 (daily contracts) chip showing today's cleared count; it opens a standalone overlay, not a seventh manage card.
 - Daily contracts overlay: date, 3 compact goal cards with progress bars and rewards, plus one claim button; it fits at 932x430, 667x375 and 568x320 without page or card scrolling.
+- Art pass: pre-rendered floors now carry grout, noise, cracks, grime/blood/water decals and wall contact shadows; walls have panel seams, rivets and a top highlight; characters/elites get a 1px dark outline, shoulder highlights and per-character gear silhouettes; muzzle flashes spill light; a faint CRT scanline overlay is drawn in normal mode only.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
@@ -148,6 +149,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Removed the main-view fog overlay and LOS draw filters; minimap and full map still use `world.fogMini` and exploration masks.
 - Added daily contracts (save schema v9): three goals generated per local date from an 8-goal pool (kills/containers/extracts/objectives/elites/bosses use sum mode, depth/damage use best-single-run mode), recorded at `endRaid`, per-goal claim with a full-clear bonus, and a compact overlay opened from the new top-right 合约 chip.
 - Verified daily contracts: seed-stable generation, sum accumulation and max-mode best-run, cap at target, claim once (440 scrap / 6 parts for the seeded day, then 0 on a second claim), real settlement path (search -> endRaid adds containers/extracts/depth), v8 -> v9 migration keeping scrap/character/mod parts while rebuilding the daily block, and no overflow at 932x430 / 667x375 / 568x320.
+- Art pass A+B: floors/walls decals and contact shadows are baked into `buildMapCanvas` (no per-frame cost); character outlines and muzzle light spill are skipped in performance mode; scanlines use a cached 4x4 pattern. Verified four characters and six enemy archetypes spawn and render with no JS errors at 932x430, and 1440/1200 screenshots show the new floor texture, blood decals, wall seams and outlined sprites. Keep the vignette at .46 and the scanline alpha at .10 — darker settings made the floor read as flat black.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
@@ -187,3 +189,4 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Daily challenges are the next content candidate; keep them compact and avoid adding a base progression panel.
 - Daily contracts shipped in v32 — next candidates: a weekly streak line inside the same overlay, or per-contract bonus modifiers (e.g. "clear F5 with a boss contract"). Keep the 3-goal cap and the claim-once rule.
 - Monitor whether the exposed-core windows make boss fights too easy; tune weak-point duration or phase attack density rather than removing the phase system.
+- Art pass next: the current sprites are still rect-composed. A real bitmap sprite sheet (4 characters x 2 walk frames, 6 enemy archetypes) would be the next big jump; also consider per-room light pools and a parallax backdrop. Keep everything out of `performanceMode`'s cost path and never bake per-frame gradients for the floor.

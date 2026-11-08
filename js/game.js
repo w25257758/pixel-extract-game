@@ -2615,6 +2615,7 @@
   let hudAccumulator = 0;
   let lastMinimapDraw = -1;
   let raidVignetteGradient = null;
+  let scanlinePattern = null;
 
   const keys = Object.create(null);
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, down: false, semiQueued: false, inside: false };
@@ -3165,10 +3166,33 @@
           const h = hash2(x, y);
           g.fillStyle = floorPalette[h % floorPalette.length];
           g.fillRect(px, py, TILE, TILE);
-          g.fillStyle = 'rgba(255,255,255,.025)';
-          g.fillRect(px + 2, py + 2, TILE - 4, 1);
-          g.fillStyle = 'rgba(0,0,0,.10)';
-          g.fillRect(px, py + TILE - 2, TILE, 2);
+          // Raised tile edge: top highlight, bottom/right grout.
+          g.fillStyle = 'rgba(255,255,255,.065)';
+          g.fillRect(px + 1, py + 1, TILE - 2, 1);
+          g.fillStyle = 'rgba(0,0,0,.22)';
+          g.fillRect(px, py + TILE - 1, TILE, 1);
+          g.fillRect(px + TILE - 1, py, 1, TILE);
+          // Surface noise.
+          for (let n = 0; n < 3; n += 1) {
+            const nx = px + 3 + ((h >> (n * 5)) % (TILE - 6));
+            const ny = py + 3 + ((h >> (n * 3 + 2)) % (TILE - 6));
+            g.fillStyle = n % 2 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.2)';
+            g.fillRect(nx, ny, 2, 2);
+          }
+          // Occasional crack or panel seam.
+          if (h % 11 === 0) {
+            g.strokeStyle = 'rgba(0,0,0,.3)';
+            g.lineWidth = 1;
+            g.beginPath();
+            g.moveTo(px + 5 + (h % 7), py + 4);
+            g.lineTo(px + 13 + (h % 6), py + 14 + (h % 5));
+            g.lineTo(px + 9 + (h % 8), py + TILE - 5);
+            g.stroke();
+          }
+          if (h % 19 === 0) {
+            g.fillStyle = 'rgba(0,0,0,.24)';
+            g.fillRect(px + 4, py + 12 + (h % 6), TILE - 8, 1);
+          }
           if (h % 9 === 0) {
             g.fillStyle = accent;
             g.fillRect(px + 8 + (h % 13), py + 9 + (h % 7), 3, 2);
@@ -3177,9 +3201,67 @@
             g.fillStyle = 'rgba(0,0,0,.16)';
             g.fillRect(px + 5, py + 21, 13, 2);
           }
+          // Grime, dried blood and shallow water decals.
+          if (h % 37 === 0) {
+            const rx = px + 6 + (h % 12);
+            const ry = py + 8 + (h % 10);
+            const rad = 7 + (h % 9);
+            const stain = g.createRadialGradient(rx, ry, 1, rx, ry, rad);
+            stain.addColorStop(0, 'rgba(0,0,0,.3)');
+            stain.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = stain;
+            g.beginPath();
+            g.ellipse(rx, ry, rad, rad * 0.62, 0, 0, TAU);
+            g.fill();
+          } else if (h % 53 === 0) {
+            g.fillStyle = 'rgba(122,26,34,.3)';
+            g.beginPath();
+            g.ellipse(px + 12 + (h % 9), py + 15 + (h % 7), 6, 3.4, (h % 3) * 0.7, 0, TAU);
+            g.fill();
+            g.fillStyle = 'rgba(122,26,34,.2)';
+            g.fillRect(px + 6 + (h % 5), py + 21 + (h % 5), 3, 2);
+          } else if (h % 71 === 0) {
+            const wx = px + 16;
+            const wy = py + 15;
+            const wet = g.createRadialGradient(wx, wy, 1, wx, wy, 13);
+            wet.addColorStop(0, 'rgba(85,217,255,.15)');
+            wet.addColorStop(0.7, 'rgba(85,217,255,.05)');
+            wet.addColorStop(1, 'rgba(85,217,255,0)');
+            g.fillStyle = wet;
+            g.beginPath();
+            g.ellipse(wx, wy, 13, 8, 0, 0, TAU);
+            g.fill();
+          }
+          // Contact shadow cast by adjacent walls.
+          if (y > 0 && tiles[y - 1][x] === 0) {
+            const sh = g.createLinearGradient(px, py, px, py + 11);
+            sh.addColorStop(0, 'rgba(0,0,0,.34)');
+            sh.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = sh;
+            g.fillRect(px, py, TILE, 11);
+          }
+          if (x > 0 && tiles[y][x - 1] === 0) {
+            const sh = g.createLinearGradient(px, py, px + 11, py);
+            sh.addColorStop(0, 'rgba(0,0,0,.28)');
+            sh.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = sh;
+            g.fillRect(px, py, 11, TILE);
+          }
         } else {
           g.fillStyle = wallColor;
           g.fillRect(px, py, TILE, TILE);
+          const wh = hash2(x + 91, y + 37);
+          // Wall panel seams, rivets and grime so walls read as solid surfaces.
+          g.fillStyle = wh % 5 === 0 ? 'rgba(255,255,255,.035)' : 'rgba(0,0,0,.12)';
+          g.fillRect(px + 4 + (wh % 9), py + 5 + (wh % 11), TILE - 12, 1);
+          if (wh % 7 === 0) {
+            g.fillStyle = 'rgba(255,255,255,.07)';
+            g.fillRect(px + 6 + (wh % 13), py + 8 + (wh % 9), 2, 2);
+          }
+          if (wh % 13 === 0) {
+            g.fillStyle = 'rgba(0,0,0,.3)';
+            g.fillRect(px + 4, py + 20, TILE - 8, 2);
+          }
           const belowFloor = y + 1 < MAP_H && tiles[y + 1][x] === 1;
           const rightFloor = x + 1 < MAP_W && tiles[y][x + 1] === 1;
           const leftFloor = x - 1 >= 0 && tiles[y][x - 1] === 1;
@@ -3201,6 +3283,8 @@
           if (aboveFloor) {
             g.fillStyle = edgePalette[0];
             g.fillRect(px, py, TILE, 4);
+            g.fillStyle = 'rgba(255,255,255,.06)';
+            g.fillRect(px, py + 4, TILE, 1);
           }
           if ((x + y) % 3 === 0) {
             g.fillStyle = accent;
@@ -3211,7 +3295,7 @@
     }
 
     // A subtle grid over the entire map.
-    g.strokeStyle = 'rgba(0,0,0,.09)';
+    g.strokeStyle = 'rgba(0,0,0,.065)';
     g.lineWidth = 1;
     for (let x = 0; x <= MAP_W; x++) {
       g.beginPath();
@@ -5915,6 +5999,20 @@
   // ---------------------------------------------------------------------------
   // Rendering
   // ---------------------------------------------------------------------------
+  function getScanlinePattern() {
+    if (scanlinePattern) return scanlinePattern;
+    const c = document.createElement('canvas');
+    c.width = 4;
+    c.height = 4;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(0,0,0,.10)';
+    g.fillRect(0, 0, 4, 1);
+    g.fillStyle = 'rgba(255,255,255,.015)';
+    g.fillRect(0, 1, 4, 1);
+    scanlinePattern = ctx.createPattern(c, 'repeat');
+    return scanlinePattern;
+  }
+
   function drawRaid() {
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
     if (!world || !player) return;
@@ -5954,7 +6052,7 @@
       if (!raidVignetteGradient) {
         raidVignetteGradient = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.82);
         raidVignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
-        raidVignetteGradient.addColorStop(1, 'rgba(0,0,0,.56)');
+        raidVignetteGradient.addColorStop(1, 'rgba(0,0,0,.46)');
       }
       ctx.fillStyle = raidVignetteGradient;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -5965,6 +6063,12 @@
     if (world.blackoutTimer > 0) {
       const flicker = save.settings.performanceMode ? 0.42 : 0.36 + (Math.sin(world.time * 7) + 1) * 0.06;
       ctx.fillStyle = `rgba(0,0,0,${flicker})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
+    // Very light CRT scanlines; skipped in performance mode.
+    if (!save.settings.performanceMode) {
+      ctx.fillStyle = getScanlinePattern();
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
@@ -6551,37 +6655,91 @@
 
     ctx.rotate(entity.angle || 0);
 
+    // Dark 1px outline keeps silhouettes readable against dark floors.
+    const px = (x, y, w, h, color, outline = '#04070b') => {
+      if (outline && !save.settings.performanceMode) {
+        ctx.fillStyle = outline;
+        ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    };
+
     if (isPlayer) {
+      const charId = player.char?.id || 'pioneer';
+      const recoil = player.fireCd > player.weapon.cooldown - 0.05 ? -1 : 0;
       // Backpack.
-      ctx.fillStyle = '#1f2a38';
-      ctx.fillRect(-12, -8, 7, 16);
-      // Legs.
-      ctx.fillStyle = '#2a3545';
-      ctx.fillRect(-7 + bob * 0.5, -8, 6, 10);
-      ctx.fillRect(-7 - bob * 0.5, 1, 6, 10);
-      // Torso.
-      ctx.fillStyle = '#41556e';
-      ctx.fillRect(-6, -9, 13, 18);
+      px(-12, -8, 7, 16, '#1f2a38');
+      // Legs (bob gives them a two-frame step).
+      px(-7 + bob * 0.5, -8, 6, 10, '#2a3545');
+      px(-7 - bob * 0.5, 1, 6, 10, '#2a3545');
+      // Torso with a lighter shoulder plate.
+      px(-6, -9, 13, 18, '#41556e');
       ctx.fillStyle = playerColor;
       ctx.fillRect(-4, -7, 3, 12);
-      ctx.fillStyle = '#28384a';
-      ctx.fillRect(-6, 5, 13, 4);
-      // Head.
-      ctx.fillStyle = '#b9c8d9';
-      ctx.fillRect(4, -7, 9, 9);
+      ctx.fillStyle = '#5b7392';
+      ctx.fillRect(-6, -9, 13, 2);
+      px(-6, 5, 13, 4, '#28384a', null);
+      // Character-specific silhouette pieces.
+      if (charId === 'pioneer') {
+        // Medic cross stitched on the pack.
+        ctx.fillStyle = '#e8f4ff';
+        ctx.fillRect(-10, -5, 3, 7);
+        ctx.fillRect(-12, -2, 7, 3);
+      } else if (charId === 'sniper') {
+        // Cloak tail plus a scoped long rifle.
+        ctx.fillStyle = 'rgba(60,90,95,.9)';
+        ctx.fillRect(-11, -3, 5, 13);
+        ctx.fillStyle = '#6b5a9a';
+        ctx.fillRect(14, -2, 8, 3);
+        ctx.fillStyle = '#9ad8ff';
+        ctx.fillRect(17, -3, 2, 2);
+      } else if (charId === 'assault') {
+        // Twin magazines and a red shoulder flash.
+        ctx.fillStyle = '#ffad45';
+        ctx.fillRect(-5, 6, 3, 4);
+        ctx.fillRect(1, 6, 3, 4);
+        ctx.fillStyle = '#ff5b6e';
+        ctx.fillRect(-6, -8, 4, 3);
+      } else if (charId === 'juggernaut') {
+        // Heavy pauldrons and a riot plate.
+        px(-9, -10, 6, 7, '#3c4b60');
+        px(1, -10, 6, 7, '#3c4b60');
+        ctx.fillStyle = '#8ea3b8';
+        ctx.fillRect(-8, -9, 3, 4);
+        ctx.fillRect(2, -9, 3, 4);
+      }
+      // Head, visor and a specular glint.
+      px(4, -7, 9, 9, '#b9c8d9');
       ctx.fillStyle = playerColor;
       ctx.fillRect(9, -5, 3, 3);
-      // Weapon.
-      ctx.fillStyle = '#111820';
-      ctx.fillRect(8, 1, 15, 4);
+      ctx.fillStyle = 'rgba(255,255,255,.4)';
+      ctx.fillRect(5, -6, 2, 2);
+      // Weapon (recoils one pixel back on the firing frame).
+      px(8 + recoil, 1, 15, 4, '#111820', null);
       ctx.fillStyle = player.weapon.color;
-      ctx.fillRect(20, 1, 6, 3);
+      ctx.fillRect(20 + recoil, 1, 6, 3);
       ctx.fillStyle = '#303b4b';
-      ctx.fillRect(10, -1, 7, 3);
-      // Muzzle flash.
+      ctx.fillRect(10 + recoil, -1, 7, 3);
+      // Muzzle flash with a short light spill.
       if (player.fireCd > player.weapon.cooldown - 0.045 && player.mag >= 0) {
         ctx.fillStyle = '#ffe08a';
-        ctx.fillRect(26, 1, 6, 4);
+        ctx.fillRect(26 + recoil, 1, 6, 4);
+        if (!save.settings.performanceMode) {
+          const flick = 0.75 + Math.random() * 0.25;
+          const flashX = 28 + recoil;
+          const flash = ctx.createRadialGradient(flashX, 3, 0, flashX, 3, 40 * flick);
+          flash.addColorStop(0, 'rgba(255,224,138,.34)');
+          flash.addColorStop(0.45, 'rgba(255,196,90,.12)');
+          flash.addColorStop(1, 'rgba(255,196,90,0)');
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = flash;
+          ctx.beginPath();
+          ctx.arc(flashX, 3, 40 * flick, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
       }
     } else {
       if (isBoss) ctx.scale(1.45, 1.45);
@@ -6600,14 +6758,14 @@
         ctx.fill();
       } else {
         // Enemy legs.
-        ctx.fillStyle = '#2b2229';
-        ctx.fillRect(-7 + bob * 0.5, -8, 6, 10);
-        ctx.fillRect(-7 - bob * 0.5, 1, 6, 10);
+        px(-7 + bob * 0.5, -8, 6, 10, '#2b2229');
+        px(-7 - bob * 0.5, 1, 6, 10, '#2b2229');
       }
       // Enemy torso. Heavies are broader, scouts are leaner.
       const torsoW = kind === 'heavy' ? 18 : kind === 'scout' ? 10 : 13;
-      ctx.fillStyle = entity.hitFlash > 0 ? '#fff2f3' : entity.color;
-      ctx.fillRect(-torsoW / 2, -9, torsoW, 18);
+      px(-torsoW / 2, -9, torsoW, 18, entity.hitFlash > 0 ? '#fff2f3' : entity.color);
+      ctx.fillStyle = entity.hitFlash > 0 ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.14)';
+      ctx.fillRect(-torsoW / 2, -9, torsoW, 2);
       ctx.fillStyle = '#3a2029';
       ctx.fillRect(-torsoW / 2, 4, torsoW, 5);
       if (kind === 'heavy') {
@@ -6621,6 +6779,25 @@
         ctx.fillStyle = '#ffad45';
         ctx.fillRect(-11, -2, 3, 5);
       }
+      // Per-archetype silhouette details.
+      if (kind === 'scout') {
+        // Head wrap and a light chest strap.
+        ctx.fillStyle = '#a85a3c';
+        ctx.fillRect(-5, -10, 9, 2);
+        ctx.fillStyle = '#4a3a30';
+        ctx.fillRect(-1, -4, 6, 2);
+      } else if (kind === 'heavy') {
+        // Face mask.
+        ctx.fillStyle = '#1a212b';
+        ctx.fillRect(4, -4, 8, 4);
+        ctx.fillStyle = '#c2503f';
+        ctx.fillRect(5, -3, 2, 2);
+      } else if (kind === 'bomber') {
+        // Blinking fuse light on the charge pack.
+        const lit = ((world.time * 8) | 0) % 2 === 0;
+        ctx.fillStyle = lit ? '#ffd15c' : '#7a3a1a';
+        ctx.fillRect(-12, -6, 3, 3);
+      }
       if (isBoss) {
         ctx.fillStyle = '#ffd15c';
         ctx.fillRect(-9, -14, 18, 4);
@@ -6628,8 +6805,7 @@
         ctx.fillRect(8, -11, 4, 8);
       }
       // Head.
-      ctx.fillStyle = entity.hitFlash > 0 ? '#ffffff' : '#70313d';
-      ctx.fillRect(4, -7, 9, 9);
+      px(4, -7, 9, 9, entity.hitFlash > 0 ? '#ffffff' : '#70313d');
       ctx.fillStyle = '#ffb58b';
       ctx.fillRect(9, -5, 3, 3);
       // Gun. Snipers carry a long scoped rifle.
@@ -6643,6 +6819,19 @@
       if (entity.muzzleFlash > 0) {
         ctx.fillStyle = isBoss ? '#ff5b8a' : '#ffce7a';
         ctx.fillRect(8 + gunLen, 0, 6, 5);
+        if (!save.settings.performanceMode) {
+          const gx = 10 + gunLen;
+          const enemyFlash = ctx.createRadialGradient(gx, 2, 0, gx, 2, isBoss ? 30 : 20);
+          enemyFlash.addColorStop(0, isBoss ? 'rgba(255,91,138,.3)' : 'rgba(255,206,122,.26)');
+          enemyFlash.addColorStop(1, 'rgba(255,140,90,0)');
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = enemyFlash;
+          ctx.beginPath();
+          ctx.arc(gx, 2, isBoss ? 30 : 20, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
       }
     }
     ctx.restore();

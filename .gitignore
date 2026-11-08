@@ -1,4 +1,4 @@
-﻿# OS / editor
+# OS / editor
 .DS_Store
 Thumbs.db
 *.log
@@ -26,6 +26,9 @@ assets/js/
 
 # Local notes
 dishwhale-persona.md
+
+# Netlify deploy hook URL (never commit)
+.netlify-hook
 
 # Generated web-upload helper and local test screenshots
 GitHub网页上传/
