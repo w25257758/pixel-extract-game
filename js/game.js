@@ -3128,7 +3128,7 @@
       beams: [],
       particles: [],
       floatTexts: [],
-      mapCanvas: buildMapCanvas(tiles, stage),
+      mapCanvas: buildMapCanvas(tiles, stage, rooms),
       mini: buildMinimap(tiles, stage),
       flow: { dist: null, timer: 0 },
       time: 0,
@@ -3146,7 +3146,73 @@
     };
   }
 
-  function buildMapCanvas(tiles, stage = STAGE_DEFS[0]) {
+  function drawCrateProp(g, x, y, seed) {
+    const s = 16 + (seed % 6);
+    g.fillStyle = 'rgba(0,0,0,.38)';
+    g.beginPath();
+    g.ellipse(x + 1, y + s / 2, s * 0.6, 4, 0, 0, TAU);
+    g.fill();
+    g.fillStyle = '#4a3826';
+    g.fillRect(x - s / 2, y - s / 2, s, s);
+    g.fillStyle = '#5c4630';
+    g.fillRect(x - s / 2 + 1, y - s / 2 + 1, s - 2, s - 2);
+    g.fillStyle = 'rgba(30,20,12,.55)';
+    g.fillRect(x - s / 2 + 2, y - 1, s - 4, 1);
+    g.fillRect(x - 1, y - s / 2 + 2, 1, s - 4);
+    g.fillStyle = 'rgba(160,180,200,.5)';
+    g.fillRect(x - s / 2 + 2, y - s / 2 + 2, 2, 2);
+    g.fillRect(x + s / 2 - 4, y - s / 2 + 2, 2, 2);
+    g.strokeStyle = 'rgba(18,12,7,.85)';
+    g.lineWidth = 1;
+    g.strokeRect(x - s / 2 + 0.5, y - s / 2 + 0.5, s - 1, s - 1);
+  }
+
+  function drawBarrelProp(g, x, y, seed) {
+    const tint = seed % 2 ? '#3d4d33' : '#4a3a2a';
+    g.fillStyle = 'rgba(0,0,0,.38)';
+    g.beginPath();
+    g.ellipse(x + 1, y + 9, 10, 4, 0, 0, TAU);
+    g.fill();
+    g.fillStyle = tint;
+    g.fillRect(x - 8, y - 9, 16, 18);
+    g.fillStyle = 'rgba(0,0,0,.28)';
+    g.fillRect(x - 8, y - 4, 16, 2);
+    g.fillRect(x - 8, y + 3, 16, 2);
+    g.fillStyle = 'rgba(255,255,255,.13)';
+    g.fillRect(x - 6, y - 9, 3, 18);
+    g.fillStyle = 'rgba(190,200,210,.4)';
+    g.beginPath();
+    g.ellipse(x, y - 9, 8, 3, 0, 0, TAU);
+    g.fill();
+    g.strokeStyle = 'rgba(10,8,6,.8)';
+    g.lineWidth = 1;
+    g.strokeRect(x - 8.5, y - 9.5, 17, 19);
+  }
+
+  function drawPipeProp(g, x, y, seed) {
+    const horiz = seed % 2 === 0;
+    const len = 24 + (seed % 12);
+    const w = 8;
+    g.fillStyle = 'rgba(0,0,0,.32)';
+    if (horiz) g.fillRect(x - len / 2, y + w / 2, len, 3);
+    else g.fillRect(x + w / 2, y - len / 2, 3, len);
+    g.fillStyle = '#3a4654';
+    if (horiz) g.fillRect(x - len / 2, y - w / 2, len, w);
+    else g.fillRect(x - w / 2, y - len / 2, w, len);
+    g.fillStyle = 'rgba(255,255,255,.12)';
+    if (horiz) g.fillRect(x - len / 2, y - w / 2 + 1, len, 2);
+    else g.fillRect(x - w / 2 + 1, y - len / 2, 2, len);
+    g.fillStyle = '#56657a';
+    if (horiz) {
+      g.fillRect(x - len / 2 + 4, y - w / 2 - 1, 3, w + 2);
+      g.fillRect(x + len / 2 - 8, y - w / 2 - 1, 3, w + 2);
+    } else {
+      g.fillRect(x - w / 2 - 1, y - len / 2 + 4, w + 2, 3);
+      g.fillRect(x - w / 2 - 1, y + len / 2 - 8, w + 2, 3);
+    }
+  }
+
+  function buildMapCanvas(tiles, stage = STAGE_DEFS[0], rooms = null) {
     const c = document.createElement('canvas');
     c.width = MAP_PW;
     c.height = MAP_PH;
@@ -3308,6 +3374,42 @@
       g.moveTo(0, y * TILE + 0.5);
       g.lineTo(MAP_PW, y * TILE + 0.5);
       g.stroke();
+    }
+
+    // Overhead light pools and floor props give each room a readable shape.
+    if (Array.isArray(rooms)) {
+      for (const room of rooms) {
+        const cx = (room.x + room.w / 2) * TILE;
+        const cy = (room.y + room.h / 2) * TILE;
+        const radius = Math.min(room.w, room.h) * TILE * 0.62;
+        if (radius < 12) continue;
+        const light = g.createRadialGradient(cx, cy, 4, cx, cy, radius);
+        light.addColorStop(0, 'rgba(196,226,255,.085)');
+        light.addColorStop(0.55, 'rgba(150,192,235,.035)');
+        light.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = light;
+        g.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      }
+      for (const room of rooms) {
+        const seed = hash2(room.x + 11, room.y + 7);
+        const count = 2 + (seed % 4);
+        const roomCx = (room.x + room.w / 2) * TILE;
+        const roomCy = (room.y + room.h / 2) * TILE;
+        for (let i = 0; i < count; i += 1) {
+          const hs = hash2(room.x * 3 + i * 7, room.y * 5 + i * 13);
+          const tx = room.x + 1 + (hs % Math.max(1, room.w - 2));
+          const ty = room.y + 1 + ((hs >> 5) % Math.max(1, room.h - 2));
+          if (!tiles[ty] || tiles[ty][tx] !== 1) continue;
+          const px = tx * TILE + 16;
+          const py = ty * TILE + 16;
+          // Keep the room centre clear for spawns, objectives and containers.
+          if (Math.abs(px - roomCx) < 52 && Math.abs(py - roomCy) < 52) continue;
+          const kind = hs % 3;
+          if (kind === 0) drawCrateProp(g, px, py, hs);
+          else if (kind === 1) drawBarrelProp(g, px, py, hs);
+          else drawPipeProp(g, px, py, hs);
+        }
+      }
     }
 
     return c;
@@ -5999,6 +6101,22 @@
   // ---------------------------------------------------------------------------
   // Rendering
   // ---------------------------------------------------------------------------
+  function drawDust() {
+    if (save.settings.performanceMode) return;
+    const t = world.time;
+    const camX = camera.x;
+    const camY = camera.y;
+    ctx.fillStyle = 'rgba(186,214,242,.13)';
+    for (let i = 0; i < 52; i += 1) {
+      const bx = ((i * 127.3) % 100) / 100;
+      const by = ((i * 311.7) % 100) / 100;
+      const x = camX + bx * VIEW_W + Math.sin(t * 0.5 + i * 2.1) * 16;
+      const y = camY + by * VIEW_H + Math.sin(t * 0.37 + i * 1.3) * 11;
+      const s = i % 5 === 0 ? 2 : 1;
+      ctx.fillRect(x, y, s, s);
+    }
+  }
+
   function getScanlinePattern() {
     if (scanlinePattern) return scanlinePattern;
     const c = document.createElement('canvas');
@@ -6042,6 +6160,7 @@
     drawCharacter(player, true);
     drawLockOn();
     drawSkillTarget();
+    drawDust();
     for (const p of world.particles) drawParticle(p);
     for (const t of world.floatTexts) drawFloatText(t);
 

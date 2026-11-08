@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v33
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v34
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -27,6 +27,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Top-right stat chips now include a 合约 (daily contracts) chip showing today's cleared count; it opens a standalone overlay, not a seventh manage card.
 - Daily contracts overlay: date, 3 compact goal cards with progress bars and rewards, plus one claim button; it fits at 932x430, 667x375 and 568x320 without page or card scrolling.
 - Art pass: pre-rendered floors now carry grout, noise, cracks, grime/blood/water decals and wall contact shadows; walls have panel seams, rivets and a top highlight; characters/elites get a 1px dark outline, shoulder highlights and per-character gear silhouettes; muzzle flashes spill light; a faint CRT scanline overlay is drawn in normal mode only.
+- Art pass 2: every room gets an overhead radial light pool baked into the map canvas, plus deterministic crates/barrels/pipes as pre-rendered props (kept clear of room centres); floating dust motes drift in the world layer. All of it lives in `buildMapCanvas` (zero per-frame cost), dust is skipped in performance mode.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
@@ -150,6 +151,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Added daily contracts (save schema v9): three goals generated per local date from an 8-goal pool (kills/containers/extracts/objectives/elites/bosses use sum mode, depth/damage use best-single-run mode), recorded at `endRaid`, per-goal claim with a full-clear bonus, and a compact overlay opened from the new top-right 合约 chip.
 - Verified daily contracts: seed-stable generation, sum accumulation and max-mode best-run, cap at target, claim once (440 scrap / 6 parts for the seeded day, then 0 on a second claim), real settlement path (search -> endRaid adds containers/extracts/depth), v8 -> v9 migration keeping scrap/character/mod parts while rebuilding the daily block, and no overflow at 932x430 / 667x375 / 568x320.
 - Art pass A+B: floors/walls decals and contact shadows are baked into `buildMapCanvas` (no per-frame cost); character outlines and muzzle light spill are skipped in performance mode; scanlines use a cached 4x4 pattern. Verified four characters and six enemy archetypes spawn and render with no JS errors at 932x430, and 1440/1200 screenshots show the new floor texture, blood decals, wall seams and outlined sprites. Keep the vignette at .46 and the scanline alpha at .10 — darker settings made the floor read as flat black.
+- Art pass 2 verified: room light pools, crate/barrel/pipe props (room centres kept clear) and dust motes render at 1200x720 and 568x320 with no JS errors; map regeneration cost is one-off per floor, so combat FPS is unaffected.
 
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
