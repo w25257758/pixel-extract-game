@@ -90,6 +90,18 @@
       reload: 2.1, spread: 0.04, speed: 1250, range: 900, auto: true,
       reserve: 144, color: '#ff4d8d', pellets: 2, shake: 4.2, bossWeapon: true,
       desc: '首领专属双管能量步枪。每次发射 2 枚高能弹丸。'
+    },
+    plasma: {
+      name: '等离子步枪', code: 'PLASMA-30', damage: 26, cooldown: 0.13, mag: 30,
+      reload: 2.3, spread: 0.055, speed: 1180, range: 820, auto: true,
+      reserve: 180, color: '#7ef0ff', shake: 2.2,
+      desc: '高频能量弹，弹匣大、后坐小，持续输出极高。'
+    },
+    annihilator: {
+      name: '湮灭者', code: 'ANN-4', damage: 108, cooldown: 1.0, mag: 4,
+      reload: 2.7, spread: 0.008, speed: 1750, range: 1250, auto: false,
+      reserve: 28, color: '#ffd15c', shake: 7,
+      desc: '单发重炮，贯穿力极强，命中首领时会撕开防御。'
     }
   };
 
@@ -100,7 +112,8 @@
     riot: { name: '反应装甲', reduction: 0.38, color: '#c59cff', desc: '减少 38% 受到的伤害。' },
     scout: { name: '侦察背心', reduction: 0.08, speedBonus: 0.12, color: '#7ee8d2', desc: '减少 8% 伤害，移动速度 +12%。' },
     medic: { name: '战地医疗甲', reduction: 0.16, medkitBonus: 1, color: '#79f0a3', desc: '减少 16% 伤害，每次行动额外携带 1 个医疗包。' },
-    ghost: { name: '幽灵纤维甲', reduction: 0.22, speedBonus: 0.04, stealth: 0.72, color: '#a98cff', desc: '减少 22% 伤害，移速 +4%，敌人视野降低 28%。' }
+    ghost: { name: '幽灵纤维甲', reduction: 0.22, speedBonus: 0.04, stealth: 0.72, color: '#a98cff', desc: '减少 22% 伤害，移速 +4%，敌人视野降低 28%。' },
+    phase: { name: '相位护甲', reduction: 0.32, stealth: 0.84, color: '#7ef0ff', desc: '减少 32% 伤害，敌人视野降低 16%。' }
   };
 
   const MAX_ENHANCE = 10;
@@ -193,7 +206,10 @@
     w_shotgun: { name: '破门霰弹枪', icon: '≋', kind: 'weapon', weapon: 'shotgun', rarity: 'rare', sell: 150, stack: false, desc: '近距离发射 6 枚弹丸，爆发极高。' },
     w_lmg: { name: '铁皮轻机枪', icon: '▦', kind: 'weapon', weapon: 'lmg', rarity: 'rare', sell: 270, stack: false, desc: '60 发弹链，持续压制力极强。' },
     w_rail: { name: '磁轨手枪', icon: 'ϟ', kind: 'weapon', weapon: 'rail', rarity: 'epic', sell: 460, stack: false, desc: '高伤害实验武器，备弹稀少。' },
-    w_boss: { name: '终焉协议', icon: '✦', kind: 'weapon', weapon: 'boss', rarity: 'epic', sell: 900, stack: false, boss: true, desc: '首领专属双管能量步枪。每次发射 2 枚高能弹丸，无法从黑市购买。' },
+    w_boss: { name: '终焉协议', icon: '✦', kind: 'weapon', weapon: 'boss', rarity: 'legendary', sell: 900, stack: false, boss: true, desc: '首领专属双管能量步枪。每次发射 2 枚高能弹丸，无法从黑市购买。' },
+    w_plasma: { name: '等离子步枪', icon: '⌁', kind: 'weapon', weapon: 'plasma', rarity: 'legendary', sell: 620, stack: false, desc: '高频能量步枪，弹道笔直、压制力极强。' },
+    w_annihilator: { name: '湮灭者', icon: '⌾', kind: 'weapon', weapon: 'annihilator', rarity: 'legendary', sell: 780, stack: false, desc: '单发重炮，几乎无视护甲，专门对付首领与重装。' },
+    a_phase: { name: '相位护甲', icon: '◈', kind: 'armor', armor: 'phase', rarity: 'legendary', sell: 500, stack: false, desc: '减伤 32%，受击后敌人视野短暂降低。' },
     a_light: { name: '轻型护甲', icon: '▤', kind: 'armor', armor: 'light', rarity: 'uncommon', sell: 55, stack: false, desc: '轻便护甲，减少 12% 伤害。' },
     a_heavy: { name: '重型护甲', icon: '▦', kind: 'armor', armor: 'heavy', rarity: 'rare', sell: 180, stack: false, desc: '厚重护甲，减少 26% 伤害。' },
     a_riot: { name: '反应装甲', icon: '▣', kind: 'armor', armor: 'riot', rarity: 'epic', sell: 360, stack: false, desc: '实验型装甲，减少 38% 伤害。' },
@@ -235,13 +251,14 @@
   const LOOT_RARITY_PROFILES = {
     common: { common: 62, uncommon: 27, rare: 9, epic: 2 },
     rare: { common: 26, uncommon: 34, rare: 29, epic: 11 },
-    vault: { common: 0, uncommon: 18, rare: 52, epic: 30 }
+    vault: { common: 0, uncommon: 16, rare: 50, epic: 31, legendary: 3 }
   };
   const LOOT_POOLS = {
     common: ['scrap', 'fiber', 'circuit'],
     uncommon: ['chip', 'battery', 'w_smg', 'a_light', 'a_scout'],
     rare: ['relic', 'lens', 'drone_core', 'medal', 'w_rifle', 'w_shotgun', 'w_lmg', 'a_heavy', 'a_medic'],
-    epic: ['core', 'quantum', 'phase', 'w_dmr', 'w_rail', 'a_riot', 'a_ghost']
+    epic: ['core', 'quantum', 'phase', 'w_dmr', 'w_rail', 'a_riot', 'a_ghost'],
+    legendary: ['w_plasma', 'w_annihilator', 'a_phase', 'p_red', 'stone_red']
   };
   const STONE_TIER_WEIGHTS = {
     normal: { white: 58, green: 27, blue: 11, purple: 3.2, red: 0.7, rainbow: 0.1 },
@@ -3037,6 +3054,29 @@
       applyEliteAffix(pick(enemies));
     }
 
+    // High-risk bounty: one per floor, guards a legendary drop and alerts the map when killed.
+    if (rooms.length > 2) {
+      const bountyRoom = pick(rooms.slice(1));
+      let spot = roomSpot(bountyRoom);
+      let guard = 0;
+      while ((!canStandOnTiles(tiles, spot.x, spot.y, 12) || dist2(spot.x, spot.y, spawn.x, spawn.y) < 420 * 420) && guard < 30) {
+        spot = roomSpot(bountyRoom);
+        guard++;
+      }
+      if (guard < 30) {
+        const bounty = new Enemy(spot.x, spot.y, pick(kinds), bountyRoom);
+        bounty.maxHp = Math.round(bounty.maxHp * 3.2);
+        bounty.hp = bounty.maxHp;
+        bounty.damage = Math.round(bounty.damage * 1.35);
+        bounty.xp = Math.round(bounty.xp * 4);
+        bounty.scrap = Math.round(bounty.scrap * 4);
+        bounty.isBounty = true;
+        bounty.color = '#ffd15c';
+        applyEliteAffix(bounty);
+        enemies.push(bounty);
+      }
+    }
+
     // Small squad coordination: the room leader buffs nearby squadmates.
     const squadRooms = new Map();
     for (const enemy of enemies) {
@@ -4658,6 +4698,32 @@
         return;
       }
 
+      if (this.isBounty) {
+        const rewardType = pick(LOOT_POOLS.legendary || ['w_plasma']);
+        world.pickups.push({
+          x: this.x,
+          y: this.y,
+          type: 'item',
+          item: createItem(rewardType),
+          life: 999,
+          bob: rand(0, TAU),
+          bossDrop: true
+        });
+        raid.parts = (raid.parts || 0) + 5;
+        addFloatText(this.x, this.y - 48, '传说掉落 + 5 零件', '#ffd15c');
+        addLootFeed('高危目标击倒：传说掉落 + 5 改装零件', true);
+        // The kill is loud: every living enemy converges on the player.
+        for (const enemy of world.enemies) {
+          if (enemy.dead) continue;
+          enemy.state = 'chase';
+          enemy.alertTimer = 30;
+          enemy.lastSeen = { x: player.x, y: player.y };
+        }
+        addLootFeed('警报触发：全图敌人朝你靠过来。', true);
+        updateHUD();
+        return;
+      }
+
       if (this.carriesKey) {
         world.pickups.push({
           x: this.x,
@@ -6039,6 +6105,9 @@
     addLootFeed(world.boss
       ? `首领层：${world.boss.name} 已出现。`
       : `击倒金色钥匙守卫，获取 🔑 开启钥匙房宝箱。`, !!world.boss);
+    if (world.enemies.some((enemy) => enemy.isBounty)) {
+      addLootFeed('高危目标：击倒可拿传说掉落，但会惊动全图。', true);
+    }
     updateHUD();
     updateBackpackHud();
     if (isFirstFloor) startRaidTutorial();
@@ -6899,7 +6968,7 @@
       ctx.fillText('队长', 0, barY - 17);
     }
 
-    if (!isPlayer && entity.elite) {
+    if (!isPlayer && !entity.isBounty && entity.elite) {
       ctx.strokeStyle = entity.carriesKey ? 'rgba(255,209,92,.95)' : 'rgba(255,209,92,.8)';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -6916,6 +6985,18 @@
         ctx.textAlign = 'center';
         ctx.fillText(`精英 · ${entity.eliteLabel}`, 0, barY - 17);
       }
+    }
+    if (!isPlayer && entity.isBounty) {
+      const bountyPulse = 0.5 + 0.5 * Math.sin(world.time * 4);
+      ctx.strokeStyle = `rgba(255,209,92,${0.6 + bountyPulse * 0.35})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 30 + bountyPulse * 4, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd15c';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('高危目标', 0, barY - 19);
     }
     if (!isPlayer && entity.shotWindup > 0) {
       const charge = 1 - entity.shotWindup / (entity.shotWindupMax || 1);
@@ -7941,7 +8022,7 @@
           extraction: { x: world.extraction.x, y: world.extraction.y, r: world.extraction.r },
           altExtraction: world.altExtraction ? { x: world.altExtraction.x, y: world.altExtraction.y, r: world.altExtraction.r, timeLeft: world.altExtraction.timeLeft } : null,
           containers: world.containers.map((c) => ({ x: c.x, y: c.y, searched: c.searched, rarity: c.rarity, progress: c.progress || 0, locked: !!c.locked, vault: !!c.vault })),
-          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite, eliteAffix: e.eliteAffix, eliteLabel: e.eliteLabel, squadLeader: !!e.squadLeader, squadMember: !!e.squadMember })),
+          enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite, isBounty: !!e.isBounty, eliteAffix: e.eliteAffix, eliteLabel: e.eliteLabel, squadLeader: !!e.squadLeader, squadMember: !!e.squadMember })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, defense: world.boss.defense, bossPhase: world.boss.bossPhase, weakPointTimer: world.boss.weakPointTimer, phaseFlash: world.boss.phaseFlash, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),

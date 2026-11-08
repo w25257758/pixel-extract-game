@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v39
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v40
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -33,6 +33,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Loot window rebuilt from the owner's second reference: title "战利品包", a 6-cell summary row, a capacity-sized backpack grid (empty slots drawn, rarity-tinted borders, quantity badge) and a 3x3 secure box ("倒下也不会丢失"). Click a backpack item to select it, then click an empty secure cell to bank it; click a filled secure cell to take it back. `raid.secureBox` holds up to 9 items and its contents go to the stash even when the raid fails (death), while the backpack is still lost. Verified: 16 backpack cells and 9 secure cells render, move in/out both directions, death settlement banks exactly the secure items, no JS errors.
 - Loot window also has a 整理背包 button (bottom right): sorts the live backpack array by kind (weapon/armor/pack/stone/loot), then rarity, then value, so the grid order is stable. The grid renders `player.backpack` directly (not `sortItemList`) so tidy has a visible effect. In short landscape the summary row collapses to 4 cells (role/value hidden) to keep the card near its max height.
 - Reinforcement pressure: at 3:00 into a floor the first wave spawns, then roughly one wave per minute (interval shrinks with the wave number). Each wave picks 2+wave enemies (cap 14 per wave, 80 alive overall) from the stage pool, spawns them in rooms far from the player, and scales HP +15%/wave, damage +12%/wave, XP +10%/wave plus a rising elite chance. When the 6:00 timer hits zero the raid no longer ends — it flips to `overtime`, the timer HUD reads 增援中, waves keep coming on a shorter 45s-ish cycle forever. Verified: first wave at 180s, wave counter and enemy count increase, overtime triggers at 0 without ending the raid, HUD text switches to 增援中, no JS errors.
+- Legendary tier added: `w_plasma` (等离子步枪) and `w_annihilator` (湮灭者) plus `a_phase` (相位护甲, 32% reduction/stealth) with matching WEAPON_DEFS/ARMOR_DEFS entries; `w_boss` upgraded from epic to legendary; `LOOT_POOLS.legendary` and a 3% legendary weight on the vault profile. Verified vault sample 20000 rolls ≈ 3.0% legendary.
+- High-risk bounty per floor: one elite with 3.2x HP / 1.35x damage / 4x XP+scrap and a gold ring plus 「高危目标」 label. Killing it drops a guaranteed legendary item (+5 mod parts) and sets every living enemy to chase the player for 30s ("警报触发"). Verified bounty spawns at index 8, drops a legendary pickup, parts +5, all enemies switch to chase, no JS errors.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
@@ -103,6 +105,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the daily chip in the top-right stat row; the 3x2 manage grid stays at six cards.
 - Keep the secure box: 9 slots in the loot window, items banked there survive a failed raid and still enter the stash; do not let the loot window require page scrolling at 932x430 / 667x375 / 568x320.
 - Keep reinforcements: first wave at 3:00, then about one per minute with scaling stats; running the 6:00 timer out must NOT end the raid — it switches to overtime with endless waves instead of failing the player.
+- Keep one high-risk bounty per floor: a gold-ringed elite that drops a guaranteed legendary item plus 5 mod parts, and killing it alerts the whole map (every living enemy chases for 30s). The 「高危目标」 label and gold ring must stay visible.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
