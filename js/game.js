@@ -1297,6 +1297,9 @@
     inventoryGrid: $('#inventoryGrid'),
     inventoryLoadout: $('#inventoryLoadout'),
     inventoryDetail: $('#inventoryDetail'),
+    secureGrid: $('#secureGrid'),
+    lootBackpackCount: $('#lootBackpackCount'),
+    lootSecureCount: $('#lootSecureCount'),
     hudInventoryBtn: $('#hudInventoryBtn'),
     hudMapBtn: $('#hudMapBtn'),
     mapOverlay: $('#mapOverlay'),
@@ -5616,6 +5619,54 @@
     return true;
   }
 
+  function lootCell(item) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'loot-cell';
+    if (!item) {
+      cell.classList.add('empty');
+      return cell;
+    }
+    const def = defOf(item);
+    cell.classList.add('filled', `rarity-${def.rarity}`);
+    if (item.id === selectedInventoryItemId) cell.classList.add('selected');
+    cell.title = `${itemName(item)}：${def.desc}`;
+    cell.innerHTML = `<span style="color:${choiceIconColor(def)}">${def.icon}</span>${(item.qty || 1) > 1 ? `<span class="loot-qty">${item.qty}</span>` : ''}`;
+    return cell;
+  }
+
+  function moveToSecure(id) {
+    if (!raid || !player) return;
+    raid.secureBox = Array.isArray(raid.secureBox) ? raid.secureBox : [];
+    const idx = player.backpack.findIndex((item) => item.id === id);
+    if (idx < 0) return;
+    if (raid.secureBox.length >= 9) {
+      toast('安全箱满了。');
+      return;
+    }
+    const [item] = player.backpack.splice(idx, 1);
+    raid.secureBox.push(item);
+    selectedInventoryItemId = player.backpack[0]?.id || null;
+    updateBackpackHud();
+    buildInventoryOverlay();
+  }
+
+  function moveFromSecure(id) {
+    if (!raid || !player) return;
+    const box = Array.isArray(raid.secureBox) ? raid.secureBox : [];
+    const idx = box.findIndex((item) => item.id === id);
+    if (idx < 0) return;
+    if (player.backpack.length >= player.capacity) {
+      toast('背包已满。');
+      return;
+    }
+    const [item] = box.splice(idx, 1);
+    player.backpack.push(item);
+    selectedInventoryItemId = item.id;
+    updateBackpackHud();
+    buildInventoryOverlay();
+  }
+
   function buildInventoryOverlay() {
     if (!player) return;
     const selectedForDiscard = player.backpack.find((item) => item.id === selectedInventoryItemId)
@@ -5629,49 +5680,45 @@
     }
     const totalValue = player.backpack.reduce((sum, item) => sum + itemSellValue(item), 0);
     el.inventoryLoadout.innerHTML = `
-      <div>角色<strong style="color:${player.char.color}">${player.char.name} · ${player.char.skill.name}</strong></div>
-      <div>主武器<strong>${save.equipped.weapon ? itemName(save.equipped.weapon) : player.weapon.name}</strong></div>
-      <div>护甲<strong>${save.equipped.armor ? itemName(save.equipped.armor) : player.armor.name}</strong></div>
-      <div>背包装备<strong>${player.pack ? `${player.pack.label} +${player.pack.bonus}${player.packPlus ? ` · 强化+${player.packPlus}` : ''}` : '未装备'} · ${player.backpack.length}/${player.capacity}</strong></div>
-      <div>蜕变<strong>Lv.${player.transcendLevel} · 生命+${player.transcendStats.hp} · 伤害+${Math.round(player.transcendStats.damage * 100)}%</strong></div>
-      <div>套装<strong>${equippedSetSummary() || '未激活'}</strong></div>
+      <div>角色<strong style="color:${player.char.color}">${player.char.name}</strong></div>
+      <div>背包<strong>${player.backpack.length} / ${player.capacity}</strong></div>
       <div>弹药<strong>${player.mag} / ${player.reserve}</strong></div>
       <div>医疗包<strong>×${player.medkits}</strong></div>
       <div>钥匙<strong>×${raid ? (raid.keys || 0) : 0}</strong></div>
-      <div>携带估值<strong>+${totalValue}</strong></div>`;
+      <div>估值<strong>+${totalValue}</strong></div>`;
+    const secureBox = raid && Array.isArray(raid.secureBox) ? raid.secureBox : [];
+    if (el.lootBackpackCount) el.lootBackpackCount.textContent = `${player.backpack.length} / ${player.capacity}`;
+    if (el.lootSecureCount) el.lootSecureCount.textContent = `${secureBox.length} / 9`;
+    // Backpack grid: every capacity slot is drawn, empty slots included.
     el.inventoryGrid.innerHTML = '';
-    if (player.backpack.length === 0) {
-      el.inventoryGrid.innerHTML = '<div class="inventory-empty">背包里什么也没有。去搜几个箱子吧。</div>';
-      el.inventoryDetail.classList.add('hidden');
-      return;
-    }
-
     if (!player.backpack.some((item) => item.id === selectedInventoryItemId)) {
-      selectedInventoryItemId = player.backpack[0].id;
+      selectedInventoryItemId = null;
+    }
+    const sortedBackpack = sortItemList(player.backpack);
+    for (let i = 0; i < player.capacity; i += 1) {
+      const item = sortedBackpack[i] || null;
+      const cell = lootCell(item);
+      if (item) {
+        cell.addEventListener('click', () => {
+          selectedInventoryItemId = item.id;
+          buildInventoryOverlay();
+        });
+      }
+      el.inventoryGrid.appendChild(cell);
     }
 
-    for (const item of sortItemList(player.backpack)) {
-      const def = defOf(item);
-      const kindLabel = def.kind === 'weapon' ? '武器' : def.kind === 'armor' ? '护甲' : def.kind === 'pack' ? '背包' : def.kind === 'stone' ? '强化' : '物资';
-      const selected = item.id === selectedInventoryItemId;
-      const div = document.createElement('button');
-      div.type = 'button';
-      div.className = `inventory-item rarity-${def.rarity} ${selected ? 'selected' : ''}`;
-      div.title = `${itemName(item)}：${def.desc}`;
-      div.innerHTML = `
-        <div class="inv-item-top">
-          <span class="inv-kind">${kindLabel}</span>
-          <span class="inv-rarity ${def.rarity}">${RARITY_LABEL[def.rarity]}</span>
-        </div>
-        <span class="slot-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
-        <span class="slot-name">${itemName(item)}</span>
-        <span class="inv-qty">×${item.qty || 1}</span>
-        ${['weapon', 'armor', 'pack'].includes(def.kind) ? `<span class="inv-compare">${gearCompareText(item).replace(/<[^>]+>/g, '')}</span>` : ''}`;
-      div.addEventListener('click', () => {
-        selectedInventoryItemId = item.id;
-        buildInventoryOverlay();
-      });
-      el.inventoryGrid.appendChild(div);
+    // Secure box grid: filled cells take items back, empty cells accept the selection.
+    if (el.secureGrid) {
+      el.secureGrid.innerHTML = '';
+      for (let i = 0; i < 9; i += 1) {
+        const item = secureBox[i] || null;
+        const cell = lootCell(item);
+        cell.addEventListener('click', () => {
+          if (item) moveFromSecure(item.id);
+          else if (selectedInventoryItemId) moveToSecure(selectedInventoryItemId);
+        });
+        el.secureGrid.appendChild(cell);
+      }
     }
 
     const selectedItem = player.backpack.find((item) => item.id === selectedInventoryItemId);
@@ -5942,6 +5989,7 @@
       keys: 0,
       kills: 0,
       containersSearched: 0,
+      secureBox: [],
       paused: false,
       ended: false,
       inventoryOpen: false,
@@ -6011,11 +6059,13 @@
     raid.mapOpen = false;
 
     const carried = player.backpack.slice();
-    const itemUnits = carried.reduce((n, i) => n + (i.qty || 1), 0);
+    const secureItems = Array.isArray(raid.secureBox) ? raid.secureBox.slice() : [];
+    const itemUnits = carried.concat(secureItems).reduce((n, i) => n + (i.qty || 1), 0);
     let scrapGain = 0;
 
     if (success) {
       for (const item of carried) addToStash(item);
+      for (const item of secureItems) addToStash(item);
       scrapGain = raid.scrap + 10 + raid.floor * 15 + Math.floor(Math.max(0, raid.timeLeft) / 90);
       save.scrap += scrapGain;
       save.modParts += raid.parts;
@@ -6023,6 +6073,8 @@
       save.stats.loot += itemUnits;
       playSound('extract');
     } else {
+      // Items banked in the secure box survive a death.
+      for (const item of secureItems) addToStash(item);
       save.stats.deaths += 1;
       playSound('hurt');
     }
@@ -8039,6 +8091,23 @@
       return this.dailyState();
     },
     claimDaily() { claimDailyRewards(); return this.dailyState(); },
+    openLoot() {
+      if (mode !== 'raid' || !raid) return null;
+      openInventory();
+      return this.secureState();
+    },
+    secureState() {
+      const pack = (player ? player.backpack : []).map((item) => ({ id: item.id, type: item.type }));
+      const secure = (raid && Array.isArray(raid.secureBox) ? raid.secureBox : []).map((item) => ({ id: item.id, type: item.type }));
+      return {
+        backpack: pack,
+        secure,
+        capacity: player ? player.capacity : 0,
+        open: !!(raid && raid.inventoryOpen)
+      };
+    },
+    moveToSecure(id) { moveToSecure(id); return this.secureState(); },
+    moveFromSecure(id) { moveFromSecure(id); return this.secureState(); },
     recordDailyRun(run = {}) {
       recordDailyProgress(run);
       renderAllBase();

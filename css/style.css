@@ -2746,3 +2746,81 @@ body.touch-device.move-stick-fixed .move-pad {
   border-width: 2px;
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
+
+/* ---- Loot window (reference-driven) ---- */
+.loot-card { width: min(880px, 96%); }
+.loot-title { color: #ffd15c; letter-spacing: 3px; font-weight: 900; }
+.loot-body { display: grid; grid-template-columns: minmax(0, 1fr) 208px; gap: 12px; margin-top: 10px; align-items: start; }
+.loot-column { min-width: 0; }
+.loot-section-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; color: #b9c8d9; font-size: 11px; font-weight: 900; letter-spacing: 1px; }
+.loot-section-title b { color: var(--lime); font-size: 10px; }
+.loot-section-title.secure { color: #ffd15c; }
+.loot-section-title.secure b { color: #ffd15c; }
+.loot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  align-content: start;
+  gap: 5px;
+  min-height: 150px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 7px;
+  border: 2px solid rgba(150, 110, 220, .55);
+  background: rgba(10, 8, 18, .8);
+  box-shadow: inset 0 0 26px rgba(120, 80, 200, .12);
+}
+.secure-grid { grid-template-columns: repeat(3, 1fr); min-height: 0; max-height: 168px; border-color: rgba(255, 209, 92, .55); box-shadow: inset 0 0 22px rgba(255, 209, 92, .1); }
+.loot-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid rgba(120, 140, 165, .32);
+  background: rgba(16, 22, 32, .85);
+  color: #cfd8e6;
+  font: inherit;
+  font-size: 15px;
+  cursor: default;
+}
+.loot-cell.empty { background: rgba(9, 12, 19, .72); }
+.loot-cell.filled { cursor: pointer; border-color: rgba(140, 200, 255, .45); }
+.loot-cell.selected { outline: 2px solid var(--lime); outline-offset: -2px; }
+.loot-cell .loot-qty { position: absolute; right: 2px; bottom: 1px; color: #fff; font-size: 9px; font-weight: 900; text-shadow: 0 1px 2px #000; }
+.loot-cell.rarity-common { border-color: rgba(232, 237, 242, .5); }
+.loot-cell.rarity-uncommon { border-color: rgba(107, 227, 150, .6); }
+.loot-cell.rarity-rare { border-color: rgba(88, 166, 255, .8); }
+.loot-cell.rarity-epic { border-color: rgba(192, 132, 255, .85); }
+.loot-cell.rarity-legendary { border-color: rgba(255, 173, 69, .85); }
+.loot-cell.rarity-mythic { border-color: #ffd15c; background: linear-gradient(135deg, rgba(255,83,107,.12), rgba(255,209,92,.1), rgba(88,166,255,.12), rgba(192,132,255,.12)); }
+.loot-secure-note { margin: 6px 0 0; color: var(--dim); font-size: 9px; text-align: center; }
+.loot-card .inventory-detail { margin-top: 8px; }
+@media (max-height: 520px) {
+  .loot-body { grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; margin-top: 6px; }
+  .loot-grid { min-height: 90px; max-height: 150px; padding: 4px; gap: 3px; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); }
+  .secure-grid { grid-template-columns: repeat(3, 1fr); max-height: 112px; }
+  .loot-cell { min-height: 24px; font-size: 12px; }
+  .loot-card .inventory-detail { max-height: 74px; overflow: auto; }
+  .loot-title { letter-spacing: 1px; }
+  .inventory-loadout { margin: 6px 0; }
+}
+
+.loot-card .inventory-loadout { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 8px 0 0; }
+.loot-card .inventory-loadout > div { padding: 5px 7px; font-size: 9px; }
+.loot-card .inventory-loadout strong { font-size: 11px; margin-top: 2px; }
+@media (max-height: 520px) {
+  .loot-card .inventory-loadout { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 5px 0 0; }
+  .loot-card .inventory-loadout > div { padding: 3px 5px; font-size: 8px; }
+  .loot-card .inventory-loadout strong { font-size: 10px; }
+}
+
+@media (max-height: 520px) {
+  .loot-grid { max-height: 190px; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
+  .secure-grid { grid-template-columns: repeat(3, 1fr); max-height: 150px; }
+}
+
+@media (max-height: 520px) {
+  .loot-card .overlay-note { display: none; }
+  .loot-grid { max-height: 178px; }
+}

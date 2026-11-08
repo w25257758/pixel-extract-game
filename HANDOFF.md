@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v36
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v37
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -30,6 +30,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Art pass 2: every room gets an overhead radial light pool baked into the map canvas, plus deterministic crates/barrels/pipes as pre-rendered props (kept clear of room centres); floating dust motes drift in the world layer. All of it lives in `buildMapCanvas` (zero per-frame cost), dust is skipped in performance mode.
 - Art pass 3 (reference-driven): all six stage palettes brightened and desaturated less; walls are now offset brick courses with a face highlight; floors carry emissive specks plus cross-shaped glints; sprite scale is 1.5 for the player / 1.4 for enemies so silhouettes match the reference's chunky look; player ground ring widened; vignette eased to .38.
 - Art pass 4: characters now render as standing side-view chibi sprites — the body mirrors horizontally (`ctx.scale(-1,1)` when facing left) instead of rotating with the aim angle, so heads stay up like the reference; the aim direction still reads through bullets/lock-on. UI switched to a heavy frame: 2px borders plus cut corners (clip-path) on panels, stat chips, manage cards, primary buttons and overlay cards. Verified base layout at 932x430 and 568x320 with no overflow.
+- Loot window rebuilt from the owner's second reference: title "战利品包", a 6-cell summary row, a capacity-sized backpack grid (empty slots drawn, rarity-tinted borders, quantity badge) and a 3x3 secure box ("倒下也不会丢失"). Click a backpack item to select it, then click an empty secure cell to bank it; click a filled secure cell to take it back. `raid.secureBox` holds up to 9 items and its contents go to the stash even when the raid fails (death), while the backpack is still lost. Verified: 16 backpack cells and 9 secure cells render, move in/out both directions, death settlement banks exactly the secure items, no JS errors.
 - In-raid HUD shows run level, floor, XP, HP, ammo, keys, backpack, character name, dash CD and active-skill CD. Touch controls also have dedicated dash/skill buttons.
 - Base loadout shows equipped backpack quality/capacity; the equipment window has a third backpack column with all six qualities.
 - The enhancement window targets equipped weapon/armor/backpack, shows +0..+10 effects and lists six stone qualities with live success rates.
@@ -98,6 +99,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Main-view rendering must not apply radial fog or LOS culling; map markers must still never reveal unseen enemies or the boss.
 - Keep daily contracts compact: three seeded goals per local day, progress recorded only at raid settlement, per-goal claim plus a full-clear bonus, and do not turn it into a base progression panel or a seventh manage card.
 - Keep the daily chip in the top-right stat row; the 3x2 manage grid stays at six cards.
+- Keep the secure box: 9 slots in the loot window, items banked there survive a failed raid and still enter the stash; do not let the loot window require page scrolling at 932x430 / 667x375 / 568x320.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -159,7 +161,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list).
+- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight

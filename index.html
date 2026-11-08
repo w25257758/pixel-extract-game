@@ -266,21 +266,28 @@
         </div>
 
         <div id="inventoryOverlay" class="overlay hidden">
-          <div class="overlay-card inventory-card">
+          <div class="overlay-card inventory-card loot-card">
             <div class="overlay-head">
-              <span>战术背包</span>
+              <span class="loot-title">◆ 战利品包 ◆</span>
               <div class="inventory-head-actions">
                 <button id="discardInventoryBtn" class="danger-btn small" type="button" disabled>丢弃</button>
                 <button id="closeInventoryBtn" class="ghost-btn small">关闭 [Tab]</button>
               </div>
             </div>
             <div class="inventory-loadout" id="inventoryLoadout"></div>
-            <div class="inventory-section-title">搜刮物资 <span>点击物品查看详情</span></div>
-            <div class="inventory-body">
-              <div id="inventoryGrid" class="inventory-grid"></div>
-              <div id="inventoryDetail" class="inventory-detail hidden"></div>
+            <div class="loot-body">
+              <div class="loot-column">
+                <div class="loot-section-title"><span>背包</span><b id="lootBackpackCount">0 / 16</b></div>
+                <div id="inventoryGrid" class="loot-grid"></div>
+              </div>
+              <div class="loot-column loot-secure">
+                <div class="loot-section-title secure"><span>安全箱</span><b id="lootSecureCount">0 / 9</b></div>
+                <div id="secureGrid" class="loot-grid secure-grid"></div>
+                <p class="loot-secure-note">倒下也不会丢失</p>
+              </div>
             </div>
-            <p class="overlay-note">撤离后，背包中的物资会进入仓库。死亡则全部丢失。</p>
+            <div id="inventoryDetail" class="inventory-detail hidden"></div>
+            <p class="overlay-note">搜刮的物资先进背包；点选物品后再点安全箱格子，可以转进去保险。</p>
           </div>
         </div>
 
