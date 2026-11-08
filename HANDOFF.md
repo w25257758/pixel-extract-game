@@ -193,6 +193,54 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Browser navigation may log Uncaught (in promise) Object. Fresh-page flow tests did not reproduce a user-visible issue; investigate async image/audio loads if needed.
 - Avoid literal special Unicode graphic glyphs in PowerShell command payloads.
 
+## Planned: boss challenge mode (design agreed, not started)
+
+Owner wants the six bosses playable as standalone stages instead of only appearing on floors divisible by 5. Agreed design — do not start implementing until the owner says so:
+
+- Base loadout keeps the normal 开始行动 flow, but pressing it opens a stage list: the first entry is 常规行动 (unchanged: risk picker, multi-floor descent, continue/return extraction), followed by the six boss stages (titan / prism / tyrant / omega / wraith / architect).
+- A boss stage is basically a normal floor (same rooms/containers/enemies/objectives) that also carries its boss — the difference is it is a **single layer**: 常规行动 can descend to the next floor, boss stages cannot. Because there is nowhere to descend, players will actually stay long enough for the endless reinforcement/overtime pressure to matter. That is the whole point of the mode.
+- The extraction point exists from the start; killing the boss is **not** required to extract. Bosses are just the stage's headline threat (and the payout for killing them).
+- Each boss stage offers difficulty 1-6. Difficulty N reuses the old floor 5N numbers (enemy/boss HP, damage, density, loot quality), and settlement rewards scale linearly with N.
+- All stages and difficulties unlocked from the start.
+- Everything else (daily contracts, gear/enhancement/transcendence, four characters, reinforcements) stays as-is. 常规行动 does NOT change — it keeps multi-floor descent so the "extract at F5" contract goal still makes sense.
+
+## Planned: boss weapons, drops (design agreed, not started)
+
+Each boss gets its own legendary weapon instead of the shared `w_boss`:
+
+| Boss | Weapon | Feel | Signature attack | Drop |
+|---|---|---|---|---|
+| titan | 裂地炮 INT-90 | 5-pellet scatter with knockback | ground slam + ring shockwave, lethal up close | 裂地炮 + 泰坦合金 |
+| prism | 棱镜步枪 PRISM-7 | 3-way split beams, mid-range | prism judgement: split then refract | 棱镜步枪 + 棱镜碎片 |
+| tyrant | 熔核喷射器 HF-13 | continuous spray, leaves burn | lava eruption: lava pools | 熔核喷射器 + 熔渣核心 |
+| omega | 引力枪 OMEGA-Ω | piercing shots that pull enemies along | gravity collapse: pull then burst | 引力枪 + 虚空残片 |
+| wraith | 相位刃枪 NX-9 | fast bursts, brief stealth after dash | blink strike: teleport lunge | 相位刃枪 + 相位碎片 |
+| architect | 终焉阵列炮 ARK-∞ | charged heavy shot, piercing | terminus array: railgun grid | 终焉阵列炮 + 终焉核心 |
+
+- All six are legendary and a tier above shop gear; killing a boss always drops its own weapon (duplicates can be sold/enhanced).
+- The new materials are high-value loot items (sellable now, future transcendence fodder).
+
+## Planned: collector room (design agreed, not started)
+
+- Entry: a new 「收藏」 chip in the top-right stat row next to 合约 (do NOT add a seventh manage card).
+- Accepts only legendary (red) items. The Nth donation costs N items (1, 2, 3, ...).
+- Each donation grants a permanent, fixed-order bonus. Save schema goes to v10.
+- Tier 1 (the owner lowered these once): search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop chance +8%. Cap at 8 tiers for now.
+- Extension pool for later tiers (all cheap to wire into existing systems): medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
+
+## Planned: side systems backlog (agreed order, not started)
+
+Owner approved these; pick one when work resumes. None of them change the six-card manage grid.
+
+1. **Weapon mods** — three slots per weapon (optic: spread/range/crit, magazine: capacity/reload/fire rate, barrel: damage/pierce/knockback). Mods drop from enemies/containers/bosses, have rarity tiers, install on a weapon and can be removed at a mod-part cost.
+2. **Faction reputation** — three factions (拾荒者 / 军方 / 黑市) each with exclusive gear and a reputation shop: 拾荒者 = recycler mods + salvage station, 军方 = standard-issue guns + armory discount + supply drop, 黑市 = smuggler affix gear + reroll discount + legendary pity box. Reputation rises from extractions/kills/objectives; leaning into one faction levels it faster.
+3. **Daily seeded run** — single-player, so no leaderboard: one fixed-seed map per day, compare against your own best (kills / loot value / survival time) and reward a personal best.
+4. **Radio logs / lore fragments** — 1-2 audio logs per floor, collected into an archive, a finished series unlocks background story plus a small reward.
+5. **Kill slow-mo** — ~0.15s slow motion + slight zoom + shake on the final hit. Must ship with its own settings toggle.
+6. **Weather / time of day** — visual + vision only (no audio, no hearing mechanics): rain = rain streaks + wet floor + slightly shorter sight, fog = shorter enemy aggro range, night = darker with a light radius near the player.
+7. **Rescue objective** — a trapped NPC/ally spawns on the map; escort them to extraction for bonus rewards, they take damage on the way.
+8. **Raid insurance** — pay scrap before deploying; on death, refund 30-50% of the loot value estimate, premium is lost on success.
+
 ## Suggested next steps
 - Test floating and fixed sticks on a real phone.
 - Check long combat sessions on a low-end phone.
