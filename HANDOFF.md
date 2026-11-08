@@ -193,4 +193,9 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Daily challenges are the next content candidate; keep them compact and avoid adding a base progression panel.
 - Daily contracts shipped in v32 — next candidates: a weekly streak line inside the same overlay, or per-contract bonus modifiers (e.g. "clear F5 with a boss contract"). Keep the 3-goal cap and the claim-once rule.
 - Monitor whether the exposed-core windows make boss fights too easy; tune weak-point duration or phase attack density rather than removing the phase system.
-- Art pass next: the current sprites are still rect-composed. A real bitmap sprite sheet (4 characters x 2 walk frames, 6 enemy archetypes) would be the next big jump; also consider per-room light pools and a parallax backdrop. Keep everything out of `performanceMode`'s cost path and never bake per-frame gradients for the floor.
+- Art pass 4 (planned, start here): match the owner's reference screenshot more closely.
+  1. Standing side-view sprites: in `drawCharacter`, replace the full-body `ctx.rotate(entity.angle)` with a horizontal flip (`ctx.scale(-1,1)` when `Math.cos(angle) < 0`). Keep the ground shadow and overhead health bar upright (draw them before the flip). Keep the gun pointing along `entity.angle` by drawing the gun/muzzle in a separate rotated block so aim still reads.
+  2. Chibi proportions: head 10x10, slightly shorter torso, 2-frame leg walk driven by `walkPhase`.
+  3. Heavy UI: 2px frames, cut corners via clip-path or corner pseudo-elements, brighter section headers. Must keep 932x430 / 667x375 / 568x320 free of page scroll and inner overflow.
+  4. Test: left/right facing flip, aim readability, boss 1.45 scale, health-bar alignment, four characters, six enemy archetypes, no JS errors, all three layouts.
+- Later art ideas: real bitmap sprite sheet (4 characters x 2 walk frames, 6 enemy archetypes), per-room light pools already shipped, parallax backdrop. Keep everything out of `performanceMode`'s cost path and never bake per-frame gradients for the floor.
