@@ -5334,6 +5334,48 @@
     el.promptBarFill.style.width = `${clamp((raid.progress / duration) * 100, 0, 100)}%`;
   }
 
+  function updateReinforcements(dt) {
+    if (!world || !player) return;
+    raid.reinforceTimer = Math.max(0, (raid.reinforceTimer || 0) - dt);
+    if (raid.reinforceTimer > 0) return;
+    const wave = (raid.wave || 0) + 1;
+    raid.wave = wave;
+    // First wave at 3:00, then one per minute; overtime shortens the gap.
+    raid.reinforceTimer = Math.max(15, (raid.overtime ? 45 : 60) - wave * 4);
+    spawnReinforcementWave(wave);
+  }
+
+  function spawnReinforcementWave(wave) {
+    if (!world || !player) return;
+    if (world.enemies.filter((enemy) => !enemy.dead).length >= 80) return;
+    const pool = (world.stage && world.stage.enemyPool) || ['grunt'];
+    const count = Math.min(14, 2 + wave);
+    const far = world.rooms.filter((room) => {
+      const cx = (room.x + room.w / 2) * TILE;
+      const cy = (room.y + room.h / 2) * TILE;
+      return dist2(cx, cy, player.x, player.y) > 520 * 520;
+    });
+    const rooms = far.length ? far : world.rooms;
+    for (let i = 0; i < count; i += 1) {
+      const room = rooms[Math.floor(Math.random() * rooms.length)];
+      const spot = roomSpot(room, 6);
+      const kind = pool[Math.floor(Math.random() * pool.length)];
+      const enemy = new Enemy(spot.x, spot.y, kind, room);
+      const hpMult = 1 + wave * 0.15;
+      enemy.maxHp = Math.round(enemy.maxHp * hpMult);
+      enemy.hp = enemy.maxHp;
+      enemy.damage = Math.round(enemy.damage * (1 + wave * 0.12));
+      enemy.xp = Math.round(enemy.xp * (1 + wave * 0.1));
+      if (Math.random() < Math.min(0.55, 0.1 + wave * 0.07)) applyEliteAffix(enemy);
+      enemy.state = 'chase';
+      enemy.alertTimer = 30;
+      enemy.lastSeen = { x: player.x, y: player.y };
+      world.enemies.push(enemy);
+    }
+    addLootFeed(`增援第 ${wave} 波：${count} 名敌人进入区域（强度 +${Math.round(wave * 15)}%）`, true);
+    toast(`敌方增援：第 ${wave} 波`);
+  }
+
   function updateRaid(dt) {
     if (!player || !raid || raid.ended) return;
     if (raid.paused) {
@@ -5341,13 +5383,18 @@
       return;
     }
     raid.timeLeft -= dt;
+    raid.elapsed = (raid.elapsed || 0) + dt;
     raid.searchInterruptTimer = Math.max(0, raid.searchInterruptTimer - dt);
     updateRaidEvent(dt);
     if (raid.timeLeft <= 0) {
       raid.timeLeft = 0;
-      endRaid(false, '行动超时，撤离通道关闭。');
-      return;
+      if (!raid.overtime) {
+        raid.overtime = true;
+        addLootFeed('撤离通道还开着，但敌方增援不会再停。', true);
+        toast('增援持续 · 越拖越危险');
+      }
     }
+    updateReinforcements(dt);
 
     world.time += dt;
     world.flow.timer -= dt;
@@ -5540,8 +5587,8 @@
       const t = Math.max(0, Math.ceil(raid.timeLeft));
       const mm = String(Math.floor(t / 60)).padStart(2, '0');
       const ss = String(t % 60).padStart(2, '0');
-      el.raidTimer.textContent = `${mm}:${ss}`;
-      el.raidTimer.classList.toggle('low', t <= 30);
+      el.raidTimer.textContent = raid.overtime ? '增援中' : `${mm}:${ss}`;
+      el.raidTimer.classList.toggle('low', t <= 30 || raid.overtime);
     }
 
     const boss = mode === 'raid' && world ? world.boss : null;
@@ -5933,6 +5980,10 @@
 
   function beginFloor(isFirstFloor = false) {
     world = generateWorld();
+    raid.elapsed = 0;
+    raid.wave = 0;
+    raid.overtime = false;
+    raid.reinforceTimer = 180;
     if (!player) {
       player = new Player(world.spawn.x, world.spawn.y);
     } else {
@@ -8133,6 +8184,38 @@
     moveToSecure(id) { moveToSecure(id); return this.secureState(); },
     moveFromSecure(id) { moveFromSecure(id); return this.secureState(); },
     tidyBackpack() { tidyBackpack(); return this.secureState(); },
+    setTimeLeft(value) {
+      if (!raid) return null;
+      raid.timeLeft = Math.max(0, Number(value) || 0);
+      return { timeLeft: raid.timeLeft, overtime: !!raid.overtime };
+    },
+    triggerWave() {
+      if (!raid || !world) return null;
+      raid.wave = (raid.wave || 0) + 1;
+      spawnReinforcementWave(raid.wave);
+      return {
+        wave: raid.wave,
+        alive: world.enemies.filter((enemy) => !enemy.dead).length,
+        reinforceTimer: Math.round(raid.reinforceTimer || 0)
+      };
+    },
+    advanceRaid(seconds = 1) {
+      if (!raid || !world) return null;
+      let left = Math.max(0, Number(seconds) || 0);
+      while (left > 0) {
+        const step = Math.min(0.1, left);
+        updateRaid(step);
+        left -= step;
+        if (raid.ended) break;
+      }
+      return {
+        timeLeft: Math.round(raid.timeLeft * 10) / 10,
+        overtime: !!raid.overtime,
+        wave: raid.wave || 0,
+        reinforceTimer: Math.round(raid.reinforceTimer || 0),
+        ended: !!raid.ended
+      };
+    },
     recordDailyRun(run = {}) {
       recordDailyProgress(run);
       renderAllBase();
