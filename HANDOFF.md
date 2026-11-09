@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v48
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v49
 - Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -116,6 +116,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep kill slow-mo behind its own settings toggle (`settings.killSlowmo`, default on): normal kills 0.16s at 0.42x, boss kills 0.34s at 0.28x, plus a slight camera zoom. Never hard-code it on.
 - Keep weapon mods: three slots (optic/mag/barrel) on the weapon item, rarity-tinted drops from containers, install from stash and remove back to stash, and the stat multipliers applied in the Player constructor (never mutate the shared `WEAPON_DEFS` object — clone first).
 - Keep faction reputation: points from settlement only, 100/level cap 5, exclusive shop rows gated by faction level, and the black market window must keep showing the bars above the shop list.
+- Keep the daily survival run: fixed per-day seed, 5:00 target, one payout per day, success ends the run automatically. Do not turn it into a leaderboard.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -177,7 +178,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), startDailyRun(), completeDaily(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -213,6 +214,13 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Boss stages are single-layer: the extraction card hides 继续下一层 and says the run settles on extraction. The extraction point exists from the start, so killing the boss is optional.
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
+
+## Daily survival challenge (shipped in v49)
+
+- Stage list now has a second fixed row: 每日生存挑战 with `startDailyBtn`. It starts `startRaid({ daily: true })`.
+- The run uses a fixed per-day seed: `beginFloor` temporarily swaps `Math.random` for `dailyRng(dailySeedOf(today))` while generating the world, so the whole day uses the same map.
+- Goal is a concrete survival time: `raid.elapsed >= 300` (5:00) ends the run as a success with the message 生存挑战达标. Reaching the target pays `300 scrap + 3 mod parts` once per day (`save.dailySurvival = { date, done }`); the button shows 已完成 and disables for the rest of the day.
+- Verified: the daily run carries `{ date, seed, target: 300 }`, two runs in the same day generated the same room/container counts, completing paid 300 scrap + 3 parts, a second completion the same day paid no bonus, and the stage list renders the new row.
 
 ## Faction reputation (shipped in v48)
 

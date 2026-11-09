@@ -474,6 +474,8 @@
   };
   const FACTION_POINTS_PER_LEVEL = 100;
   const FACTION_MAX_LEVEL = 5;
+  const DAILY_SURVIVAL_TARGET = 300; // 5 minutes
+  const DAILY_SURVIVAL_REWARD = { scrap: 300, parts: 3 };
   const FACTION_SHOP = [
     { faction: 'scavenger', level: 2, type: 'a_recycler', price: 260 },
     { faction: 'military', level: 2, type: 'w_standard', price: 320 },
@@ -898,7 +900,8 @@
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 },
       daily: normalizeDaily(null),
       collector: { level: 0 },
-      factions: { scavenger: 0, military: 0, blackmarket: 0 }
+      factions: { scavenger: 0, military: 0, blackmarket: 0 },
+      dailySurvival: { date: '', done: false }
     };
   }
 
@@ -918,6 +921,10 @@
         scavenger: clamp(Math.floor(Number(raw.factions?.scavenger) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
         military: clamp(Math.floor(Number(raw.factions?.military) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
         blackmarket: clamp(Math.floor(Number(raw.factions?.blackmarket) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL)
+      },
+      dailySurvival: {
+        date: typeof raw.dailySurvival?.date === 'string' ? raw.dailySurvival.date : '',
+        done: raw.dailySurvival?.done === true
       },
       transcend: {
         level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
@@ -1133,6 +1140,17 @@
 
   function renderStageSelect() {
     if (!el.stageBossList) return;
+    if (el.stageDailyDesc) {
+      const doneToday = save.dailySurvival?.date === dailyDateKey() && save.dailySurvival?.done;
+      el.stageDailyDesc.textContent = doneToday
+        ? '今日已达成 · 明天再来'
+        : `固定种子地图 · 活到 ${Math.floor(DAILY_SURVIVAL_TARGET / 60)}:${String(DAILY_SURVIVAL_TARGET % 60).padStart(2, '0')} 领 ${DAILY_SURVIVAL_REWARD.scrap} 废料 + ${DAILY_SURVIVAL_REWARD.parts} 零件`;
+    }
+    if (el.startDailyBtn) {
+      const doneToday = save.dailySurvival?.date === dailyDateKey() && save.dailySurvival?.done;
+      el.startDailyBtn.disabled = !!doneToday;
+      el.startDailyBtn.textContent = doneToday ? '已完成' : '开始挑战';
+    }
     el.stageBossList.innerHTML = '';
     for (const variant of BOSS_VARIANTS) {
       const card = document.createElement('div');
@@ -1503,6 +1521,8 @@
     stageBossList: $('#stageBossList'),
     closeStageBtn: $('#closeStageBtn'),
     startNormalBtn: $('#startNormalBtn'),
+    startDailyBtn: $('#startDailyBtn'),
+    stageDailyDesc: $('#stageDailyDesc'),
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
     stashRarityFilter: $('#stashRarityFilter'),
@@ -6047,6 +6067,11 @@
       }
     }
     updateReinforcements(dt);
+    if (raid.dailyChallenge && !raid.dailyChallenge.done && raid.elapsed >= raid.dailyChallenge.target) {
+      raid.dailyChallenge.done = true;
+      endRaid(true, '生存挑战达标：你活到了目标时间。');
+      return;
+    }
 
     world.time += dt;
     world.flow.timer -= dt;
@@ -6631,7 +6656,18 @@
   }
 
   function beginFloor(isFirstFloor = false) {
-    world = generateWorld();
+    if (raid.dailyChallenge) {
+      // Fixed seed for the daily survival run: same map for the whole day.
+      const originalRandom = Math.random;
+      Math.random = dailyRng(raid.dailyChallenge.seed);
+      try {
+        world = generateWorld();
+      } finally {
+        Math.random = originalRandom;
+      }
+    } else {
+      world = generateWorld();
+    }
     raid.elapsed = 0;
     raid.wave = 0;
     raid.overtime = false;
@@ -6710,6 +6746,9 @@
       ? clamp(Math.round(Number(options.difficulty) || 1), 1, 6)
       : 0;
     const challenge = challengeBoss ? { bossId: challengeBoss.id, name: challengeBoss.name, difficulty: challengeDifficulty } : null;
+    const dailyChallenge = options.daily === true
+      ? { date: dailyDateKey(), seed: dailySeedOf(dailyDateKey()), target: DAILY_SURVIVAL_TARGET, done: false }
+      : null;
 
     world = null;
     player = null;
@@ -6717,6 +6756,7 @@
       timeLeft: 360,
       floor: challenge ? challengeDifficulty * 5 : 1,
       challenge,
+      dailyChallenge,
       level: 1,
       xp: 0,
       pendingPerks: 0,
@@ -6813,6 +6853,15 @@
       save.modParts += raid.parts;
       save.stats.extracts += 1;
       save.stats.loot += itemUnits;
+      if (raid.dailyChallenge && raid.dailyChallenge.done) {
+        const today = dailyDateKey();
+        if (save.dailySurvival?.date !== today) {
+          save.dailySurvival = { date: today, done: true };
+          save.scrap += DAILY_SURVIVAL_REWARD.scrap;
+          save.modParts += DAILY_SURVIVAL_REWARD.parts;
+          addLootFeed(`生存挑战达成：+${DAILY_SURVIVAL_REWARD.scrap} 废料 · +${DAILY_SURVIVAL_REWARD.parts} 零件`, true);
+        }
+      }
       playSound('extract');
     } else {
       // Items banked in the secure box survive a death.
@@ -8474,6 +8523,12 @@
       startRaid();
     });
   }
+  if (el.startDailyBtn) {
+    el.startDailyBtn.addEventListener('click', () => {
+      el.stageOverlay.classList.add('hidden');
+      startRaid({ daily: true });
+    });
+  }
   if (el.closeStageBtn) el.closeStageBtn.addEventListener('click', () => el.stageOverlay.classList.add('hidden'));
   if (el.stageOverlay) {
     el.stageOverlay.addEventListener('click', (event) => {
@@ -8636,6 +8691,19 @@
     startBossStage(bossId = 'titan', difficulty = 1) {
       startRaid({ bossId, difficulty });
       return this.snapshot();
+    },
+    startDailyRun() {
+      startRaid({ daily: true });
+      return {
+        daily: this.snapshot().raid.dailyChallenge,
+        mode: this.snapshot().mode
+      };
+    },
+    completeDaily() {
+      if (!raid || !raid.dailyChallenge) return null;
+      raid.dailyChallenge.done = true;
+      endRaid(true, '生存挑战达标');
+      return { scrap: save.scrap, parts: save.modParts, dailySurvival: save.dailySurvival };
     },
     endRaid,
     snapshot() {
