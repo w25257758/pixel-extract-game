@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v51
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v52
 - Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -119,6 +119,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the daily survival run: fixed per-day seed, 5:00 target, one payout per day, success ends the run automatically. Do not turn it into a leaderboard.
 - Keep the lore archive: one log per floor, collected by walking onto it, deduped into `save.lore`, all-eight pays 200 scrap once, and the archive renders inside the collector room.
 - Keep weather visual-only: rain streaks, fog haze, night darkening + light pool, with enemy vision multipliers (0.92/0.7/0.85). No audio and no hearing mechanics — the owner rejected footsteps because it is a top-down game.
+- Keep the rescue escort: one survivor per floor, follows the player, takes damage from nearby enemies, and pays 80 scrap + 1 part only when delivered to the extraction point.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -180,7 +181,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), startDailyRun(), completeDaily(), loreState(), collectLore(id), loreWorld(), setWeather(type), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), startDailyRun(), completeDaily(), loreState(), collectLore(id), loreWorld(), setWeather(type), rescueState(), teleportToRescue(), moveRescueToExtraction(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -216,6 +217,13 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Boss stages are single-layer: the extraction card hides 继续下一层 and says the run settles on extraction. The extraction point exists from the start, so killing the boss is optional.
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
+
+## Rescue objective (shipped in v52)
+
+- Each floor spawns one trapped survivor (`world.rescue`, 60 HP) in a random room, rendered with a cyan sprite and 「被困者」 label.
+- Walking within 62px starts the escort (following = true). While following they path toward the player and take `3 x nearby-enemy-count` damage per second within 260px, so the player has to clear threats; at 0 HP the rescue fails.
+- Reaching the extraction point (72px) pays 80 scrap + 1 mod part immediately and marks saved.
+- Verified: spawning, pick-up (60 -> 56 HP under threat), and delivery (saved = true, parts +1), no JS errors.
 
 ## Weather / time of day (shipped in v51)
 

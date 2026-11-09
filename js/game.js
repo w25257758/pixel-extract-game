@@ -1225,6 +1225,75 @@
     persist();
   }
 
+  function updateRescue(dt) {
+    const r = world.rescue;
+    if (!r || r.saved || r.dead) return;
+    const distToPlayer = dist2(r.x, r.y, player.x, player.y);
+    if (!r.following && distToPlayer < 62 * 62) {
+      r.following = true;
+      toast('救起幸存者：把他带到撤离点');
+      addLootFeed('救援目标跟上了你 · 送到撤离点可领奖励', true);
+    }
+    if (!r.following) return;
+    if (distToPlayer > 46 * 46) {
+      const dx = player.x - r.x;
+      const dy = player.y - r.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const step = Math.min(130 * dt, len);
+      moveWithCollision(r, (dx / len) * step, (dy / len) * step);
+    }
+    let threat = 0;
+    for (const enemy of world.enemies) {
+      if (enemy.dead) continue;
+      if (dist2(enemy.x, enemy.y, r.x, r.y) < 260 * 260) threat += 1;
+    }
+    if (threat > 0) {
+      r.hp = Math.max(0, r.hp - threat * 3 * dt);
+      if (r.hp <= 0) {
+        r.dead = true;
+        addLootFeed('救援目标倒下了。', true);
+        toast('救援失败：幸存者倒下了');
+        return;
+      }
+    }
+    if (dist2(r.x, r.y, world.extraction.x, world.extraction.y) < 72 * 72) {
+      r.saved = true;
+      raid.scrap += 80;
+      gainModParts(1);
+      addLootFeed('救援成功：+80 废料 · +1 改装零件', true);
+      toast('救援成功！');
+      playSound('level');
+    }
+  }
+
+  function drawRescue(r) {
+    if (!r || r.saved || r.dead) return;
+    ctx.save();
+    ctx.translate(Math.round(r.x), Math.round(r.y));
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.beginPath();
+    ctx.ellipse(0, 9, 11, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#7ee8d2';
+    ctx.fillRect(-6, -10, 12, 16);
+    ctx.fillStyle = '#d8f7f0';
+    ctx.fillRect(-4, -8, 8, 5);
+    ctx.fillStyle = '#2b6d63';
+    ctx.fillRect(-6, 4, 12, 2);
+    if (r.following) {
+      const pct = r.hp / r.maxHp;
+      ctx.fillStyle = 'rgba(2,5,8,.8)';
+      ctx.fillRect(-16, -22, 32, 4);
+      ctx.fillStyle = pct > 0.5 ? '#7ee8d2' : pct > 0.25 ? '#ffd15c' : '#ff5b6e';
+      ctx.fillRect(-16, -22, 32 * pct, 4);
+    }
+    ctx.fillStyle = '#7ee8d2';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(r.following ? '幸存者' : '被困者', 0, -26);
+    ctx.restore();
+  }
+
   function drawLore(lore) {
     if (!lore || lore.taken) return;
     const bounce = Math.sin(lore.bob + world.time * 3) * 3;
@@ -3795,6 +3864,18 @@
     const weather = pick(['clear', 'clear', 'rain', 'fog', 'night']);
     for (const enemy of enemies) enemy.vision *= WEATHER_DEFS[weather].vision;
 
+    // A trapped survivor worth escorting to the extraction point.
+    const rescueRoom = pick(rooms.slice(1));
+    let rescueSpot = roomSpot(rescueRoom);
+    let rescueGuard = 0;
+    while (!canStandOnTiles(tiles, rescueSpot.x, rescueSpot.y, 12) && rescueGuard < 20) {
+      rescueSpot = roomSpot(rescueRoom);
+      rescueGuard += 1;
+    }
+    const rescue = rescueGuard < 20
+      ? { x: rescueSpot.x, y: rescueSpot.y, r: 9, hp: 60, maxHp: 60, following: false, saved: false, dead: false }
+      : null;
+
     const worldObj = {
       tiles,
       rooms,
@@ -3807,6 +3888,7 @@
       keyRoom: { x: keyRoom.x * TILE, y: keyRoom.y * TILE, w: keyRoom.w * TILE, h: keyRoom.h * TILE },
       keyChest,
       lore: lorePickup,
+      rescue,
       weather,
       objective: createRoomObjective(rooms, tiles),
       explored: new Uint8Array(MAP_W * MAP_H),
@@ -6191,6 +6273,7 @@
     updatePickups(dt);
     updateObjective(dt);
     updateParticles(dt);
+    updateRescue(dt);
     if (world.lore && !world.lore.taken && dist2(world.lore.x, world.lore.y, player.x, player.y) < 40 * 40) {
       world.lore.taken = true;
       collectLore(world.lore.id);
@@ -6835,6 +6918,9 @@
     }
     const weatherDef = WEATHER_DEFS[world.weather] || WEATHER_DEFS.clear;
     addLootFeed(`天气：${weatherDef.name} · ${weatherDef.desc}`, false);
+    if (world.rescue) {
+      addLootFeed('地图里有被困的幸存者，护送到撤离点可领奖励。', false);
+    }
     updateHUD();
     updateBackpackHud();
     if (isFirstFloor) startRaidTutorial();
@@ -7183,6 +7269,7 @@
     for (const c of world.containers) drawContainer(c);
     for (const p of world.pickups) drawPickup(p);
     if (world.lore) drawLore(world.lore);
+    if (world.rescue) drawRescue(world.rescue);
     drawHazards();
     drawEnemyTelegraphs();
     drawBeams();
@@ -8890,6 +8977,7 @@
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, defense: world.boss.defense, bossPhase: world.boss.bossPhase, weakPointTimer: world.boss.weakPointTimer, phaseFlash: world.boss.phaseFlash, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
           weather: world.weather || null,
+          rescue: world.rescue ? { x: world.rescue.x, y: world.rescue.y, hp: world.rescue.hp, following: world.rescue.following, saved: world.rescue.saved, dead: world.rescue.dead } : null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
           beams: world.beams.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, life: b.life, color: b.color })),
           bulletCount: world.bullets.length,
@@ -9199,6 +9287,24 @@
       if (!world) return null;
       world.weather = WEATHER_DEFS[type] ? type : 'clear';
       return { weather: world.weather };
+    },
+    rescueState() {
+      const r = world?.rescue;
+      return r ? { x: r.x, y: r.y, hp: Math.round(r.hp), following: r.following, saved: r.saved, dead: r.dead } : null;
+    },
+    teleportToRescue() {
+      if (world?.rescue && player) {
+        player.x = world.rescue.x;
+        player.y = world.rescue.y;
+      }
+      return this.rescueState();
+    },
+    moveRescueToExtraction() {
+      if (world?.rescue) {
+        world.rescue.x = world.extraction.x;
+        world.rescue.y = world.extraction.y;
+      }
+      return this.rescueState();
     },
     grantMod(type = 'mod_optic_1', count = 1) {
       addToStash(createItem(type, Math.max(1, Math.floor(count))));
