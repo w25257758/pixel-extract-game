@@ -2961,3 +2961,11 @@ body.touch-device.move-stick-fixed .move-pad {
   .lore-row { padding: 2px 4px; font-size: 8px; }
   .lore-row b { flex: 0 0 54px; }
 }
+
+/* ---- Action insurance row ---- */
+.stage-insure-toggle { display: flex; align-items: center; gap: 5px; color: var(--lime); font-size: 10px; font-weight: 900; cursor: pointer; }
+.stage-insure-toggle input { width: 14px; height: 14px; accent-color: var(--lime); }
+.stage-daily .stage-normal-copy strong, .stage-insure .stage-normal-copy strong { color: var(--cyan); }
+@media (max-height: 520px) {
+  .stage-insure-toggle { font-size: 9px; }
+}

@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v52
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v53
 - Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -120,6 +120,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the lore archive: one log per floor, collected by walking onto it, deduped into `save.lore`, all-eight pays 200 scrap once, and the archive renders inside the collector room.
 - Keep weather visual-only: rain streaks, fog haze, night darkening + light pool, with enemy vision multipliers (0.92/0.7/0.85). No audio and no hearing mechanics — the owner rejected footsteps because it is a top-down game.
 - Keep the rescue escort: one survivor per floor, follows the player, takes damage from nearby enemies, and pays 80 scrap + 1 part only when delivered to the extraction point.
+- Keep raid insurance: 60 scrap premium from the stage list, 40% of carried loot value refunded on death, premium lost on extraction.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -218,6 +219,12 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
 
+## Raid insurance (shipped in v53)
+
+- The stage list has an 行动保险 row with a 投保 checkbox (persisted as `settings.insure`). Starting any raid with it on costs 60 scrap (refused if scrap is short) and sets `raid.insured`.
+- On death the player is refunded 40% of the carried backpack sell value as scrap; on a successful extraction the premium is simply lost. The secure box is unaffected.
+- Verified: 80 -> 20 scrap on an insured start, death refund credited 100 scrap from the carried loot, no JS errors.
+
 ## Rescue objective (shipped in v52)
 
 - Each floor spawns one trapped survivor (`world.rescue`, 60 HP) in a random room, rendered with a cyan sprite and 「被困者」 label.
@@ -280,9 +287,9 @@ Each boss now drops its own legendary weapon plus a collectible material instead
 - Weapon mods: new `mod` item kind with 9 pieces (optic/mag/barrel x 3 rarities). Slots live on the weapon item (`weapon.mods = { optic, mag, barrel }`, preserved by `normalizeItemInstance`). The Player constructor clones the weapon def and applies: optic = spread -10/-18/-26% + range +8/+15/+24%, mag = mag +20/+35/+50% + reload -5/-10/-15%, barrel = damage +8/+15/+22%. Dropped from containers at 10% / 22% rare / 40% vault. UI is a 「武器改装」 block in the equipment window with three selects (install = pulls from stash, removing returns it). Verified install/uninstall round-trips, mag 12 -> 18 and damage 24 -> 29.28 with tier-3 mag + barrel, no JS errors.
 - Extension pool for later tiers: medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
 
-## Planned: side systems backlog (agreed order, not started)
+## Planned: side systems backlog (all shipped — see the sections above)
 
-Owner approved these; pick one when work resumes. None of them change the six-card manage grid.
+The original backlog (weapon mods, factions, daily survival, radio logs, kill slow-mo, weather, rescue, insurance) is now fully implemented in v46-v53. Next candidates from the extension pool: package thief, summoner enemy, black market auctions, achievements, grenade launcher / flamethrower.
 
 1. **Weapon mods** — three slots per weapon (optic: spread/range/crit, magazine: capacity/reload/fire rate, barrel: damage/pierce/knockback). Mods drop from enemies/containers/bosses, have rarity tiers, install on a weapon and can be removed at a mod-part cost.
 2. **Faction reputation** — three factions (拾荒者 / 军方 / 黑市) each with exclusive gear and a reputation shop: 拾荒者 = recycler mods + salvage station, 军方 = standard-issue guns + armory discount + supply drop, 黑市 = smuggler affix gear + reroll discount + legendary pity box. Reputation rises from extractions/kills/objectives; leaning into one faction levels it faster.

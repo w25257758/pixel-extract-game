@@ -476,6 +476,8 @@
   const FACTION_MAX_LEVEL = 5;
   const DAILY_SURVIVAL_TARGET = 300; // 5 minutes
   const DAILY_SURVIVAL_REWARD = { scrap: 300, parts: 3 };
+  const INSURANCE_COST = 60;
+  const INSURANCE_REFUND_RATE = 0.4;
   // Radio logs scattered on floors; collecting all of them pays once.
   const LORE_DEFS = [
     { id: 'log_1', title: '第一次撤离', text: '第一批撤离者再也没回来。后来的每次行动，就都叫「合约」。' },
@@ -1179,6 +1181,12 @@
       el.startDailyBtn.disabled = !!doneToday;
       el.startDailyBtn.textContent = doneToday ? '已完成' : '开始挑战';
     }
+    if (el.stageInsureToggle) el.stageInsureToggle.checked = save.settings.insure === true;
+    if (el.stageInsureDesc) {
+      el.stageInsureDesc.textContent = save.scrap >= INSURANCE_COST
+        ? `花 ${INSURANCE_COST} 废料投保；死亡返还 ${Math.round(INSURANCE_REFUND_RATE * 100)}% 背包估值，撤离成功保费不退。`
+        : `废料不足 ${INSURANCE_COST}，暂时无法投保。`;
+    }
     el.stageBossList.innerHTML = '';
     for (const variant of BOSS_VARIANTS) {
       const card = document.createElement('div');
@@ -1197,7 +1205,7 @@
         btn.title = `难度 ${d} · 等同 F${d * 5} 强度`;
         btn.addEventListener('click', () => {
           el.stageOverlay.classList.add('hidden');
-          startRaid({ bossId: variant.id, difficulty: d });
+          startRaid({ bossId: variant.id, difficulty: d, insured: el.stageInsureToggle?.checked === true });
         });
         diffWrap.appendChild(btn);
       }
@@ -1671,6 +1679,8 @@
     startNormalBtn: $('#startNormalBtn'),
     startDailyBtn: $('#startDailyBtn'),
     stageDailyDesc: $('#stageDailyDesc'),
+    stageInsureToggle: $('#stageInsureToggle'),
+    stageInsureDesc: $('#stageInsureDesc'),
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
     stashRarityFilter: $('#stashRarityFilter'),
@@ -6940,6 +6950,11 @@
     const dailyChallenge = options.daily === true
       ? { date: dailyDateKey(), seed: dailySeedOf(dailyDateKey()), target: DAILY_SURVIVAL_TARGET, done: false }
       : null;
+    const insured = options.insured === true && save.scrap >= INSURANCE_COST;
+    if (insured) {
+      save.scrap -= INSURANCE_COST;
+      persist();
+    }
 
     world = null;
     player = null;
@@ -6948,6 +6963,7 @@
       floor: challenge ? challengeDifficulty * 5 : 1,
       challenge,
       dailyChallenge,
+      insured,
       level: 1,
       xp: 0,
       pendingPerks: 0,
@@ -7057,6 +7073,12 @@
     } else {
       // Items banked in the secure box survive a death.
       for (const item of secureItems) addToStash(item);
+      if (raid.insured) {
+        const lostValue = carried.reduce((sum, item) => sum + itemSellValue(item), 0);
+        const refund = Math.floor(lostValue * INSURANCE_REFUND_RATE);
+        save.scrap += refund;
+        addLootFeed(`保险理赔：+${refund} 废料（背包估值的 ${Math.round(INSURANCE_REFUND_RATE * 100)}%）`, true);
+      }
       save.stats.deaths += 1;
       playSound('hurt');
     }
@@ -8754,13 +8776,19 @@
   if (el.startNormalBtn) {
     el.startNormalBtn.addEventListener('click', () => {
       el.stageOverlay.classList.add('hidden');
-      startRaid();
+      startRaid({ insured: el.stageInsureToggle?.checked === true });
     });
   }
   if (el.startDailyBtn) {
     el.startDailyBtn.addEventListener('click', () => {
       el.stageOverlay.classList.add('hidden');
-      startRaid({ daily: true });
+      startRaid({ daily: true, insured: el.stageInsureToggle?.checked === true });
+    });
+  }
+  if (el.stageInsureToggle) {
+    el.stageInsureToggle.addEventListener('change', () => {
+      save.settings.insure = el.stageInsureToggle.checked;
+      persist();
     });
   }
   if (el.closeStageBtn) el.closeStageBtn.addEventListener('click', () => el.stageOverlay.classList.add('hidden'));
@@ -8922,9 +8950,13 @@
   // Small debug bridge used by the local smoke test. It does not affect play.
   window.__PX = {
     startRaid,
-    startBossStage(bossId = 'titan', difficulty = 1) {
-      startRaid({ bossId, difficulty });
+    startBossStage(bossId = 'titan', difficulty = 1, insured = false) {
+      startRaid({ bossId, difficulty, insured });
       return this.snapshot();
+    },
+    startInsuredRaid(insured = true) {
+      startRaid({ insured });
+      return { insured: !!raid?.insured, scrap: save.scrap };
     },
     startDailyRun() {
       startRaid({ daily: true });
