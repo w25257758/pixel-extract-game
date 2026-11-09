@@ -31,6 +31,7 @@
           <div class="stat-chip"><span>行动</span><strong id="statRaids">0</strong></div>
           <div class="stat-chip"><span>撤离</span><strong id="statExtracts">0</strong></div>
           <button id="openDailyBtn" class="stat-chip daily-chip" type="button" title="查看每日合约"><span>合约</span><strong id="statDaily">0/3</strong></button>
+          <button id="openCollectorBtn" class="stat-chip daily-chip" type="button" title="查看收藏室"><span>收藏</span><strong id="statCollector">0/8</strong></button>
           <button id="resetSaveBtn" class="ghost-btn small" title="清空存档">重置存档</button>
         </div>
       </header>
@@ -313,6 +314,27 @@
         <span class="touch-pad-label">移动</span>
       </div>
     </section>
+
+    <div id="collectorOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card collector-card manage-window-card">
+        <div class="overlay-head">
+          <span class="collector-title">◆ 收藏室 ◆</span>
+          <button id="closeCollectorBtn" class="ghost-btn small" type="button">关闭</button>
+        </div>
+        <div class="collector-head">
+          <div class="collector-head-copy">
+            <div class="collector-level">收藏 Lv.<span id="collectorLevel">0</span> / 8</div>
+            <p class="collector-sub">捐赠首领材料（收藏品），每一档都是永久加成。</p>
+          </div>
+          <div class="collector-have">持有收藏品 <b id="collectorHave">0</b></div>
+        </div>
+        <div id="collectorTiers" class="collector-tiers"></div>
+        <div class="collector-foot">
+          <span id="collectorHint" class="collector-hint">下一档：—</span>
+          <button id="donateCollectorBtn" class="primary-btn compact" type="button" disabled>捐赠</button>
+        </div>
+      </div>
+    </div>
 
     <div id="stageOverlay" class="overlay full-overlay hidden">
       <div class="overlay-card stage-card manage-window-card">

@@ -2891,3 +2891,32 @@ body.touch-device.move-stick-fixed .move-pad {
 @media (max-height: 520px) {
   .stage-boss-list { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: 160px; }
 }
+
+/* ---- Collector room ---- */
+.collector-card { width: min(620px, 96%); }
+.collector-title { color: #ffd15c; letter-spacing: 3px; font-weight: 900; }
+.collector-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.collector-level { color: var(--lime); font-size: 12px; font-weight: 900; letter-spacing: 1px; }
+.collector-sub { margin: 4px 0 0; color: var(--dim); font-size: 10px; }
+.collector-have { flex: 0 0 auto; padding: 4px 8px; border: 1px solid rgba(255,209,92,.4); color: #ffd15c; font-size: 10px; }
+.collector-tiers { flex: 1; min-height: 0; overflow: auto; display: grid; gap: 4px; margin-top: 10px; }
+.collector-tier { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid rgba(255,255,255,.07); background: rgba(9,14,22,.7); font-size: 10px; }
+.collector-tier.done { border-color: rgba(214,255,77,.45); background: rgba(214,255,77,.06); }
+.collector-tier.next { border-color: rgba(85,217,255,.45); }
+.collector-tier.locked { opacity: .55; }
+.collector-tier-index { flex: 0 0 auto; width: 16px; color: var(--dim); font-weight: 900; text-align: center; }
+.collector-tier-label { flex: 1; min-width: 0; color: var(--text); }
+.collector-tier-need { flex: 0 0 auto; color: var(--dim); font-size: 9px; }
+.collector-tier b { flex: 0 0 auto; font-size: 9px; color: var(--lime); }
+.collector-tier.next b { color: var(--cyan); }
+.collector-tier.locked b { color: var(--dim); }
+.collector-foot { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.collector-hint { color: var(--dim); font-size: 10px; }
+@media (max-height: 520px) {
+  .collector-head { margin-top: 6px; }
+  .collector-sub { display: none; }
+  .collector-tiers { margin-top: 6px; gap: 3px; }
+  .collector-tier { padding: 3px 6px; font-size: 9px; }
+  .collector-foot { margin-top: 6px; }
+  .collector-hint { font-size: 9px; }
+}

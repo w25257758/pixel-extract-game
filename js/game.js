@@ -24,6 +24,18 @@
   const MAP_PH = MAP_H * TILE;
   const SAVE_KEY = 'pixel_extract_save_v1';
 
+  // Collector room: donate collectible boss materials for permanent bonuses.
+  const COLLECTOR_TIERS = [
+    { need: 1, label: '搜索速度 +8%', key: 'searchSpeed', value: 0.08 },
+    { need: 2, label: '攻击力 +1', key: 'flatDamage', value: 1 },
+    { need: 3, label: '攻击力 +1.5%', key: 'damage', value: 0.015 },
+    { need: 4, label: '最大生命 +5', key: 'maxHp', value: 5 },
+    { need: 5, label: '移动速度 +1%', key: 'moveSpeed', value: 0.01 },
+    { need: 6, label: '暴击率 +1%', key: 'crit', value: 0.01 },
+    { need: 7, label: '废料收益 +5%', key: 'scrap', value: 0.05 },
+    { need: 8, label: '改装零件掉落 +8%', key: 'partDrop', value: 0.08 }
+  ];
+
   // Daily contracts: three seeded goals per local day, ticked at raid settlement.
   const DAILY_BONUS = { scrap: 160, parts: 2 };
   const DAILY_DEFS = [
@@ -815,7 +827,7 @@
 
   function defaultSave() {
     return {
-      version: 9,
+      version: 10,
       character: 'pioneer',
       scrap: 80,
       modParts: 0,
@@ -829,7 +841,8 @@
       upgrades: { medkits: 0, ammo: 0 },
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 },
-      daily: normalizeDaily(null)
+      daily: normalizeDaily(null),
+      collector: { level: 0 }
     };
   }
 
@@ -844,6 +857,7 @@
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
       daily: normalizeDaily(raw.daily),
+      collector: { level: clamp(Math.floor(Number(raw.collector?.level) || 0), 0, COLLECTOR_TIERS.length) },
       transcend: {
         level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
         progress: Math.max(0, Math.floor(Number(raw.transcend?.progress) || 0))
@@ -872,7 +886,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 9;
+    merged.version = 10;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     merged.modParts = Math.max(0, Math.floor(Number(merged.modParts) || 0));
     const touchSettings = merged.settings;
@@ -1083,6 +1097,65 @@
     }
   }
 
+  function renderCollector() {
+    const level = collectorLevel();
+    const have = collectibleCount();
+    const next = nextCollectorTier();
+    if (el.statCollector) el.statCollector.textContent = `${level}/${COLLECTOR_TIERS.length}`;
+    if (el.openCollectorBtn) el.openCollectorBtn.classList.toggle('ready', !!next && have >= next.need);
+    if (!el.collectorTiers) return;
+    if (el.collectorLevel) el.collectorLevel.textContent = `${level}`;
+    if (el.collectorHave) el.collectorHave.textContent = `${have}`;
+    if (el.collectorHint) {
+      el.collectorHint.textContent = next
+        ? `下一档：${next.label}（需要 ${next.need} 件收藏品）`
+        : '收藏室已满级';
+    }
+    if (el.donateCollectorBtn) {
+      el.donateCollectorBtn.disabled = !next || have < next.need;
+      el.donateCollectorBtn.textContent = next ? `捐赠 ${next.need} 件` : '已满级';
+    }
+    el.collectorTiers.innerHTML = '';
+    COLLECTOR_TIERS.forEach((tier, index) => {
+      const state = index < level ? 'done' : index === level ? 'next' : 'locked';
+      const row = document.createElement('div');
+      row.className = `collector-tier ${state}`;
+      row.innerHTML = `
+        <span class="collector-tier-index">${index + 1}</span>
+        <span class="collector-tier-label">${tier.label}</span>
+        <span class="collector-tier-need">需 ${tier.need} 件</span>
+        <b>${state === 'done' ? '已激活' : state === 'next' ? '下一档' : '未解锁'}</b>`;
+      el.collectorTiers.appendChild(row);
+    });
+  }
+
+  function donateCollector() {
+    const tier = nextCollectorTier();
+    if (!tier) {
+      toast('收藏室已经满级。');
+      return;
+    }
+    if (collectibleCount() < tier.need) {
+      toast(`需要 ${tier.need} 件收藏品（首领材料）。`);
+      return;
+    }
+    let need = tier.need;
+    for (let i = save.stash.length - 1; i >= 0 && need > 0; i -= 1) {
+      const item = save.stash[i];
+      if (defOf(item).kind !== 'collectible') continue;
+      const qty = item.qty || 1;
+      const take = Math.min(qty, need);
+      item.qty = qty - take;
+      need -= take;
+      if (item.qty <= 0) save.stash.splice(i, 1);
+    }
+    save.collector.level = collectorLevel() + 1;
+    persist();
+    renderAllBase();
+    renderCollector();
+    toast(`收藏室升级：${tier.label}（永久，下一局生效）`);
+  }
+
   function claimDailyRewards() {
     const data = ensureDaily();
     let scrap = 0;
@@ -1122,6 +1195,43 @@
     if (!def) return 0;
     return clamp(Math.floor(Number(raid?.perks?.[key]) || 0), 0, def.max);
   }
+  // Mod parts with the collector part-drop bonus applied per unit.
+  function gainModParts(amount) {
+    const count = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!raid || count <= 0) return;
+    const bonus = player?.collectorBonus?.partDrop || 0;
+    let total = count;
+    if (bonus > 0) {
+      for (let i = 0; i < count; i += 1) {
+        if (Math.random() < bonus) total += 1;
+      }
+    }
+    raid.parts = (raid.parts || 0) + total;
+  }
+
+  function collectorLevel() {
+    return clamp(Math.floor(Number(save?.collector?.level) || 0), 0, COLLECTOR_TIERS.length);
+  }
+
+  function collectorBonuses() {
+    const out = { searchSpeed: 0, flatDamage: 0, damage: 0, maxHp: 0, moveSpeed: 0, crit: 0, scrap: 0, partDrop: 0 };
+    const level = collectorLevel();
+    for (let i = 0; i < level; i += 1) {
+      const tier = COLLECTOR_TIERS[i];
+      out[tier.key] += tier.value;
+    }
+    return out;
+  }
+
+  function collectibleCount() {
+    return save.stash.reduce((n, item) => n + (defOf(item).kind === 'collectible' ? (item.qty || 1) : 0), 0);
+  }
+
+  function nextCollectorTier() {
+    const level = collectorLevel();
+    return level < COLLECTOR_TIERS.length ? COLLECTOR_TIERS[level] : null;
+  }
+
   function getTranscendLevel() {
     return Math.max(0, Math.floor(Number(save?.transcend?.level) || 0));
   }
@@ -1465,6 +1575,15 @@
     dailyRewardHint: $('#dailyRewardHint'),
     claimDailyBtn: $('#claimDailyBtn'),
     closeDailyBtn: $('#closeDailyBtn'),
+    statCollector: $('#statCollector'),
+    openCollectorBtn: $('#openCollectorBtn'),
+    collectorOverlay: $('#collectorOverlay'),
+    collectorLevel: $('#collectorLevel'),
+    collectorHave: $('#collectorHave'),
+    collectorTiers: $('#collectorTiers'),
+    collectorHint: $('#collectorHint'),
+    donateCollectorBtn: $('#donateCollectorBtn'),
+    closeCollectorBtn: $('#closeCollectorBtn'),
     perkOverlay: $('#perkOverlay'),
     perkChoiceGrid: $('#perkChoiceGrid'),
     perkPending: $('#perkPending'),
@@ -2736,6 +2855,7 @@
     renderCharacterPanel();
     renderProgress();
     renderDaily();
+    renderCollector();
     if (el.baseScrap) el.baseScrap.textContent = save.scrap;
     if (el.baseEnhanceSummary) el.baseEnhanceSummary.textContent = `${totalStoneCount()} 颗强化石 · 零件 ${save.modParts}`;
     if (el.stashModParts) el.stashModParts.textContent = `零件 ${save.modParts}`;
@@ -2762,6 +2882,19 @@
     });
   }
   if (el.closeDailyBtn) el.closeDailyBtn.addEventListener('click', () => el.dailyOverlay.classList.add('hidden'));
+  if (el.openCollectorBtn) {
+    el.openCollectorBtn.addEventListener('click', () => {
+      renderCollector();
+      el.collectorOverlay.classList.remove('hidden');
+    });
+  }
+  if (el.closeCollectorBtn) el.closeCollectorBtn.addEventListener('click', () => el.collectorOverlay.classList.add('hidden'));
+  if (el.donateCollectorBtn) el.donateCollectorBtn.addEventListener('click', donateCollector);
+  if (el.collectorOverlay) {
+    el.collectorOverlay.addEventListener('click', (event) => {
+      if (event.target === el.collectorOverlay) el.collectorOverlay.classList.add('hidden');
+    });
+  }
   if (el.tidyBackpackBtn) el.tidyBackpackBtn.addEventListener('click', tidyBackpack);
   if (el.claimDailyBtn) el.claimDailyBtn.addEventListener('click', claimDailyRewards);
   if (el.dailyOverlay) {
@@ -3857,7 +3990,8 @@
       this.transcendLevel = getTranscendLevel();
       this.transcendStats = transcendStats(this.transcendLevel);
       this.gearBonus = loadoutBonuses();
-      this.maxHp = 100 + perkRank('vitality') * 10 + this.transcendStats.hp + this.gearBonus.maxHp;
+      this.collectorBonus = collectorBonuses();
+      this.maxHp = 100 + perkRank('vitality') * 10 + this.transcendStats.hp + this.gearBonus.maxHp + this.collectorBonus.maxHp;
       this.hp = this.maxHp;
       this.angle = 0;
       this.speed = 155;
@@ -3906,13 +4040,14 @@
         ...PACK_QUALITIES[this.packKey],
         bonus: PACK_QUALITIES[this.packKey].bonus + this.packPlus
       } : null;
-      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04 + this.transcendStats.speed + this.gearBonus.moveSpeed;
+      this.speed *= 1 + (this.armor.speedBonus || 0) + perkRank('runner') * 0.04 + this.transcendStats.speed + this.gearBonus.moveSpeed + this.collectorBonus.moveSpeed;
       this.medkits = startingMedkits() + (this.armor.medkitBonus || 0);
       this.stealth = this.armor.stealth || 1;
       this.capacity = backpackCapacity() + this.gearBonus.capacity;
       this.backpack = [];
-      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel + this.transcendStats.damage + this.gearBonus.damage;
-      this.critChance = this.gearBonus.crit;
+      this.damageMultiplier = 1 + this.weaponPlus * ENHANCE_RULES.weapon.perLevel + this.transcendStats.damage + this.gearBonus.damage + this.collectorBonus.damage;
+      this.flatDamage = this.collectorBonus.flatDamage;
+      this.critChance = this.gearBonus.crit + this.collectorBonus.crit;
       this.lifesteal = this.gearBonus.lifesteal;
       this.antiBoss = this.gearBonus.antiBoss;
       this.bulletPierce = this.charId === 'sniper' || this.gearBonus.pierce > 0;
@@ -4050,7 +4185,7 @@
           prevY: muzzleY,
           vx: Math.cos(angle) * this.weapon.speed,
           vy: Math.sin(angle) * this.weapon.speed,
-          damage: this.weapon.damage * this.damageMultiplier * (isCrit ? 2 : 1),
+          damage: this.weapon.damage * this.damageMultiplier * (isCrit ? 2 : 1) + this.flatDamage,
           owner: 'player',
           color: isCrit ? '#ffd15c' : this.weapon.color,
           life: this.weapon.range / this.weapon.speed,
@@ -4850,7 +4985,7 @@
         if (this.elite) raid.stats.eliteKills += 1;
       }
       gainRaidXP(this.xp, true);
-      raid.scrap += Math.round(this.scrap * (1 + (player?.gearBonus?.scrap || 0)));
+      raid.scrap += Math.round(this.scrap * (1 + (player?.gearBonus?.scrap || 0) + (player?.collectorBonus?.scrap || 0)));
       addParticle(this.x, this.y, '#b83d52', 12, 110, 3, 0.8);
       addParticle(this.x, this.y, '#2e3645', 8, 65, 3, 0.6);
       addFloatText(this.x, this.y - 28, `+${this.xp} XP`, '#d6ff4d');
@@ -4909,7 +5044,7 @@
           bossDrop: true
         });
         raid.scrap += bonusScrap;
-        raid.parts = (raid.parts || 0) + 5;
+        gainModParts(5);
         addFloatText(this.x, this.y - 48, isLegendary ? '传说掉落 + 5 零件' : `高价值物资 +${bonusScrap} 废料`, '#ffd15c');
         addLootFeed(isLegendary
           ? '高危目标击倒：传说掉落 + 5 改装零件'
@@ -5302,9 +5437,9 @@
     obj.state = 'complete';
     obj.progress = obj.duration;
     obj.completeTimer = 7;
-    const scrap = Math.round(rand(def.rewardScrap[0], def.rewardScrap[1]) * (1 + (player?.gearBonus?.scrap || 0)));
+    const scrap = Math.round(rand(def.rewardScrap[0], def.rewardScrap[1]) * (1 + (player?.gearBonus?.scrap || 0) + (player?.collectorBonus?.scrap || 0)));
     raid.scrap += scrap;
-    raid.parts += def.rewardParts;
+    gainModParts(def.rewardParts);
     if (raid.stats) raid.stats.objectives += 1;
     const itemType = rollLootItem(def.quality, 'uncommon');
     const item = createItem(itemType);
@@ -5557,7 +5692,8 @@
     }
 
     el.interactPrompt.classList.remove('hidden');
-    const duration = type === 'search' ? 2.0 : 3.0;
+    const searchSpeedBonus = player.collectorBonus ? player.collectorBonus.searchSpeed : 0;
+    const duration = type === 'search' ? 2.0 / (1 + searchSpeedBonus) : 3.0;
     if (type === 'search') {
       if (nearest.locked && (raid.keys || 0) <= 0) {
         raid.progress = 0;
@@ -6427,7 +6563,7 @@
     if (success) {
       for (const item of carried) addToStash(item);
       for (const item of secureItems) addToStash(item);
-      scrapGain = raid.scrap + 10 + raid.floor * 15 + Math.floor(Math.max(0, raid.timeLeft) / 90);
+      scrapGain = raid.scrap + Math.round((10 + raid.floor * 15 + Math.floor(Math.max(0, raid.timeLeft) / 90)) * (1 + (player?.collectorBonus?.scrap || 0)));
       save.scrap += scrapGain;
       save.modParts += raid.parts;
       save.stats.extracts += 1;
@@ -8505,6 +8641,21 @@
       return this.dailyState();
     },
     claimDaily() { claimDailyRewards(); return this.dailyState(); },
+    collectorState() {
+      return {
+        level: collectorLevel(),
+        next: nextCollectorTier(),
+        have: collectibleCount(),
+        bonuses: collectorBonuses(),
+        tiers: COLLECTOR_TIERS.map((tier, index) => ({ ...tier, active: index < collectorLevel() }))
+      };
+    },
+    donateCollector() { donateCollector(); return this.collectorState(); },
+    grantCollectible(type = 'mat_titan', count = 1) {
+      addToStash(createItem(type, Math.max(1, Math.floor(count))));
+      renderAllBase();
+      return this.collectorState();
+    },
     openLoot() {
       if (mode !== 'raid' || !raid) return null;
       openInventory();

@@ -13,8 +13,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v44
-- Save key: localStorage pixel_extract_save_v1, schema version 9
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v45
+- Save key: localStorage pixel_extract_save_v1, schema version 10
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
 ## Current UI
@@ -112,6 +112,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep one high-risk bounty per floor: a gold-ringed elite that drops a legendary only ~25% of the time (otherwise epic gear + bonus scrap) plus 5 mod parts, and killing it alerts the whole map (every living enemy chases for 30s). The 「高危目标」 label and gold ring must stay visible.
 - Keep boss challenge mode: 开始行动 opens the stage list, boss stages are single-layer (no 继续下一层), the extraction point works from the start, and difficulty N must keep using the old F(5N) stats.
 - Keep per-boss drops: every boss drops its own legendary weapon plus its collectible material (see the BOSS_DROPS table). Do not collapse them back to one shared boss weapon.
+- Keep the collector room: only the `collectible` kind is accepted (never weapons/backpacks/stones), the Nth donation costs N items, the eight bonuses are permanent and fixed-order, and they must be applied in the Player constructor + search/scrap/part-drop paths.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -173,7 +174,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -226,13 +227,15 @@ Each boss now drops its own legendary weapon plus a collectible material instead
 - Materials use the new `collectible` kind: sellable, cannot be equipped, and they are what the future collector room accepts (weapons/backpacks/stones are NOT accepted).
 - Drop logic: `BOSS_DROPS[bossVariant.id]` in `die()`; the weapon drops at the boss position and the material 1-2 units beside it. Verified all six bosses at difficulties 1-6 drop the matching weapon + material, with the stage floor equal to 5N and no JS errors.
 
-## Planned: collector room (design agreed, not started)
+## Collector room (shipped in v45)
 
-- Entry: a new 「收藏」 chip in the top-right stat row next to 合约 (do NOT add a seventh manage card).
-- It only accepts a new item kind: **收藏品 / relics** (cannot be equipped or enhanced, sellable). The six boss materials (泰坦合金 / 棱镜碎片 / 熔渣核心 / 虚空残片 / 相位碎片 / 终焉核心) are this kind and are the main source. Weapons, backpacks and enhancement stones must NOT be accepted — the owner rejected donating usable gear.
-- The Nth donation costs N relics (1, 2, 3, ...), each donation grants a permanent, fixed-order bonus. Save schema goes to v10.
-- Tier 1 (owner lowered once): search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop chance +8%. Cap at 8 tiers for now.
-- Extension pool for later tiers (all cheap to wire into existing systems): medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
+- Entry: 「收藏」 chip in the top-right stat row next to 合约 (no seventh manage card). Save schema is now v10 (`save.collector.level`).
+- Only accepts the new **collectible** kind (the six boss materials). Weapons, backpacks and enhancement stones are not accepted — the owner rejected donating usable gear. `collectibleCount()` counts them in the stash.
+- The Nth donation costs N collectibles (1, 2, 3, ...), consumed from the stash from the end. Each level grants one permanent, fixed-order bonus.
+- Tiers: search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop +8% (8 tiers).
+- Wiring: `collectorBonuses()` is read in the Player constructor (maxHp/speed/damageMultiplier/critChance/flatDamage); flat damage is added per bullet; search duration becomes `2.0 / (1 + searchSpeed)`; scrap gains multiply by `1 + scrap`; `gainModParts()` rolls +1 per part with the partDrop chance.
+- Verified: 6 collected materials -> donate 1 (level 1, have 5) -> donate 2 (level 2, have 3) -> donate 3 (level 3, have 0); bonuses object accumulates correctly; save version 10; collector window renders 8 tiers with activated/next/locked states at 932x430; no JS errors.
+- Extension pool for later tiers: medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
 
 ## Planned: side systems backlog (agreed order, not started)
 
