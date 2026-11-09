@@ -997,6 +997,34 @@
     }
   }
 
+  function renderStageSelect() {
+    if (!el.stageBossList) return;
+    el.stageBossList.innerHTML = '';
+    for (const variant of BOSS_VARIANTS) {
+      const card = document.createElement('div');
+      card.className = 'stage-boss';
+      card.innerHTML = `
+        <div class="stage-boss-head">
+          <span class="stage-boss-dot" style="background:${variant.color}"></span>
+          <span class="stage-boss-name" style="color:${variant.color}">${variant.name}</span>
+        </div>
+        <div class="stage-boss-diff"></div>`;
+      const diffWrap = card.querySelector('.stage-boss-diff');
+      for (let d = 1; d <= 6; d += 1) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = `${d}`;
+        btn.title = `难度 ${d} · 等同 F${d * 5} 强度`;
+        btn.addEventListener('click', () => {
+          el.stageOverlay.classList.add('hidden');
+          startRaid({ bossId: variant.id, difficulty: d });
+        });
+        diffWrap.appendChild(btn);
+      }
+      el.stageBossList.appendChild(card);
+    }
+  }
+
   function claimDailyRewards() {
     const data = ensureDaily();
     let scrap = 0;
@@ -1241,6 +1269,10 @@
     loadoutPack: $('#loadoutPack'),
     loadoutSetBonus: $('#loadoutSetBonus'),
     startRaidBtn: $('#startRaidBtn'),
+    stageOverlay: $('#stageOverlay'),
+    stageBossList: $('#stageBossList'),
+    closeStageBtn: $('#closeStageBtn'),
+    startNormalBtn: $('#startNormalBtn'),
     riskPicker: $('#riskPicker'),
     riskHint: $('#riskHint'),
     stashRarityFilter: $('#stashRarityFilter'),
@@ -4211,7 +4243,10 @@
       const risk = riskDef();
       const floor = Math.max(1, raid?.floor || 1);
       if (this.isBoss) {
-        const variant = bossVariantForFloor(floor);
+        const challengeVariant = raid?.challenge
+          ? BOSS_VARIANTS.find((variant) => variant.id === raid.challenge.bossId)
+          : null;
+        const variant = challengeVariant || bossVariantForFloor(floor);
         this.bossVariant = variant;
         this.name = variant.name;
         this.color = variant.color;
@@ -5363,8 +5398,11 @@
     el.interactPrompt.classList.add('hidden');
     const perks = PERK_KEYS.filter((key) => perkRank(key) > 0)
       .map((key) => `${PERK_DEFS[key].name} ${perkRank(key)}`);
+    if (el.extractDeeperBtn) el.extractDeeperBtn.classList.toggle('hidden', !!raid.challenge);
     if (el.extractChoiceSub) {
-      el.extractChoiceSub.textContent = `你已到达第 ${raid.floor} 层撤离点。继续深入会保留本局等级、成长与背包，但敌人和掉落都会随层数提升。`;
+      el.extractChoiceSub.textContent = raid.challenge
+        ? `首领挑战是单层战场。现在撤离会结算本局物资；继续待下去，增援只会越来越多。`
+        : `你已到达第 ${raid.floor} 层撤离点。继续深入会保留本局等级、成长与背包，但敌人和掉落都会随层数提升。`;
     }
     if (el.extractChoiceStats) {
       el.extractChoiceStats.innerHTML = `
@@ -6208,17 +6246,24 @@
     if (isFirstFloor) startRaidTutorial();
   }
 
-  function startRaid() {
+  function startRaid(options = {}) {
     Sound.init();
     if (likelyTouch && window.innerHeight > window.innerWidth) enterLandscapeFullscreen();
     save.stats.raids += 1;
     persist();
 
+    const challengeBoss = options.bossId ? BOSS_VARIANTS.find((variant) => variant.id === options.bossId) : null;
+    const challengeDifficulty = challengeBoss
+      ? clamp(Math.round(Number(options.difficulty) || 1), 1, 6)
+      : 0;
+    const challenge = challengeBoss ? { bossId: challengeBoss.id, name: challengeBoss.name, difficulty: challengeDifficulty } : null;
+
     world = null;
     player = null;
     raid = {
       timeLeft: 360,
-      floor: 1,
+      floor: challenge ? challengeDifficulty * 5 : 1,
+      challenge,
       level: 1,
       xp: 0,
       pendingPerks: 0,
@@ -6257,7 +6302,12 @@
     el.damageFlash.style.opacity = '0';
     beginFloor(true);
     const risk = riskDef();
-    addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，寻找钥匙房宝箱。`, false);
+    if (challenge) {
+      addLootFeed(`首领挑战：${challenge.name} · 难度 ${challenge.difficulty}（等同 F${raid.floor} 强度）`, true);
+      addLootFeed('撤离点一开始就在地图上，打不过随时可以撤。', false);
+    } else {
+      addLootFeed(`${risk.label}行动开始 · 第 1 层：搜刮物资，寻找钥匙房宝箱。`, false);
+    }
     const dailyData = ensureDaily();
     addLootFeed(`今日合约 ${dailyDoneCount(dailyData)}/3 已完成 · 基地「合约」查看`, false);
     if (raid.event) {
@@ -7945,7 +7995,22 @@
     if (mode === 'raid' && raid && !raid.ended && !raid.paused && !raid.perkChoiceOpen && !raid.extractionChoiceOpen) togglePause();
   });
 
-  el.startRaidBtn.addEventListener('click', startRaid);
+  el.startRaidBtn.addEventListener('click', () => {
+    renderStageSelect();
+    el.stageOverlay.classList.remove('hidden');
+  });
+  if (el.startNormalBtn) {
+    el.startNormalBtn.addEventListener('click', () => {
+      el.stageOverlay.classList.add('hidden');
+      startRaid();
+    });
+  }
+  if (el.closeStageBtn) el.closeStageBtn.addEventListener('click', () => el.stageOverlay.classList.add('hidden'));
+  if (el.stageOverlay) {
+    el.stageOverlay.addEventListener('click', (event) => {
+      if (event.target === el.stageOverlay) el.stageOverlay.classList.add('hidden');
+    });
+  }
   el.riskPicker.addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-risk]');
     if (!btn) return;
@@ -8083,6 +8148,10 @@
   // Small debug bridge used by the local smoke test. It does not affect play.
   window.__PX = {
     startRaid,
+    startBossStage(bossId = 'titan', difficulty = 1) {
+      startRaid({ bossId, difficulty });
+      return this.snapshot();
+    },
     endRaid,
     snapshot() {
       return {

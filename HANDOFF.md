@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v42
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v43
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -110,6 +110,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the secure box: 9 slots in the loot window, items banked there survive a failed raid and still enter the stash; do not let the loot window require page scrolling at 932x430 / 667x375 / 568x320.
 - Keep reinforcements: first wave at 3:00, then about one per minute with scaling stats; running the 6:00 timer out must NOT end the raid — it switches to overtime with endless waves instead of failing the player.
 - Keep one high-risk bounty per floor: a gold-ringed elite that drops a legendary only ~25% of the time (otherwise epic gear + bonus scrap) plus 5 mod parts, and killing it alerts the whole map (every living enemy chases for 30s). The 「高危目标」 label and gold ring must stay visible.
+- Keep boss challenge mode: 开始行动 opens the stage list, boss stages are single-layer (no 继续下一层), the extraction point works from the start, and difficulty N must keep using the old F(5N) stats.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -171,7 +172,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -197,16 +198,16 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Browser navigation may log Uncaught (in promise) Object. Fresh-page flow tests did not reproduce a user-visible issue; investigate async image/audio loads if needed.
 - Avoid literal special Unicode graphic glyphs in PowerShell command payloads.
 
-## Planned: boss challenge mode (design agreed, not started)
+## Boss challenge mode (shipped in v43)
 
-Owner wants the six bosses playable as standalone stages instead of only appearing on floors divisible by 5. Agreed design — do not start implementing until the owner says so:
+Six bosses are now playable as standalone stages. Pressing 开始行动 opens a stage list: the first entry is 常规行动 (unchanged risk picker + multi-floor descent), followed by six boss cards with difficulty buttons 1-6.
 
-- Base loadout keeps the normal 开始行动 flow, but pressing it opens a stage list: the first entry is 常规行动 (unchanged: risk picker, multi-floor descent, continue/return extraction), followed by the six boss stages (titan / prism / tyrant / omega / wraith / architect).
-- A boss stage is basically a normal floor (same rooms/containers/enemies/objectives) that also carries its boss — the difference is it is a **single layer**: 常规行动 can descend to the next floor, boss stages cannot. Because there is nowhere to descend, players will actually stay long enough for the endless reinforcement/overtime pressure to matter. That is the whole point of the mode.
-- The extraction point exists from the start; killing the boss is **not** required to extract. Bosses are just the stage's headline threat (and the payout for killing them).
-- Each boss stage offers difficulty 1-6. Difficulty N reuses the old floor 5N numbers (enemy/boss HP, damage, density, loot quality), and settlement rewards scale linearly with N.
-- All stages and difficulties unlocked from the start.
-- Everything else (daily contracts, gear/enhancement/transcendence, four characters, reinforcements) stays as-is. 常规行动 does NOT change — it keeps multi-floor descent so the "extract at F5" contract goal still makes sense.
+- 开始行动 no longer starts a raid directly; it opens `stageOverlay`. `startNormalBtn` starts a normal raid.
+- `startRaid({ bossId, difficulty })` sets `raid.challenge = { bossId, name, difficulty }` and `raid.floor = difficulty * 5`, so all existing floor scaling (enemy count/HP/damage/loot, boss scaling) reuses the old F(5N) numbers.
+- `generateWorld` spawns the selected boss by forcing the challenge variant; without a challenge it falls back to `bossVariantForFloor`.
+- Boss stages are single-layer: the extraction card hides 继续下一层 and says the run settles on extraction. The extraction point exists from the start, so killing the boss is optional.
+- Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
+- Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
 
 ## Planned: boss weapons, drops (design agreed, not started)
 

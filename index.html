@@ -314,6 +314,25 @@
       </div>
     </section>
 
+    <div id="stageOverlay" class="overlay full-overlay hidden">
+      <div class="overlay-card stage-card manage-window-card">
+        <div class="overlay-head">
+          <span>选择行动</span>
+          <button id="closeStageBtn" class="ghost-btn small" type="button">关闭</button>
+        </div>
+        <div class="stage-normal">
+          <div class="stage-normal-copy">
+            <strong>常规行动</strong>
+            <span>随机搜刮层，可一层层深入；风险越高敌人越多、掉落越好。</span>
+          </div>
+          <button id="startNormalBtn" class="primary-btn compact" type="button">开始行动</button>
+        </div>
+        <div class="stage-subtitle">首领挑战 <span>单层行动 · 难度 N = 原 F(5N) 强度</span></div>
+        <div id="stageBossList" class="stage-boss-list"></div>
+        <p class="overlay-note">首领挑战是单层战场：撤离点一开始就存在，不击败首领也能撤走。</p>
+      </div>
+    </div>
+
     <div id="dailyOverlay" class="overlay full-overlay hidden">
       <div class="overlay-card daily-card manage-window-card">
         <div class="overlay-head">

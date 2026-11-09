@@ -2855,3 +2855,39 @@ body.touch-device.move-stick-fixed .move-pad {
   .enhance-fuse-row { padding: 2px 4px; font-size: 8px; }
   .enhance-fuse-btn { min-height: 18px; padding: 1px 6px; font-size: 8px; }
 }
+
+/* ---- Stage select (normal + boss challenges) ---- */
+.stage-card { width: min(780px, 96%); }
+.stage-normal { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); background: rgba(10,16,24,.72); margin-top: 8px; }
+.stage-normal-copy { flex: 1; min-width: 0; }
+.stage-normal-copy strong { display: block; color: var(--lime); font-size: 12px; }
+.stage-normal-copy span { display: block; margin-top: 2px; color: var(--dim); font-size: 9px; line-height: 1.5; }
+.stage-subtitle { margin: 10px 0 6px; color: var(--text); font-size: 11px; font-weight: 900; letter-spacing: 1px; }
+.stage-subtitle span { margin-left: 6px; color: var(--dim); font-size: 9px; font-weight: 400; letter-spacing: 0; }
+.stage-boss-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 250px; overflow: auto; }
+.stage-boss { border: 1px solid var(--line); background: rgba(9,14,22,.75); padding: 7px 9px; }
+.stage-boss-head { display: flex; align-items: center; gap: 6px; }
+.stage-boss-dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.stage-boss-name { flex: 1; min-width: 0; font-size: 11px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage-boss-diff { display: flex; gap: 3px; margin-top: 6px; }
+.stage-boss-diff button { flex: 1; min-height: 22px; padding: 1px 0; border: 1px solid rgba(120,140,165,.3); background: rgba(16,22,32,.85); color: #b9c8d9; font: inherit; font-size: 9px; font-weight: 900; cursor: pointer; }
+.stage-boss-diff button:hover { border-color: var(--lime); color: var(--lime); }
+@media (max-height: 520px) {
+  .stage-boss-list { max-height: 128px; }
+  .stage-boss { padding: 5px 7px; }
+  .stage-boss-name { font-size: 10px; }
+  .stage-boss-diff { margin-top: 4px; }
+  .stage-boss-diff button { min-height: 18px; font-size: 8px; }
+  .stage-normal { padding: 5px 8px; }
+  .stage-normal-copy strong { font-size: 11px; }
+  .stage-subtitle { margin: 6px 0 4px; }
+}
+
+.stage-boss-list { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: none; }
+@media (max-height: 520px) {
+  .stage-boss-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 120px; }
+}
+
+@media (max-height: 520px) {
+  .stage-boss-list { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: 160px; }
+}
