@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v43
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v44
 - Save key: localStorage pixel_extract_save_v1, schema version 9
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -111,6 +111,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep reinforcements: first wave at 3:00, then about one per minute with scaling stats; running the 6:00 timer out must NOT end the raid — it switches to overtime with endless waves instead of failing the player.
 - Keep one high-risk bounty per floor: a gold-ringed elite that drops a legendary only ~25% of the time (otherwise epic gear + bonus scrap) plus 5 mod parts, and killing it alerts the whole map (every living enemy chases for 30s). The 「高危目标」 label and gold ring must stay visible.
 - Keep boss challenge mode: 开始行动 opens the stage list, boss stages are single-layer (no 继续下一层), the extraction point works from the start, and difficulty N must keep using the old F(5N) stats.
+- Keep per-boss drops: every boss drops its own legendary weapon plus its collectible material (see the BOSS_DROPS table). Do not collapse them back to one shared boss weapon.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -209,21 +210,21 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
 
-## Planned: boss weapons, drops (design agreed, not started)
+## Boss weapons, drops (shipped in v44)
 
-Each boss gets its own legendary weapon instead of the shared `w_boss`:
+Each boss now drops its own legendary weapon plus a collectible material instead of the shared `w_boss` (which still exists in saves but no longer drops).
 
-| Boss | Weapon | Feel | Signature attack | Drop |
-|---|---|---|---|---|
-| titan | 裂地炮 INT-90 | 5-pellet scatter with knockback | ground slam + ring shockwave, lethal up close | 裂地炮 + 泰坦合金 |
-| prism | 棱镜步枪 PRISM-7 | 3-way split beams, mid-range | prism judgement: split then refract | 棱镜步枪 + 棱镜碎片 |
-| tyrant | 熔核喷射器 HF-13 | continuous spray, leaves burn | lava eruption: lava pools | 熔核喷射器 + 熔渣核心 |
-| omega | 引力枪 OMEGA-Ω | piercing shots that pull enemies along | gravity collapse: pull then burst | 引力枪 + 虚空残片 |
-| wraith | 相位刃枪 NX-9 | fast bursts, brief stealth after dash | blink strike: teleport lunge | 相位刃枪 + 相位碎片 |
-| architect | 终焉阵列炮 ARK-∞ | charged heavy shot, piercing | terminus array: railgun grid | 终焉阵列炮 + 终焉核心 |
+| Boss | Weapon id / name | Feel | Material |
+|---|---|---|---|
+| titan | `w_quake` 裂地炮 INT-90 | 5-pellet scatter, 26 dmg each, heavy shake | mat_titan 泰坦合金 |
+| prism | `w_prism` 棱镜步枪 PRISM-7 | fast 22 dmg automatic, 27 mag | mat_prism 棱镜碎片 |
+| tyrant | `w_flame` 熔核喷射器 HF-13 | 12 dmg at 0.06s, 80 mag, short range | mat_magma 熔渣核心 |
+| omega | `w_gravity` 引力枪 OMEGA-Ω | 34 dmg piercing-ish single shots | mat_void 虚空残片 |
+| wraith | `w_phase` 相位刃枪 NX-9 | 16 dmg at 0.09s, 36 mag, fast reload | mat_phase 相位碎片 |
+| architect | `w_array` 终焉阵列炮 ARK-∞ | 120 dmg, 3 mag, huge shake | mat_arch 终焉核心 |
 
-- All six are legendary and a tier above shop gear; killing a boss always drops its own weapon (duplicates can be sold/enhanced).
-- The new materials are high-value loot items (sellable now, future transcendence fodder).
+- Materials use the new `collectible` kind: sellable, cannot be equipped, and they are what the future collector room accepts (weapons/backpacks/stones are NOT accepted).
+- Drop logic: `BOSS_DROPS[bossVariant.id]` in `die()`; the weapon drops at the boss position and the material 1-2 units beside it. Verified all six bosses at difficulties 1-6 drop the matching weapon + material, with the stage floor equal to 5N and no JS errors.
 
 ## Planned: collector room (design agreed, not started)
 

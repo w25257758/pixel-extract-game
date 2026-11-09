@@ -102,6 +102,42 @@
       reload: 2.7, spread: 0.008, speed: 1750, range: 1250, auto: false,
       reserve: 28, color: '#ffd15c', shake: 7,
       desc: '单发重炮，贯穿力极强，命中首领时会撕开防御。'
+    },
+    quake: {
+      name: '裂地炮', code: 'INT-90', damage: 26, cooldown: 0.9, mag: 6,
+      reload: 2.5, spread: 0.16, speed: 850, range: 380, auto: false,
+      reserve: 36, color: '#ff9c47', pellets: 5, shake: 6.5,
+      desc: '泰坦的霰射主炮，五枚弹丸一次糊脸。'
+    },
+    prism: {
+      name: '棱镜步枪', code: 'PRISM-7', damage: 22, cooldown: 0.14, mag: 27,
+      reload: 2.2, spread: 0.055, speed: 1300, range: 820, auto: true,
+      reserve: 135, color: '#c084ff', shake: 2.4,
+      desc: '赛琳的棱镜武器，弹道又快又直，中距离压场。'
+    },
+    flame: {
+      name: '熔核喷射器', code: 'HF-13', damage: 12, cooldown: 0.06, mag: 80,
+      reload: 3.0, spread: 0.18, speed: 520, range: 260, auto: true,
+      reserve: 240, color: '#ff7a45', shake: 1.2,
+      desc: '赫菲的熔核喷嘴，贴脸喷射成片火舌。'
+    },
+    gravity: {
+      name: '引力枪', code: 'OMEGA-Ω', damage: 34, cooldown: 0.34, mag: 10,
+      reload: 2.0, spread: 0.02, speed: 1500, range: 1000, auto: false,
+      reserve: 60, color: '#58a6ff', shake: 3.4,
+      desc: 'Ω 的引力武器，弹道笔直穿透，后坐干净。'
+    },
+    phase: {
+      name: '相位刃枪', code: 'NX-9', damage: 16, cooldown: 0.09, mag: 36,
+      reload: 1.8, spread: 0.07, speed: 1100, range: 620, auto: true,
+      reserve: 180, color: '#7ee8d2', shake: 1.6,
+      desc: '诺克斯的相位连射枪，射速极高、换弹极快。'
+    },
+    array: {
+      name: '终焉阵列炮', code: 'ARK-∞', damage: 120, cooldown: 1.15, mag: 3,
+      reload: 2.8, spread: 0.01, speed: 1800, range: 1300, auto: false,
+      reserve: 18, color: '#d6ff4d', shake: 7.5,
+      desc: '阿基拉的阵列主炮，单发贯穿一整条走廊。'
     }
   };
 
@@ -221,6 +257,18 @@
     w_plasma: { name: '等离子步枪', icon: '⌁', kind: 'weapon', weapon: 'plasma', rarity: 'legendary', sell: 620, stack: false, desc: '高频能量步枪，弹道笔直、压制力极强。' },
     w_annihilator: { name: '湮灭者', icon: '⌾', kind: 'weapon', weapon: 'annihilator', rarity: 'legendary', sell: 780, stack: false, desc: '单发重炮，几乎无视护甲，专门对付首领与重装。' },
     a_phase: { name: '相位护甲', icon: '◈', kind: 'armor', armor: 'phase', rarity: 'legendary', sell: 500, stack: false, desc: '减伤 32%，受击后敌人视野短暂降低。' },
+    w_quake: { name: '裂地炮', icon: '≋', kind: 'weapon', weapon: 'quake', rarity: 'legendary', sell: 700, stack: false, boss: true, desc: '泰坦的霰射主炮，五枚弹丸一次糊脸。' },
+    w_prism: { name: '棱镜步枪', icon: '✦', kind: 'weapon', weapon: 'prism', rarity: 'legendary', sell: 720, stack: false, boss: true, desc: '赛琳的棱镜武器，弹道又快又直。' },
+    w_flame: { name: '熔核喷射器', icon: '⌁', kind: 'weapon', weapon: 'flame', rarity: 'legendary', sell: 680, stack: false, boss: true, desc: '赫菲的熔核喷嘴，贴脸喷射成片火舌。' },
+    w_gravity: { name: '引力枪', icon: '⌾', kind: 'weapon', weapon: 'gravity', rarity: 'legendary', sell: 740, stack: false, boss: true, desc: 'Ω 的引力武器，弹道笔直穿透。' },
+    w_phase: { name: '相位刃枪', icon: '⌁', kind: 'weapon', weapon: 'phase', rarity: 'legendary', sell: 700, stack: false, boss: true, desc: '诺克斯的相位连射枪，射速极高。' },
+    w_array: { name: '终焉阵列炮', icon: '⌖', kind: 'weapon', weapon: 'array', rarity: 'legendary', sell: 820, stack: false, boss: true, desc: '阿基拉的阵列主炮，单发贯穿一整条走廊。' },
+    mat_titan: { name: '泰坦合金', icon: '▣', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '从裂地重装身上剥下的合金骨架，收藏室会收。' },
+    mat_prism: { name: '棱镜碎片', icon: '◆', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '赛琳崩解后留下的棱镜残片。' },
+    mat_magma: { name: '熔渣核心', icon: '◉', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '赫菲体内还在微微发烫的核心。' },
+    mat_void: { name: '虚空残片', icon: '◌', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: 'Ω 坍缩后留下的虚空碎片。' },
+    mat_phase: { name: '相位碎片', icon: '◇', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '诺克斯闪现时遗落的相位结晶。' },
+    mat_arch: { name: '终焉核心', icon: '✺', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '阿基拉阵列主炮的核心单元。' },
     a_light: { name: '轻型护甲', icon: '▤', kind: 'armor', armor: 'light', rarity: 'uncommon', sell: 55, stack: false, desc: '轻便护甲，减少 12% 伤害。' },
     a_heavy: { name: '重型护甲', icon: '▦', kind: 'armor', armor: 'heavy', rarity: 'rare', sell: 180, stack: false, desc: '厚重护甲，减少 26% 伤害。' },
     a_riot: { name: '反应装甲', icon: '▣', kind: 'armor', armor: 'riot', rarity: 'epic', sell: 360, stack: false, desc: '实验型装甲，减少 38% 伤害。' },
@@ -370,6 +418,16 @@
       signature: { type: 'array', label: '终焉阵列' }
     }
   ];
+
+  // Each boss drops its own legendary weapon plus a collectible material.
+  const BOSS_DROPS = {
+    titan: { weapon: 'w_quake', material: 'mat_titan' },
+    prism: { weapon: 'w_prism', material: 'mat_prism' },
+    tyrant: { weapon: 'w_flame', material: 'mat_magma' },
+    omega: { weapon: 'w_gravity', material: 'mat_void' },
+    wraith: { weapon: 'w_phase', material: 'mat_phase' },
+    architect: { weapon: 'w_array', material: 'mat_arch' }
+  };
 
   const ELITE_AFFIX_DEFS = [
     { id: 'swift', name: '迅捷', color: '#7ee8d2', desc: '移动速度 +30%' },
@@ -4805,17 +4863,31 @@
       }
 
       if (this.isBoss) {
+        const drop = BOSS_DROPS[this.bossVariant?.id] || null;
+        const weaponType = drop?.weapon || 'w_boss';
         world.pickups.push({
           x: this.x,
           y: this.y,
           type: 'item',
-          item: createItem('w_boss'),
+          item: createItem(weaponType),
           life: 999,
           bob: rand(0, TAU),
           bossDrop: true
         });
-        addFloatText(this.x, this.y - 48, '终焉协议已掉落', '#ffd15c');
-        addLootFeed('专属武器「终焉协议」已掉落', true);
+        if (drop?.material) {
+          world.pickups.push({
+            x: this.x + 26,
+            y: this.y + 14,
+            type: 'item',
+            item: createItem(drop.material, randInt(1, 2)),
+            life: 999,
+            bob: rand(0, TAU),
+            bossDrop: true
+          });
+        }
+        const weaponName = ITEM_DEFS[weaponType]?.name || '首领武器';
+        addFloatText(this.x, this.y - 48, `${weaponName} 已掉落`, '#ffd15c');
+        addLootFeed(`专属武器「${weaponName}」已掉落${drop?.material ? ` + ${ITEM_DEFS[drop.material].name}` : ''}`, true);
         updateHUD();
         return;
       }
