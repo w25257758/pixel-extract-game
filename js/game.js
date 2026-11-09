@@ -293,6 +293,15 @@
     p_purple: { name: '紫色背包', icon: '▦', kind: 'pack', pack: 'purple', rarity: 'epic', sell: 360, stack: false, desc: '紫色品质背包装备。容量 +32。' },
     p_red: { name: '红色背包', icon: '▧', kind: 'pack', pack: 'red', rarity: 'legendary', sell: 720, stack: false, desc: '红色品质背包装备。容量 +40。' },
     p_rainbow: { name: '彩色背包', icon: '◈', kind: 'pack', pack: 'rainbow', rarity: 'mythic', sell: 1200, stack: false, desc: '彩色品质背包装备。容量 +50。' },
+    mod_optic_1: { name: '简易瞄准镜', icon: '◎', kind: 'mod', modSlot: 'optic', rarity: 'common', sell: 45, stack: false, desc: '散射 -10%，射程 +8%。', stat: { spread: -0.1, range: 0.08 } },
+    mod_optic_2: { name: '精密瞄准镜', icon: '◉', kind: 'mod', modSlot: 'optic', rarity: 'uncommon', sell: 95, stack: false, desc: '散射 -18%，射程 +15%。', stat: { spread: -0.18, range: 0.15 } },
+    mod_optic_3: { name: '战术光学镜', icon: '⌖', kind: 'mod', modSlot: 'optic', rarity: 'rare', sell: 180, stack: false, desc: '散射 -26%，射程 +24%。', stat: { spread: -0.26, range: 0.24 } },
+    mod_mag_1: { name: '扩容弹匣', icon: '▤', kind: 'mod', modSlot: 'mag', rarity: 'common', sell: 45, stack: false, desc: '弹匣 +20%，换弹 -5%。', stat: { mag: 0.2, reload: -0.05 } },
+    mod_mag_2: { name: '快速弹匣', icon: '▥', kind: 'mod', modSlot: 'mag', rarity: 'uncommon', sell: 95, stack: false, desc: '弹匣 +35%，换弹 -10%。', stat: { mag: 0.35, reload: -0.1 } },
+    mod_mag_3: { name: '战术弹鼓', icon: '▦', kind: 'mod', modSlot: 'mag', rarity: 'rare', sell: 180, stack: false, desc: '弹匣 +50%，换弹 -15%。', stat: { mag: 0.5, reload: -0.15 } },
+    mod_barrel_1: { name: '加长枪管', icon: '⌐', kind: 'mod', modSlot: 'barrel', rarity: 'common', sell: 45, stack: false, desc: '伤害 +8%。', stat: { damage: 0.08 } },
+    mod_barrel_2: { name: '强化枪管', icon: '⌐', kind: 'mod', modSlot: 'barrel', rarity: 'uncommon', sell: 95, stack: false, desc: '伤害 +15%。', stat: { damage: 0.15 } },
+    mod_barrel_3: { name: '合金枪管', icon: '⌐', kind: 'mod', modSlot: 'barrel', rarity: 'rare', sell: 180, stack: false, desc: '伤害 +22%。', stat: { damage: 0.22 } },
     stone_white: { name: '白色强化石', icon: '◇', kind: 'stone', stoneLevel: 1, success: 0.30, rarity: 'common', sell: 12, stack: true, desc: '强化石 Lv.1。强化成功概率 30%。' },
     stone_green: { name: '绿色强化石', icon: '◈', kind: 'stone', stoneLevel: 2, success: 0.45, rarity: 'uncommon', sell: 28, stack: true, desc: '强化石 Lv.2。强化成功概率 45%。' },
     stone_blue: { name: '蓝色强化石', icon: '◆', kind: 'stone', stoneLevel: 3, success: 0.60, rarity: 'rare', sell: 65, stack: true, desc: '强化石 Lv.3。强化成功概率 60%。' },
@@ -660,6 +669,17 @@
       }
       if (item.setId && SET_DEFS[item.setId]) normalized.setId = item.setId;
       else delete normalized.setId;
+      if (def.kind === 'weapon' && item.mods && typeof item.mods === 'object') {
+        const mods = {};
+        for (const slot of ['optic', 'mag', 'barrel']) {
+          const type = item.mods[slot];
+          if (type && ITEM_DEFS[type] && ITEM_DEFS[type].kind === 'mod' && ITEM_DEFS[type].modSlot === slot) mods[slot] = type;
+        }
+        if (Object.keys(mods).length) normalized.mods = mods;
+        else delete normalized.mods;
+      } else {
+        delete normalized.mods;
+      }
     } else {
       delete normalized.plus;
       delete normalized.affixes;
@@ -1612,6 +1632,7 @@
     weaponChoices: $('#weaponChoices'),
     armorChoices: $('#armorChoices'),
     packChoices: $('#packChoices'),
+    weaponMods: $('#weaponMods'),
     manageEquipPanel: $('#manageEquipPanel'),
     manageStashPanel: $('#manageStashPanel'),
     manageShopPanel: $('#manageShopPanel'),
@@ -2279,8 +2300,95 @@
     return RARITY_COLOR[def.rarity] || RARITY_COLOR.common;
   }
 
-  function renderEquipChoices(kind, target) {
-    target.innerHTML = '';
+  const WEAPON_MOD_SLOTS = [
+    { id: 'optic', label: '瞄准镜' },
+    { id: 'mag', label: '弹匣' },
+    { id: 'barrel', label: '枪管' }
+  ];
+  const MOD_TYPES = [
+    'mod_optic_1', 'mod_optic_2', 'mod_optic_3',
+    'mod_mag_1', 'mod_mag_2', 'mod_mag_3',
+    'mod_barrel_1', 'mod_barrel_2', 'mod_barrel_3'
+  ];
+
+  function renderWeaponMods() {
+    if (!el.weaponMods) return;
+    const weapon = save.equipped.weapon;
+    el.weaponMods.innerHTML = '';
+    if (!weapon) {
+      el.weaponMods.innerHTML = '<div class="weapon-mod-empty">先装备一把武器才能改装。</div>';
+      return;
+    }
+    const mods = weapon.mods || {};
+    for (const slot of WEAPON_MOD_SLOTS) {
+      const currentType = mods[slot.id] || '';
+      const options = save.stash.filter((item) => {
+        const def = defOf(item);
+        return def.kind === 'mod' && def.modSlot === slot.id;
+      });
+      const row = document.createElement('div');
+      row.className = 'weapon-mod-row';
+      const label = document.createElement('span');
+      label.className = 'weapon-mod-slot';
+      label.textContent = slot.label;
+      const select = document.createElement('select');
+      select.className = 'weapon-mod-select';
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '— 空槽 —';
+      select.appendChild(emptyOpt);
+      for (const item of options) {
+        const opt = document.createElement('option');
+        opt.value = item.type;
+        opt.textContent = `${defOf(item).name}（${RARITY_LABEL[defOf(item).rarity]}）`;
+        select.appendChild(opt);
+      }
+      if (currentType && !options.some((item) => item.type === currentType)) {
+        const opt = document.createElement('option');
+        opt.value = currentType;
+        opt.textContent = `${ITEM_DEFS[currentType].name}（已装）`;
+        select.appendChild(opt);
+      }
+      select.value = currentType;
+      select.addEventListener('change', () => installWeaponMod(slot.id, select.value));
+      row.appendChild(label);
+      row.appendChild(select);
+      el.weaponMods.appendChild(row);
+    }
+  }
+
+  function installWeaponMod(slot, type) {
+    const weapon = save.equipped.weapon;
+    if (!weapon) return;
+    weapon.mods = weapon.mods || {};
+    const previous = weapon.mods[slot] || null;
+    if (previous) {
+      const existing = save.stash.find((item) => item.type === previous);
+      if (existing) existing.qty = (existing.qty || 1) + 1;
+      else save.stash.push(createItem(previous));
+      delete weapon.mods[slot];
+    }
+    let installed = null;
+    if (type) {
+      const def = ITEM_DEFS[type];
+      const idx = save.stash.findIndex((item) => item.type === type);
+      if (idx >= 0 && def && def.kind === 'mod' && def.modSlot === slot) {
+        const item = save.stash[idx];
+        item.qty = (item.qty || 1) - 1;
+        if (item.qty <= 0) save.stash.splice(idx, 1);
+        weapon.mods[slot] = type;
+        installed = def.name;
+      }
+    }
+    if (!Object.keys(weapon.mods).length) delete weapon.mods;
+    if (installed) toast(`已安装：${installed}`);
+    else if (previous) toast('已拆下配件，放回仓库。');
+    persist();
+    renderAllBase();
+    renderEquipModal();
+  }
+
+  function renderEquipChoices(kind, target) {    target.innerHTML = '';
     const items = sortItemList(save.stash.filter((item) => defOf(item).kind === kind));
     if (items.length === 0) {
       const empty = document.createElement('div');
@@ -2348,6 +2456,7 @@
     renderEquipChoices('weapon', el.weaponChoices);
     renderEquipChoices('armor', el.armorChoices);
     renderEquipChoices('pack', el.packChoices);
+    renderWeaponMods();
     renderSetCollection();
   }
 
@@ -4033,7 +4142,24 @@
       const weaponItem = save.equipped.weapon;
       const weaponType = defOf(weaponItem).weapon || 'pistol';
       this.weaponKey = weaponType;
-      this.weapon = WEAPON_DEFS[weaponType] || WEAPON_DEFS.pistol;
+      const weaponBase = WEAPON_DEFS[weaponType] || WEAPON_DEFS.pistol;
+      this.weapon = { ...weaponBase };
+      // Weapon mods: optic (spread/range), magazine (mag/reload), barrel (damage).
+      const weaponMods = weaponItem?.mods || {};
+      this.modStats = { spread: 0, range: 0, mag: 0, reload: 0, damage: 0 };
+      for (const slot of ['optic', 'mag', 'barrel']) {
+        const modType = weaponMods[slot];
+        const modDef = modType ? ITEM_DEFS[modType] : null;
+        if (!modDef || !modDef.stat) continue;
+        for (const key of Object.keys(modDef.stat)) {
+          if (key in this.modStats) this.modStats[key] += modDef.stat[key];
+        }
+      }
+      this.weapon.spread = Math.max(0.001, this.weapon.spread * (1 + this.modStats.spread));
+      this.weapon.range *= 1 + this.modStats.range;
+      this.weapon.mag = Math.max(1, Math.round(this.weapon.mag * (1 + this.modStats.mag)));
+      this.weapon.reload *= Math.max(0.5, 1 + this.modStats.reload);
+      this.weapon.damage *= 1 + this.modStats.damage;
       this.weaponPlus = enhanceLevel(weaponItem);
       this.mag = this.weapon.mag;
       this.reserve = Math.round((this.weapon.reserve + save.upgrades.ammo * 45) * (1 + perkRank('ammo') * 0.1));
@@ -5370,6 +5496,15 @@
         addLootFeed(`发现背包装备：${packDef.name} · 容量 +${packQuality.bonus}`, false);
       } else {
         addLootFeed(`发现 ${packDef.name}，但背包已满。`, true);
+      }
+    }
+    const modChance = container.vault ? 0.4 : container.rarity === 'rare' ? 0.22 : 0.1;
+    if (Math.random() < modChance) {
+      const modType = MOD_TYPES[Math.floor(Math.random() * MOD_TYPES.length)];
+      if (addItemToBackpack(createItem(modType))) {
+        addLootFeed(`发现武器配件：${defOf(modType).name}`, false);
+      } else {
+        addLootFeed('发现武器配件，但背包已满。', true);
       }
     }
     const ammoChance = container.vault ? 1 : container.rarity === 'rare' ? 0.5 : 0.32;
@@ -8716,6 +8851,20 @@
         zoom: Number(slowmo.zoom.toFixed(3)),
         enabled: save.settings.killSlowmo !== false
       };
+    },
+    weaponModState() {
+      const weapon = save.equipped.weapon;
+      return {
+        type: weapon?.type || null,
+        mods: weapon?.mods || {},
+        stashMods: save.stash.filter((item) => defOf(item).kind === 'mod').map((item) => item.type)
+      };
+    },
+    installMod(slot, type = '') { installWeaponMod(slot, type); return this.weaponModState(); },
+    grantMod(type = 'mod_optic_1', count = 1) {
+      addToStash(createItem(type, Math.max(1, Math.floor(count))));
+      renderAllBase();
+      return this.weaponModState();
     },
     setTimeLeft(value) {
       if (!raid) return null;

@@ -2920,3 +2920,15 @@ body.touch-device.move-stick-fixed .move-pad {
   .collector-foot { margin-top: 6px; }
   .collector-hint { font-size: 9px; }
 }
+
+/* ---- Weapon mods ---- */
+.weapon-mods { display: grid; gap: 4px; padding: 0 2px 6px; }
+.weapon-mod-row { display: flex; align-items: center; gap: 8px; }
+.weapon-mod-slot { flex: 0 0 52px; color: var(--dim); font-size: 9px; }
+.weapon-mod-select { flex: 1; min-width: 0; min-height: 24px; padding: 2px 6px; border: 1px solid rgba(120,140,165,.3); background: #0a1017; color: var(--text); font: inherit; font-size: 9px; }
+.weapon-mod-empty { padding: 4px 6px; color: var(--dim); font-size: 9px; }
+@media (max-height: 520px) {
+  .weapon-mod-select { min-height: 20px; font-size: 8px; }
+  .weapon-mod-row { gap: 5px; }
+  .weapon-mod-slot { flex: 0 0 42px; font-size: 8px; }
+}
