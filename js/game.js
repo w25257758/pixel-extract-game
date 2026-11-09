@@ -117,6 +117,17 @@
   };
 
   const MAX_ENHANCE = 10;
+  // Minimum stone tier per target level (1 = white ... 5 = red, 6 = rainbow always allowed).
+  const ENHANCE_MIN_STONE = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 4, 9: 4, 10: 5 };
+  const ENHANCE_DECAY = 0.03;
+  const ENHANCE_LUCK_STEP = 10;
+  const STONE_CHAIN = {
+    stone_white: 'stone_green',
+    stone_green: 'stone_blue',
+    stone_blue: 'stone_purple',
+    stone_purple: 'stone_red'
+  };
+  const STONE_TIER_LABEL = { 1: '白色', 2: '绿色', 3: '蓝色', 4: '紫色', 5: '红色', 6: '彩色' };
   const TRANSCEND_BASE_COST = 1000;
   const TRANSCEND_COST_MULT = 1.25;
   const TRANSCEND_RULES = {
@@ -543,6 +554,21 @@
     const def = defOf(item);
     if (!item || !['weapon', 'armor', 'pack'].includes(def.kind)) return 0;
     return clamp(Math.floor(Number(item.plus) || 0), 0, MAX_ENHANCE);
+  }
+
+  function enhanceLuck(item) {
+    return clamp(Math.floor(Number(item?.luck) || 0), 0, 100);
+  }
+
+  function enhanceGateLevel(targetLevel) {
+    return ENHANCE_MIN_STONE[targetLevel] || 5;
+  }
+
+  function enhanceSuccessRate(stoneDef, targetLevel, item) {
+    if (!stoneDef) return 0;
+    if (stoneDef.stoneLevel >= 6) return 1;
+    if (enhanceLuck(item) >= 100) return 1;
+    return Math.max(0.05, stoneDef.success - targetLevel * ENHANCE_DECAY);
   }
 
   function normalizeItemInstance(item) {
@@ -1391,6 +1417,7 @@
     enhanceTargets: $('#enhanceTargets'),
     enhanceTargetSummary: $('#enhanceTargetSummary'),
     enhanceStoneList: $('#enhanceStoneList'),
+    enhanceFuseList: $('#enhanceFuseList'),
     enhanceChanceHint: $('#enhanceChanceHint'),
     enhanceStoneCount: $('#enhanceStoneCount'),
     shopScrap: $('#shopScrap'),
@@ -2185,31 +2212,56 @@
         el.enhanceTargetSummary.innerHTML = `
           <div class="enhance-summary-name">${itemName(target)}</div>
           <div class="enhance-summary-effect">${enhanceEffectText(target, targetPlus)} <span>→</span> <b>${enhanceEffectText(target, targetPlus + 1)}</b></div>
-          <div class="enhance-summary-hint">成功率由所选强化石决定；失败会消耗强化石，等级不会下降。</div>`;
+          <div class="enhance-summary-hint">成功率 = 石头基础 − 等级×3%（彩石固定 100%）；失败只消耗石头并累积幸运，幸运满 100% 必成。</div>`;
       }
     }
 
     const stones = stoneItemsInStash();
     if (el.enhanceStoneCount) el.enhanceStoneCount.textContent = `强化石 ${totalStoneCount()} 颗`;
+    const targetLevel = targetPlus + 1;
+    const gate = target ? enhanceGateLevel(targetLevel) : 1;
+    if (el.enhanceChanceHint && target && !maxed) {
+      el.enhanceChanceHint.textContent = `下一级 +${targetLevel} · 需${STONE_TIER_LABEL[gate]}起 · 幸运 ${enhanceLuck(target)}%`;
+    }
     el.enhanceStoneList.innerHTML = '';
     if (stones.length === 0) {
       el.enhanceStoneList.innerHTML = '<div class="enhance-empty">击杀敌人有概率掉落强化石。品质越高，强化成功率越高。</div>';
-      return;
+    } else {
+      for (const stone of stones) {
+        const def = defOf(stone);
+        const allowed = !!target && !maxed && def.stoneLevel >= gate;
+        const rate = target && !maxed ? enhanceSuccessRate(def, targetLevel, target) : 0;
+        const row = document.createElement('div');
+        row.className = `enhance-stone-row rarity-${def.rarity}`;
+        row.innerHTML = `
+          <span class="enhance-stone-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
+          <span class="enhance-stone-mid">
+            <strong>${def.name}</strong>
+            <span>${maxed ? '已满级' : allowed ? `成功率 ${Math.round(rate * 100)}%` : `需要${STONE_TIER_LABEL[gate]}起`}</span>
+          </span>
+          <span class="enhance-stone-qty">×${stone.qty || 1}</span>
+          <button class="enhance-use-btn" type="button" ${allowed ? '' : 'disabled'}>使用</button>`;
+        row.querySelector('button').addEventListener('click', () => useEnhanceStone(stone.type));
+        el.enhanceStoneList.appendChild(row);
+      }
     }
-    for (const stone of stones) {
-      const def = defOf(stone);
-      const row = document.createElement('div');
-      row.className = `enhance-stone-row rarity-${def.rarity}`;
-      row.innerHTML = `
-        <span class="enhance-stone-icon ${def.rarity === 'mythic' ? 'mythic-icon' : ''}" style="color:${choiceIconColor(def)}">${def.icon}</span>
-        <span class="enhance-stone-mid">
-          <strong>${def.name}</strong>
-          <span>Lv.${def.stoneLevel} · 成功率 ${Math.round(def.success * 100)}%</span>
-        </span>
-        <span class="enhance-stone-qty">×${stone.qty || 1}</span>
-        <button class="enhance-use-btn" type="button" ${(!target || maxed) ? 'disabled' : ''}>使用</button>`;
-      row.querySelector('button').addEventListener('click', () => useEnhanceStone(stone.type));
-      el.enhanceStoneList.appendChild(row);
+
+    // Stone fusion: 3 of a tier -> 1 of the next tier (rainbow is the top tier).
+    if (el.enhanceFuseList) {
+      el.enhanceFuseList.innerHTML = '';
+      for (const type of Object.keys(STONE_CHAIN)) {
+        const def = ITEM_DEFS[type];
+        const nextDef = ITEM_DEFS[STONE_CHAIN[type]];
+        const count = save.stash.reduce((n, item) => n + (item.type === type ? (item.qty || 1) : 0), 0);
+        const row = document.createElement('div');
+        row.className = 'enhance-fuse-row';
+        row.innerHTML = `
+          <span class="enhance-fuse-name" style="color:${RARITY_COLOR[def.rarity]}">${def.name} ×${count}</span>
+          <span class="enhance-fuse-arrow">→ ${nextDef.name}</span>
+          <button class="enhance-fuse-btn" type="button" ${count >= 3 ? '' : 'disabled'}>合成</button>`;
+        row.querySelector('button').addEventListener('click', () => fuseEnhanceStones(type));
+        el.enhanceFuseList.appendChild(row);
+      }
     }
   }
 
@@ -2224,17 +2276,52 @@
     }
     const stone = save.stash[stoneIdx];
     const stoneDef = defOf(stone);
+    const targetLevel = plus + 1;
+    const gate = enhanceGateLevel(targetLevel);
+    if (stoneDef.stoneLevel < gate) {
+      toast(`+${targetLevel} 需要 ${STONE_TIER_LABEL[gate]} 或更高品质的强化石。`);
+      return;
+    }
     stone.qty = (stone.qty || 1) - 1;
     if (stone.qty <= 0) save.stash.splice(stoneIdx, 1);
-    const success = Math.random() < stoneDef.success;
+    const rate = enhanceSuccessRate(stoneDef, targetLevel, target);
+    const success = Math.random() < rate;
     if (success) {
       target.plus = plus + 1;
+      target.luck = 0;
       toast(`强化成功！${itemName(target)} 提升至 +${target.plus}。`);
       playSound('level');
     } else {
-      toast(`强化失败，${stoneDef.name}已消耗。`);
+      target.luck = Math.min(100, enhanceLuck(target) + ENHANCE_LUCK_STEP);
+      toast(`强化失败（成功率 ${Math.round(rate * 100)}%），${stoneDef.name}已消耗，幸运 +${ENHANCE_LUCK_STEP}%。`);
       playSound('hurt');
     }
+    selectedStashId = null;
+    persist();
+    renderAllBase();
+    renderEnhance();
+  }
+
+  function fuseEnhanceStones(fromType) {
+    const nextType = STONE_CHAIN[fromType];
+    if (!nextType) {
+      toast('彩色强化石已经是最高品质。');
+      return;
+    }
+    const idx = save.stash.findIndex((item) => item.type === fromType && (item.qty || 1) >= 3);
+    if (idx < 0) {
+      toast('至少需要 3 颗同品质强化石。');
+      return;
+    }
+    const stone = save.stash[idx];
+    const fromName = defOf(stone).name;
+    stone.qty -= 3;
+    if (stone.qty <= 0) save.stash.splice(idx, 1);
+    const existing = save.stash.find((item) => item.type === nextType);
+    if (existing) existing.qty = (existing.qty || 1) + 1;
+    else save.stash.push(createItem(nextType));
+    toast(`合成成功：3 × ${fromName} → 1 × ${ITEM_DEFS[nextType].name}`);
+    playSound('pickup');
     selectedStashId = null;
     persist();
     renderAllBase();
@@ -8136,6 +8223,28 @@
       enhanceTargetSlot = ['weapon', 'armor', 'pack'].includes(slot) ? slot : 'weapon';
       useEnhanceStone(stoneType);
       return this.snapshot();
+    },
+    enhanceInfo() {
+      const target = save.equipped[enhanceTargetSlot];
+      const next = target ? enhanceLevel(target) + 1 : 1;
+      const rates = {};
+      if (target) {
+        for (const type of ['stone_white', 'stone_green', 'stone_blue', 'stone_purple', 'stone_red', 'stone_rainbow']) {
+          rates[type] = Math.round(enhanceSuccessRate(ITEM_DEFS[type], next, target) * 100);
+        }
+      }
+      return {
+        slot: enhanceTargetSlot,
+        plus: target ? enhanceLevel(target) : 0,
+        luck: target ? enhanceLuck(target) : 0,
+        nextLevel: next,
+        gate: enhanceGateLevel(next),
+        rates
+      };
+    },
+    fuseStone(type = 'stone_white') {
+      fuseEnhanceStones(type);
+      return { stones: save.stash.filter((item) => item.type.startsWith('stone_')).map((item) => `${item.type}×${item.qty || 1}`) };
     },
     lootSample(quality = 'common', count = 1000) {
       const types = {};
