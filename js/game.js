@@ -489,6 +489,14 @@
   ];
   const LORE_REWARD = 200;
 
+  // Weather only changes visuals + enemy vision; no audio and no stealth mechanics.
+  const WEATHER_DEFS = {
+    clear: { name: '晴朗', vision: 1, desc: '视野良好。' },
+    rain: { name: '降雨', vision: 0.92, desc: '雨幕让远处略显模糊。' },
+    fog: { name: '浓雾', vision: 0.7, desc: '浓雾让敌人更晚发现你。' },
+    night: { name: '夜战', vision: 0.85, desc: '灯光只照亮身边一圈。' }
+  };
+
   function loreCollected(id) {
     return Array.isArray(save?.lore) && save.lore.includes(id);
   }
@@ -3784,6 +3792,8 @@
     const lorePickup = loreGuard < 20
       ? { x: loreSpot.x, y: loreSpot.y, id: loreDef.id, taken: false, bob: rand(0, TAU) }
       : null;
+    const weather = pick(['clear', 'clear', 'rain', 'fog', 'night']);
+    for (const enemy of enemies) enemy.vision *= WEATHER_DEFS[weather].vision;
 
     const worldObj = {
       tiles,
@@ -3797,6 +3807,7 @@
       keyRoom: { x: keyRoom.x * TILE, y: keyRoom.y * TILE, w: keyRoom.w * TILE, h: keyRoom.h * TILE },
       keyChest,
       lore: lorePickup,
+      weather,
       objective: createRoomObjective(rooms, tiles),
       explored: new Uint8Array(MAP_W * MAP_H),
       fogMini: buildFogCanvas(),
@@ -6125,6 +6136,7 @@
       enemy.hp = enemy.maxHp;
       enemy.damage = Math.round(enemy.damage * (1 + wave * 0.12));
       enemy.xp = Math.round(enemy.xp * (1 + wave * 0.1));
+      if (world.weather) enemy.vision *= WEATHER_DEFS[world.weather].vision;
       if (Math.random() < Math.min(0.55, 0.1 + wave * 0.07)) applyEliteAffix(enemy);
       enemy.state = 'chase';
       enemy.alertTimer = 30;
@@ -6821,6 +6833,8 @@
     if (world.enemies.some((enemy) => enemy.isBounty)) {
       addLootFeed('高危目标：击倒可拿传说掉落，但会惊动全图。', true);
     }
+    const weatherDef = WEATHER_DEFS[world.weather] || WEATHER_DEFS.clear;
+    addLootFeed(`天气：${weatherDef.name} · ${weatherDef.desc}`, false);
     updateHUD();
     updateBackpackHud();
     if (isFirstFloor) startRaidTutorial();
@@ -7070,6 +7084,46 @@
   // ---------------------------------------------------------------------------
   // Rendering
   // ---------------------------------------------------------------------------
+  function drawWeather() {
+    const weather = world.weather;
+    if (!weather || weather === 'clear' || save.settings.performanceMode) return;
+    if (weather === 'rain') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(170,205,235,.16)';
+      ctx.lineWidth = 1;
+      const t = world.time;
+      for (let i = 0; i < 70; i += 1) {
+        const x = ((i * 137.3 + t * 260) % (VIEW_W + 80)) - 40;
+        const y = ((i * 211.7 + t * 520) % (VIEW_H + 80)) - 40;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 5, y + 16);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(120,170,220,.06)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      ctx.restore();
+      return;
+    }
+    if (weather === 'fog') {
+      const grad = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.2, VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.95);
+      grad.addColorStop(0, 'rgba(190,205,220,0)');
+      grad.addColorStop(1, 'rgba(190,205,220,.22)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      return;
+    }
+    if (weather === 'night') {
+      ctx.fillStyle = 'rgba(2,6,12,.45)';
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      const light = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 40, VIEW_W / 2, VIEW_H / 2, 260);
+      light.addColorStop(0, 'rgba(255,240,200,.10)');
+      light.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = light;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+  }
+
   function drawDust() {
     if (save.settings.performanceMode) return;
     const t = world.time;
@@ -7164,6 +7218,7 @@
 
     // Very light CRT scanlines; skipped in performance mode.
     if (!save.settings.performanceMode) {
+      drawWeather();
       ctx.fillStyle = getScanlinePattern();
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
@@ -8834,6 +8889,7 @@
           enemies: world.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, state: e.state, dead: e.dead, kind: e.kind, name: e.name, attackType: e.attackType, chargePhase: e.chargePhase, castType: e.castType, defense: e.defense, carriesKey: !!e.carriesKey, elite: !!e.elite, isBounty: !!e.isBounty, eliteAffix: e.eliteAffix, eliteLabel: e.eliteLabel, squadLeader: !!e.squadLeader, squadMember: !!e.squadMember })),
           boss: world.boss ? { x: world.boss.x, y: world.boss.y, hp: world.boss.hp, maxHp: world.boss.maxHp, dead: world.boss.dead, state: world.boss.state, name: world.boss.name, variant: world.boss.bossVariant?.id || null, defense: world.boss.defense, bossPhase: world.boss.bossPhase, weakPointTimer: world.boss.weakPointTimer, phaseFlash: world.boss.phaseFlash, castType: world.boss.castType, castTimer: world.boss.castTimer, castLabel: world.boss.castLabel, barrageWaves: world.boss.barrageWaves } : null,
           stage: world.stage ? { id: world.stage.id, name: world.stage.name, tag: world.stage.tag } : null,
+          weather: world.weather || null,
           hazards: world.hazards.map((h) => ({ x: h.x, y: h.y, radius: h.radius, timer: h.timer, damage: h.damage, label: h.label, exploded: h.exploded })),
           beams: world.beams.map((b) => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, life: b.life, color: b.color })),
           bulletCount: world.bullets.length,
@@ -9138,6 +9194,11 @@
     collectLore(id = 'log_1') { collectLore(id); return this.loreState(); },
     loreWorld() {
       return world?.lore ? { x: world.lore.x, y: world.lore.y, id: world.lore.id, taken: world.lore.taken } : null;
+    },
+    setWeather(type = 'clear') {
+      if (!world) return null;
+      world.weather = WEATHER_DEFS[type] ? type : 'clear';
+      return { weather: world.weather };
     },
     grantMod(type = 'mod_optic_1', count = 1) {
       addToStash(createItem(type, Math.max(1, Math.floor(count))));
