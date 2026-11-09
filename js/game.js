@@ -150,6 +150,18 @@
       reload: 2.8, spread: 0.01, speed: 1800, range: 1300, auto: false,
       reserve: 18, color: '#d6ff4d', shake: 7.5,
       desc: '阿基拉的阵列主炮，单发贯穿一整条走廊。'
+    },
+    standard: {
+      name: '制式突击步枪', code: 'STD-30', damage: 34, cooldown: 0.2, mag: 30,
+      reload: 2.0, spread: 0.05, speed: 1150, range: 760, auto: true,
+      reserve: 150, color: '#8fc8ff', shake: 2.6,
+      desc: '军方制式步枪，伤害稳定、弹匣充足。'
+    },
+    smuggler: {
+      name: '走私者手枪', code: 'SMG-9', damage: 30, cooldown: 0.22, mag: 14,
+      reload: 1.3, spread: 0.03, speed: 1200, range: 700, auto: false,
+      reserve: 98, color: '#ff5b8a', shake: 3.2,
+      desc: '黑市改装手枪，单发伤害高、换弹极快。'
     }
   };
 
@@ -161,7 +173,8 @@
     scout: { name: '侦察背心', reduction: 0.08, speedBonus: 0.12, color: '#7ee8d2', desc: '减少 8% 伤害，移动速度 +12%。' },
     medic: { name: '战地医疗甲', reduction: 0.16, medkitBonus: 1, color: '#79f0a3', desc: '减少 16% 伤害，每次行动额外携带 1 个医疗包。' },
     ghost: { name: '幽灵纤维甲', reduction: 0.22, speedBonus: 0.04, stealth: 0.72, color: '#a98cff', desc: '减少 22% 伤害，移速 +4%，敌人视野降低 28%。' },
-    phase: { name: '相位护甲', reduction: 0.32, stealth: 0.84, color: '#7ef0ff', desc: '减少 32% 伤害，敌人视野降低 16%。' }
+    phase: { name: '相位护甲', reduction: 0.32, stealth: 0.84, color: '#7ef0ff', desc: '减少 32% 伤害，敌人视野降低 16%。' },
+    recycler: { name: '回收者护甲', reduction: 0.2, speedBonus: 0.05, color: '#ffd15c', desc: '减少 20% 伤害，移速 +5%，拾荒者专属。' }
   };
 
   const MAX_ENHANCE = 10;
@@ -281,6 +294,9 @@
     mat_void: { name: '虚空残片', icon: '◌', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: 'Ω 坍缩后留下的虚空碎片。' },
     mat_phase: { name: '相位碎片', icon: '◇', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '诺克斯闪现时遗落的相位结晶。' },
     mat_arch: { name: '终焉核心', icon: '✺', kind: 'collectible', rarity: 'legendary', sell: 180, stack: true, desc: '阿基拉阵列主炮的核心单元。' },
+    w_standard: { name: '制式突击步枪', icon: '▦', kind: 'weapon', weapon: 'standard', rarity: 'epic', sell: 520, stack: false, desc: '军方制式武器，伤害稳定、弹匣充足。' },
+    w_smuggler: { name: '走私者手枪', icon: 'ϟ', kind: 'weapon', weapon: 'smuggler', rarity: 'epic', sell: 480, stack: false, desc: '黑市改装手枪，单发伤害高、换弹极快。' },
+    a_recycler: { name: '回收者护甲', icon: '▤', kind: 'armor', armor: 'recycler', rarity: 'epic', sell: 420, stack: false, desc: '拾荒者专属护甲，减伤 20%、移速 +5%。' },
     a_light: { name: '轻型护甲', icon: '▤', kind: 'armor', armor: 'light', rarity: 'uncommon', sell: 55, stack: false, desc: '轻便护甲，减少 12% 伤害。' },
     a_heavy: { name: '重型护甲', icon: '▦', kind: 'armor', armor: 'heavy', rarity: 'rare', sell: 180, stack: false, desc: '厚重护甲，减少 26% 伤害。' },
     a_riot: { name: '反应装甲', icon: '▣', kind: 'armor', armor: 'riot', rarity: 'epic', sell: 360, stack: false, desc: '实验型装甲，减少 38% 伤害。' },
@@ -449,6 +465,24 @@
     wraith: { weapon: 'w_phase', material: 'mat_phase' },
     architect: { weapon: 'w_array', material: 'mat_arch' }
   };
+
+  // Faction reputation: earned from raids, spent on faction-exclusive gear.
+  const FACTION_DEFS = {
+    scavenger: { name: '拾荒者', color: '#ffd15c', desc: '搜刮与撤离积累声望。' },
+    military: { name: '军方', color: '#8fc8ff', desc: '击杀与首领战积累声望。' },
+    blackmarket: { name: '黑市', color: '#ff5b8a', desc: '高危目标与精英战积累声望。' }
+  };
+  const FACTION_POINTS_PER_LEVEL = 100;
+  const FACTION_MAX_LEVEL = 5;
+  const FACTION_SHOP = [
+    { faction: 'scavenger', level: 2, type: 'a_recycler', price: 260 },
+    { faction: 'military', level: 2, type: 'w_standard', price: 320 },
+    { faction: 'blackmarket', level: 3, type: 'w_smuggler', price: 340 }
+  ];
+
+  function factionLevel(points) {
+    return Math.min(FACTION_MAX_LEVEL, Math.floor((Number(points) || 0) / FACTION_POINTS_PER_LEVEL));
+  }
 
   const ELITE_AFFIX_DEFS = [
     { id: 'swift', name: '迅捷', color: '#7ee8d2', desc: '移动速度 +30%' },
@@ -863,7 +897,8 @@
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 },
       daily: normalizeDaily(null),
-      collector: { level: 0 }
+      collector: { level: 0 },
+      factions: { scavenger: 0, military: 0, blackmarket: 0 }
     };
   }
 
@@ -879,6 +914,11 @@
       stats: { ...base.stats, ...(raw.stats || {}) },
       daily: normalizeDaily(raw.daily),
       collector: { level: clamp(Math.floor(Number(raw.collector?.level) || 0), 0, COLLECTOR_TIERS.length) },
+      factions: {
+        scavenger: clamp(Math.floor(Number(raw.factions?.scavenger) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
+        military: clamp(Math.floor(Number(raw.factions?.military) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
+        blackmarket: clamp(Math.floor(Number(raw.factions?.blackmarket) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL)
+      },
       transcend: {
         level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
         progress: Math.max(0, Math.floor(Number(raw.transcend?.progress) || 0))
@@ -907,7 +947,7 @@
     delete merged.xp;
     delete merged.perks;
     delete merged.pendingPerks;
-    merged.version = 10;
+    merged.version = 11;
     merged.scrap = Math.max(0, Number(merged.scrap) || 0);
     merged.modParts = Math.max(0, Math.floor(Number(merged.modParts) || 0));
     const touchSettings = merged.settings;
@@ -1654,6 +1694,8 @@
     enhanceChanceHint: $('#enhanceChanceHint'),
     enhanceStoneCount: $('#enhanceStoneCount'),
     shopScrap: $('#shopScrap'),
+    factionList: $('#factionList'),
+    factionShop: $('#factionShop'),
     baseStashCount: $('#baseStashCount'),
     baseScrap: $('#baseScrap'),
     baseEnhanceSummary: $('#baseEnhanceSummary'),
@@ -2167,6 +2209,61 @@
       btn.addEventListener('click', () => buyShop(entry));
       el.shopList.appendChild(row);
     }
+    renderFactions();
+  }
+
+  function renderFactions() {
+    if (!el.factionList) return;
+    el.factionList.innerHTML = '';
+    for (const key of Object.keys(FACTION_DEFS)) {
+      const def = FACTION_DEFS[key];
+      const points = save.factions?.[key] || 0;
+      const level = factionLevel(points);
+      const row = document.createElement('div');
+      row.className = 'faction-row';
+      row.innerHTML = `
+        <span class="faction-name" style="color:${def.color}">${def.name}</span>
+        <span class="faction-level">Lv.${level}</span>
+        <span class="faction-bar"><i style="width:${level >= FACTION_MAX_LEVEL ? 100 : (points % FACTION_POINTS_PER_LEVEL)}%;background:${def.color}"></i></span>
+        <span class="faction-points">${points}/${FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL}</span>`;
+      el.factionList.appendChild(row);
+    }
+    if (!el.factionShop) return;
+    el.factionShop.innerHTML = '';
+    for (const entry of FACTION_SHOP) {
+      const faction = FACTION_DEFS[entry.faction];
+      const level = factionLevel(save.factions?.[entry.faction] || 0);
+      const locked = level < entry.level;
+      const itemDef = defOf(entry.type);
+      const row = document.createElement('div');
+      row.className = 'shop-item';
+      row.innerHTML = `
+        <div class="shop-icon" style="color:${faction.color}">${itemDef.icon}</div>
+        <div class="shop-mid">
+          <div class="shop-name">${itemDef.name}</div>
+          <div class="shop-desc">${faction.name} Lv.${entry.level} 解锁 · ${itemDef.desc}</div>
+        </div>
+        <button class="shop-buy" ${locked || save.scrap < entry.price ? 'disabled' : ''}>${locked ? `需 ${faction.name} Lv.${entry.level}` : `${entry.price} 废料`}</button>`;
+      row.querySelector('button').addEventListener('click', () => buyFactionItem(entry));
+      el.factionShop.appendChild(row);
+    }
+  }
+
+  function buyFactionItem(entry) {
+    const level = factionLevel(save.factions?.[entry.faction] || 0);
+    if (level < entry.level) {
+      toast(`需要 ${FACTION_DEFS[entry.faction].name} 声望 Lv.${entry.level}。`);
+      return;
+    }
+    if (save.scrap < entry.price) {
+      toast('废料不够。');
+      return;
+    }
+    save.scrap -= entry.price;
+    addToStash(createItem(entry.type));
+    persist();
+    renderAllBase();
+    toast(`已购入：${defOf(entry.type).name}`);
   }
 
   function buyShop(entry) {
@@ -6727,6 +6824,15 @@
     save.stats.kills += raid.kills;
     persist();
     const dailyStats = raid.stats || { damageDealt: 0, eliteKills: 0, bossKills: 0, objectives: 0 };
+    // Faction reputation: scavengers from looting/extracting, military from kills, black market from elites/bosses.
+    const factionGain = {
+      scavenger: (success ? 40 : 10) + (dailyStats.objectives || 0) * 8,
+      military: raid.kills * 2 + (dailyStats.bossKills || 0) * 20,
+      blackmarket: (dailyStats.eliteKills || 0) * 8 + (dailyStats.bossKills || 0) * 30
+    };
+    for (const key of Object.keys(save.factions)) {
+      save.factions[key] = Math.min(FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL, (save.factions[key] || 0) + (factionGain[key] || 0));
+    }
     recordDailyProgress({
       kills: raid.kills,
       containers: raid.containersSearched || 0,

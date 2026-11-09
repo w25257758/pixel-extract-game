@@ -2932,3 +2932,18 @@ body.touch-device.move-stick-fixed .move-pad {
   .weapon-mod-row { gap: 5px; }
   .weapon-mod-slot { flex: 0 0 42px; font-size: 8px; }
 }
+
+/* ---- Faction reputation ---- */
+.faction-list { display: grid; gap: 4px; padding: 0 2px 5px; }
+.faction-row { display: flex; align-items: center; gap: 6px; font-size: 9px; }
+.faction-name { flex: 0 0 44px; font-weight: 900; }
+.faction-level { flex: 0 0 30px; color: var(--dim); }
+.faction-bar { flex: 1; height: 5px; background: #0a1017; border: 1px solid rgba(255,255,255,.06); }
+.faction-bar i { display: block; height: 100%; }
+.faction-points { flex: 0 0 auto; color: var(--dim); font-size: 8px; }
+.faction-shop { display: grid; gap: 4px; padding: 0 2px 4px; }
+@media (max-height: 520px) {
+  .faction-row { font-size: 8px; }
+  .faction-bar { height: 4px; }
+  .faction-shop .shop-item { padding: 3px 5px; }
+}

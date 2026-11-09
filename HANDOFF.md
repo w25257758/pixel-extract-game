@@ -13,8 +13,8 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v47
-- Save key: localStorage pixel_extract_save_v1, schema version 10
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v48
+- Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
 ## Current UI
@@ -115,6 +115,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep the collector room: only the `collectible` kind is accepted (never weapons/backpacks/stones), the Nth donation costs N items, the eight bonuses are permanent and fixed-order, and they must be applied in the Player constructor + search/scrap/part-drop paths.
 - Keep kill slow-mo behind its own settings toggle (`settings.killSlowmo`, default on): normal kills 0.16s at 0.42x, boss kills 0.34s at 0.28x, plus a slight camera zoom. Never hard-code it on.
 - Keep weapon mods: three slots (optic/mag/barrel) on the weapon item, rarity-tinted drops from containers, install from stash and remove back to stash, and the stat multipliers applied in the Player constructor (never mutate the shared `WEAPON_DEFS` object — clone first).
+- Keep faction reputation: points from settlement only, 100/level cap 5, exclusive shop rows gated by faction level, and the black market window must keep showing the bars above the shop list.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -212,6 +213,13 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Boss stages are single-layer: the extraction card hides 继续下一层 and says the run settles on extraction. The extraction point exists from the start, so killing the boss is optional.
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
+
+## Faction reputation (shipped in v48)
+
+- Three factions: 拾荒者 (scavenger, scrap/extraction), 军方 (military, kills/bosses), 黑市 (blackmarket, elites/bosses). Save schema v11 (`save.factions = { scavenger, military, blackmarket }`).
+- Points are earned at raid settlement: scavenger `(success ? 40 : 10) + objectives*8`, military `kills*2 + bossKills*20`, blackmarket `eliteKills*8 + bossKills*30`. 100 points per level, cap Lv.5 (500 points).
+- The black market window shows three reputation bars at the top plus a 派系专属 block with three exclusives unlocked by level: 回收者护甲 (scavenger Lv.2, 260 scrap), 制式突击步枪 (military Lv.2, 320), 走私者手枪 (blackmarket Lv.3, 340). Locked rows show "需 <faction> Lv.N".
+- Verified: a successful raid with 3 kills gave scavenger +40 / military +6; the shop renders 3 bars and 3 exclusive rows; no JS errors.
 
 ## Boss weapons, drops (shipped in v44)
 
