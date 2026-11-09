@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-extract-v53';
+const CACHE_NAME = 'pixel-extract-v54';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v53
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v54
 - Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -112,7 +112,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep one high-risk bounty per floor: a gold-ringed elite that drops a legendary only ~25% of the time (otherwise epic gear + bonus scrap) plus 5 mod parts, and killing it alerts the whole map (every living enemy chases for 30s). The 「高危目标」 label and gold ring must stay visible.
 - Keep boss challenge mode: 开始行动 opens the stage list, boss stages are single-layer (no 继续下一层), the extraction point works from the start, and difficulty N must keep using the old F(5N) stats.
 - Keep per-boss drops: every boss drops its own legendary weapon plus its collectible material (see the BOSS_DROPS table). Do not collapse them back to one shared boss weapon.
-- Keep the collector room: only the `collectible` kind is accepted (never weapons/backpacks/stones), the Nth donation costs N items, the eight bonuses are permanent and fixed-order, and they must be applied in the Player constructor + search/scrap/part-drop paths.
+- Keep the collector room: only the `collectible` kind is accepted (never weapons/backpacks/stones), each material owns its own attribute line with 3 levels (level N costs N items), bonuses are permanent and must be applied in the Player constructor + search/scrap/part-drop paths.
 - Keep kill slow-mo behind its own settings toggle (`settings.killSlowmo`, default on): normal kills 0.16s at 0.42x, boss kills 0.34s at 0.28x, plus a slight camera zoom. Never hard-code it on.
 - Keep weapon mods: three slots (optic/mag/barrel) on the weapon item, rarity-tinted drops from containers, install from stash and remove back to stash, and the stat multipliers applied in the Player constructor (never mutate the shared `WEAPON_DEFS` object — clone first).
 - Keep faction reputation: points from settlement only, 100/level cap 5, exclusive shop rows gated by faction level, and the black market window must keep showing the bars above the shop list.
@@ -274,6 +274,23 @@ Each boss now drops its own legendary weapon plus a collectible material instead
 
 - Materials use the new `collectible` kind: sellable, cannot be equipped, and they are what the future collector room accepts (weapons/backpacks/stones are NOT accepted).
 - Drop logic: `BOSS_DROPS[bossVariant.id]` in `die()`; the weapon drops at the boss position and the material 1-2 units beside it. Verified all six bosses at difficulties 1-6 drop the matching weapon + material, with the stage floor equal to 5N and no JS errors.
+
+## Collector room (reworked in v54)
+
+Owner correction: each collectible material must correspond to its own attribute line, not a shared donation counter. Current design:
+
+| Material | Attribute per level | Max (3 levels) |
+|---|---|---|
+| 泰坦合金 mat_titan | 最大生命 +5 | +15 |
+| 棱镜碎片 mat_prism | 搜索速度 +8% | +24% |
+| 熔渣核心 mat_magma | 攻击力 +1 | +3 |
+| 虚空残片 mat_void | 移动速度 +1% | +3% |
+| 相位碎片 mat_phase | 暴击率 +1% | +3% |
+| 终焉核心 mat_arch | 废料收益 +5% | +15% |
+
+- Each line levels independently: level N -> N+1 costs N+1 of that material. Save shape is `collector.levels = { material: level }`; the old shared `collector.level` is ignored.
+- The window renders six rows (material → attribute, Lv.N/3, owned count, required count, donate button) plus the lore archive below. The header shows `收藏 Lv.<total>/18`; the top chip shows the same total.
+- Verified: donating titan 1/2/3 raised it to Lv.3 and refused further donations, bonuses reported maxHp +15, prism donated independently, no JS errors.
 
 ## Collector room (shipped in v45)
 

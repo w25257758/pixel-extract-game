@@ -24,16 +24,14 @@
   const MAP_PH = MAP_H * TILE;
   const SAVE_KEY = 'pixel_extract_save_v1';
 
-  // Collector room: donate collectible boss materials for permanent bonuses.
-  const COLLECTOR_TIERS = [
-    { need: 1, label: '搜索速度 +8%', key: 'searchSpeed', value: 0.08 },
-    { need: 2, label: '攻击力 +1', key: 'flatDamage', value: 1 },
-    { need: 3, label: '攻击力 +1.5%', key: 'damage', value: 0.015 },
-    { need: 4, label: '最大生命 +5', key: 'maxHp', value: 5 },
-    { need: 5, label: '移动速度 +1%', key: 'moveSpeed', value: 0.01 },
-    { need: 6, label: '暴击率 +1%', key: 'crit', value: 0.01 },
-    { need: 7, label: '废料收益 +5%', key: 'scrap', value: 0.05 },
-    { need: 8, label: '改装零件掉落 +8%', key: 'partDrop', value: 0.08 }
+  // Collector room: each collectible material maps to its own permanent attribute line.
+  const COLLECTOR_ATTRS = [
+    { material: 'mat_titan', label: '最大生命 +5', key: 'maxHp', value: 5, maxLevel: 3 },
+    { material: 'mat_prism', label: '搜索速度 +8%', key: 'searchSpeed', value: 0.08, maxLevel: 3 },
+    { material: 'mat_magma', label: '攻击力 +1', key: 'flatDamage', value: 1, maxLevel: 3 },
+    { material: 'mat_void', label: '移动速度 +1%', key: 'moveSpeed', value: 0.01, maxLevel: 3 },
+    { material: 'mat_phase', label: '暴击率 +1%', key: 'crit', value: 0.01, maxLevel: 3 },
+    { material: 'mat_arch', label: '废料收益 +5%', key: 'scrap', value: 0.05, maxLevel: 3 }
   ];
 
   // Daily contracts: three seeded goals per local day, ticked at raid settlement.
@@ -925,7 +923,7 @@
       settings: { ...DEFAULT_SETTINGS },
       stats: { raids: 0, extracts: 0, kills: 0, deaths: 0, loot: 0 },
       daily: normalizeDaily(null),
-      collector: { level: 0 },
+      collector: { levels: {} },
       factions: { scavenger: 0, military: 0, blackmarket: 0 },
       dailySurvival: { date: '', done: false },
       lore: [],
@@ -944,7 +942,12 @@
       settings: { ...base.settings, ...(raw.settings || {}) },
       stats: { ...base.stats, ...(raw.stats || {}) },
       daily: normalizeDaily(raw.daily),
-      collector: { level: clamp(Math.floor(Number(raw.collector?.level) || 0), 0, COLLECTOR_TIERS.length) },
+      collector: {
+        levels: COLLECTOR_ATTRS.reduce((acc, attr) => {
+          acc[attr.material] = clamp(Math.floor(Number(raw.collector?.levels?.[attr.material]) || 0), 0, attr.maxLevel);
+          return acc;
+        }, {})
+      },
       factions: {
         scavenger: clamp(Math.floor(Number(raw.factions?.scavenger) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
         military: clamp(Math.floor(Number(raw.factions?.military) || 0), 0, FACTION_POINTS_PER_LEVEL * FACTION_MAX_LEVEL),
@@ -1322,35 +1325,46 @@
   }
 
   function renderCollector() {
-    const level = collectorLevel();
+    const levels = collectorLevels();
+    const total = collectorTotalLevel();
+    const maxTotal = COLLECTOR_ATTRS.reduce((sum, attr) => sum + attr.maxLevel, 0);
     const have = collectibleCount();
-    const next = nextCollectorTier();
-    if (el.statCollector) el.statCollector.textContent = `${level}/${COLLECTOR_TIERS.length}`;
-    if (el.openCollectorBtn) el.openCollectorBtn.classList.toggle('ready', !!next && have >= next.need);
-    if (!el.collectorTiers) return;
-    if (el.collectorLevel) el.collectorLevel.textContent = `${level}`;
-    if (el.collectorHave) el.collectorHave.textContent = `${have}`;
-    if (el.collectorHint) {
-      el.collectorHint.textContent = next
-        ? `下一档：${next.label}（需要 ${next.need} 件收藏品）`
-        : '收藏室已满级';
-    }
-    if (el.donateCollectorBtn) {
-      el.donateCollectorBtn.disabled = !next || have < next.need;
-      el.donateCollectorBtn.textContent = next ? `捐赠 ${next.need} 件` : '已满级';
-    }
-    el.collectorTiers.innerHTML = '';
-    COLLECTOR_TIERS.forEach((tier, index) => {
-      const state = index < level ? 'done' : index === level ? 'next' : 'locked';
-      const row = document.createElement('div');
-      row.className = `collector-tier ${state}`;
-      row.innerHTML = `
-        <span class="collector-tier-index">${index + 1}</span>
-        <span class="collector-tier-label">${tier.label}</span>
-        <span class="collector-tier-need">需 ${tier.need} 件</span>
-        <b>${state === 'done' ? '已激活' : state === 'next' ? '下一档' : '未解锁'}</b>`;
-      el.collectorTiers.appendChild(row);
+    if (el.statCollector) el.statCollector.textContent = `${total}/${maxTotal}`;
+    const anyReady = COLLECTOR_ATTRS.some((attr) => {
+      const level = levels[attr.material] || 0;
+      return level < attr.maxLevel && countMaterial(attr.material) >= level + 1;
     });
+    if (el.openCollectorBtn) el.openCollectorBtn.classList.toggle('ready', anyReady);
+    if (!el.collectorTiers) return;
+    if (el.collectorLevel) el.collectorLevel.textContent = `${total}`;
+    if (el.collectorMaxLevel) el.collectorMaxLevel.textContent = `${maxTotal}`;
+    if (el.collectorHave) el.collectorHave.textContent = `${have}`;
+    if (el.collectorHint) el.collectorHint.textContent = '每种材料对应一条属性：第 N 级消耗 N 件';
+    if (el.donateCollectorBtn) el.donateCollectorBtn.style.display = 'none';
+    el.collectorTiers.innerHTML = '';
+    for (const attr of COLLECTOR_ATTRS) {
+      const level = levels[attr.material] || 0;
+      const def = ITEM_DEFS[attr.material];
+      const need = level + 1;
+      const owned = countMaterial(attr.material);
+      const maxed = level >= attr.maxLevel;
+      const canDonate = !maxed && owned >= need;
+      const row = document.createElement('div');
+      row.className = `collector-tier ${maxed ? 'done' : canDonate ? 'next' : 'locked'}`;
+      row.innerHTML = `
+        <span class="collector-tier-index" style="color:${RARITY_COLOR[def.rarity]}">${def.icon}</span>
+        <span class="collector-tier-label">${def.name} → ${attr.label}</span>
+        <span class="collector-tier-need">Lv.${level}/${attr.maxLevel} · 持有 ${owned}${maxed ? '' : ` · 需 ${need}`}</span>
+        <b>${maxed ? '满级' : level > 0 ? `+${Math.round(attr.value * level * 100) / 100}` : '未激活'}</b>`;
+      const btn = document.createElement('button');
+      btn.className = 'enhance-fuse-btn';
+      btn.type = 'button';
+      btn.textContent = maxed ? '满级' : canDonate ? `捐 ${need}` : `差 ${Math.max(0, need - owned)}`;
+      btn.disabled = !canDonate;
+      btn.addEventListener('click', () => donateCollector(attr.material));
+      row.appendChild(btn);
+      el.collectorTiers.appendChild(row);
+    }
     if (el.loreList) {
       const collected = Array.isArray(save.lore) ? save.lore : [];
       el.loreList.innerHTML = '';
@@ -1365,31 +1379,27 @@
     }
   }
 
-  function donateCollector() {
-    const tier = nextCollectorTier();
-    if (!tier) {
-      toast('收藏室已经满级。');
+  function donateCollector(material) {
+    const attr = COLLECTOR_ATTRS.find((entry) => entry.material === material);
+    if (!attr) return;
+    save.collector = save.collector && typeof save.collector === 'object' ? save.collector : {};
+    save.collector.levels = save.collector.levels && typeof save.collector.levels === 'object' ? save.collector.levels : {};
+    const level = clamp(Math.floor(Number(save.collector.levels[material]) || 0), 0, attr.maxLevel);
+    if (level >= attr.maxLevel) {
+      toast('这条属性已经满级。');
       return;
     }
-    if (collectibleCount() < tier.need) {
-      toast(`需要 ${tier.need} 件收藏品（首领材料）。`);
+    const need = level + 1;
+    if (countMaterial(material) < need) {
+      toast(`需要 ${need} 件「${ITEM_DEFS[material].name}」。`);
       return;
     }
-    let need = tier.need;
-    for (let i = save.stash.length - 1; i >= 0 && need > 0; i -= 1) {
-      const item = save.stash[i];
-      if (defOf(item).kind !== 'collectible') continue;
-      const qty = item.qty || 1;
-      const take = Math.min(qty, need);
-      item.qty = qty - take;
-      need -= take;
-      if (item.qty <= 0) save.stash.splice(i, 1);
-    }
-    save.collector.level = collectorLevel() + 1;
+    consumeMaterial(material, need);
+    save.collector.levels[material] = level + 1;
     persist();
     renderAllBase();
     renderCollector();
-    toast(`收藏室升级：${tier.label}（永久，下一局生效）`);
+    toast(`收藏升级：${attr.label} Lv.${level + 1}（永久，下一局生效）`);
   }
 
   function claimDailyRewards() {
@@ -1445,16 +1455,26 @@
     raid.parts = (raid.parts || 0) + total;
   }
 
-  function collectorLevel() {
-    return clamp(Math.floor(Number(save?.collector?.level) || 0), 0, COLLECTOR_TIERS.length);
+  function collectorLevels() {
+    const levels = save?.collector?.levels || {};
+    const out = {};
+    for (const attr of COLLECTOR_ATTRS) {
+      out[attr.material] = clamp(Math.floor(Number(levels[attr.material]) || 0), 0, attr.maxLevel);
+    }
+    return out;
+  }
+
+  function collectorTotalLevel() {
+    const levels = collectorLevels();
+    return COLLECTOR_ATTRS.reduce((sum, attr) => sum + (levels[attr.material] || 0), 0);
   }
 
   function collectorBonuses() {
     const out = { searchSpeed: 0, flatDamage: 0, damage: 0, maxHp: 0, moveSpeed: 0, crit: 0, scrap: 0, partDrop: 0 };
-    const level = collectorLevel();
-    for (let i = 0; i < level; i += 1) {
-      const tier = COLLECTOR_TIERS[i];
-      out[tier.key] += tier.value;
+    const levels = collectorLevels();
+    for (const attr of COLLECTOR_ATTRS) {
+      const level = levels[attr.material] || 0;
+      out[attr.key] += attr.value * level;
     }
     return out;
   }
@@ -1463,9 +1483,21 @@
     return save.stash.reduce((n, item) => n + (defOf(item).kind === 'collectible' ? (item.qty || 1) : 0), 0);
   }
 
-  function nextCollectorTier() {
-    const level = collectorLevel();
-    return level < COLLECTOR_TIERS.length ? COLLECTOR_TIERS[level] : null;
+  function countMaterial(type) {
+    return save.stash.reduce((n, item) => n + (item.type === type ? (item.qty || 1) : 0), 0);
+  }
+
+  function consumeMaterial(type, amount) {
+    let need = amount;
+    for (let i = save.stash.length - 1; i >= 0 && need > 0; i -= 1) {
+      const item = save.stash[i];
+      if (item.type !== type) continue;
+      const qty = item.qty || 1;
+      const take = Math.min(qty, need);
+      item.qty = qty - take;
+      need -= take;
+      if (item.qty <= 0) save.stash.splice(i, 1);
+    }
   }
 
   function getTranscendLevel() {
@@ -1820,6 +1852,7 @@
     openCollectorBtn: $('#openCollectorBtn'),
     collectorOverlay: $('#collectorOverlay'),
     collectorLevel: $('#collectorLevel'),
+    collectorMaxLevel: $('#collectorMaxLevel'),
     collectorHave: $('#collectorHave'),
     collectorTiers: $('#collectorTiers'),
     loreList: $('#loreList'),
@@ -3279,7 +3312,7 @@
     });
   }
   if (el.closeCollectorBtn) el.closeCollectorBtn.addEventListener('click', () => el.collectorOverlay.classList.add('hidden'));
-  if (el.donateCollectorBtn) el.donateCollectorBtn.addEventListener('click', donateCollector);
+  if (el.donateCollectorBtn) el.donateCollectorBtn.style.display = 'none';
   if (el.collectorOverlay) {
     el.collectorOverlay.addEventListener('click', (event) => {
       if (event.target === el.collectorOverlay) el.collectorOverlay.classList.add('hidden');
@@ -9255,15 +9288,17 @@
     },
     claimDaily() { claimDailyRewards(); return this.dailyState(); },
     collectorState() {
+      const levels = collectorLevels();
       return {
-        level: collectorLevel(),
-        next: nextCollectorTier(),
+        total: collectorTotalLevel(),
+        maxTotal: COLLECTOR_ATTRS.reduce((sum, attr) => sum + attr.maxLevel, 0),
+        levels,
         have: collectibleCount(),
         bonuses: collectorBonuses(),
-        tiers: COLLECTOR_TIERS.map((tier, index) => ({ ...tier, active: index < collectorLevel() }))
+        attrs: COLLECTOR_ATTRS.map((attr) => ({ ...attr, level: levels[attr.material] || 0 }))
       };
     },
-    donateCollector() { donateCollector(); return this.collectorState(); },
+    donateCollector(material = 'mat_titan') { donateCollector(material); return this.collectorState(); },
     grantCollectible(type = 'mat_titan', count = 1) {
       addToStash(createItem(type, Math.max(1, Math.floor(count))));
       renderAllBase();
