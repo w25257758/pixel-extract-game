@@ -2947,3 +2947,17 @@ body.touch-device.move-stick-fixed .move-pad {
   .faction-bar { height: 4px; }
   .faction-shop .shop-item { padding: 3px 5px; }
 }
+
+/* ---- Lore archive ---- */
+.lore-list { display: grid; gap: 3px; padding: 0 2px 4px; max-height: 120px; overflow: auto; }
+.lore-row { display: flex; gap: 8px; align-items: baseline; padding: 3px 6px; border: 1px solid rgba(255,255,255,.06); background: rgba(9,14,22,.6); font-size: 9px; }
+.lore-row b { flex: 0 0 64px; color: var(--dim); font-weight: 900; }
+.lore-row span { flex: 1; min-width: 0; color: var(--dim); }
+.lore-row.got { border-color: rgba(126,232,210,.4); background: rgba(126,232,210,.06); }
+.lore-row.got b { color: #7ee8d2; }
+.lore-row.got span { color: var(--text); }
+@media (max-height: 520px) {
+  .lore-list { max-height: 84px; }
+  .lore-row { padding: 2px 4px; font-size: 8px; }
+  .lore-row b { flex: 0 0 54px; }
+}

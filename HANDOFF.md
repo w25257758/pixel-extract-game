@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v49
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v50
 - Save key: localStorage pixel_extract_save_v1, schema version 11
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -117,6 +117,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep weapon mods: three slots (optic/mag/barrel) on the weapon item, rarity-tinted drops from containers, install from stash and remove back to stash, and the stat multipliers applied in the Player constructor (never mutate the shared `WEAPON_DEFS` object — clone first).
 - Keep faction reputation: points from settlement only, 100/level cap 5, exclusive shop rows gated by faction level, and the black market window must keep showing the bars above the shop list.
 - Keep the daily survival run: fixed per-day seed, 5:00 target, one payout per day, success ends the run automatically. Do not turn it into a leaderboard.
+- Keep the lore archive: one log per floor, collected by walking onto it, deduped into `save.lore`, all-eight pays 200 scrap once, and the archive renders inside the collector room.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -178,7 +179,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), startDailyRun(), completeDaily(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), startDailyRun(), completeDaily(), loreState(), collectLore(id), loreWorld(), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), weaponModState(), installMod(slot,type), grantMod(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -214,6 +215,13 @@ Six bosses are now playable as standalone stages. Pressing 开始行动 opens a 
 - Boss stages are single-layer: the extraction card hides 继续下一层 and says the run settles on extraction. The extraction point exists from the start, so killing the boss is optional.
 - Key room, room objectives and containers are kept inside boss stages; reinforcements/overtime apply there too, which is the point of a place you cannot descend from.
 - Verified: stage list renders 6 cards x 6 difficulty buttons; titan at difficulty 5 gives floor 25, the titan boss and 27 enemies; the extraction card hides the deeper button; normal raids still start at floor 1 with no boss; no JS errors.
+
+## Radio logs / lore archive (shipped in v50)
+
+- Eight `LORE_DEFS` entries. `generateWorld` places one glowing document per floor (`world.lore = { x, y, id, taken }`), rendered by `drawLore` and collected by walking within 40px in `updateRaid`.
+- Collecting adds the id to `save.lore` (deduped) and shows a toast/float text; collecting all eight pays 200 scrap once (`save.loreRewardDone`).
+- The archive UI lives at the bottom of the collector room: the 影像档案 block lists all eight, showing the title + text once collected and 「未收集」 otherwise, with an `N / 8` counter.
+- Verified: a floor spawns one log, teleporting onto it collected `log_5`, collecting all eight set rewardDone and paid 200 scrap, no JS errors. Note `collectLore` guards `player` so it can also be called from the base screen.
 
 ## Daily survival challenge (shipped in v49)
 

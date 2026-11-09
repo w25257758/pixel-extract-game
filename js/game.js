@@ -476,6 +476,22 @@
   const FACTION_MAX_LEVEL = 5;
   const DAILY_SURVIVAL_TARGET = 300; // 5 minutes
   const DAILY_SURVIVAL_REWARD = { scrap: 300, parts: 3 };
+  // Radio logs scattered on floors; collecting all of them pays once.
+  const LORE_DEFS = [
+    { id: 'log_1', title: '第一次撤离', text: '第一批撤离者再也没回来。后来的每次行动，就都叫「合约」。' },
+    { id: 'log_2', title: '还在亮的灯', text: '地下城的灯是自动亮的。可供电系统，三年前就停了。' },
+    { id: 'log_3', title: '金色钥匙', text: '钥匙房只认第一个拿到金色钥匙的人。第二个到的人，会看见门开着。' },
+    { id: 'log_4', title: '红色的东西', text: '红色品质的装备，没有一件是新的。它们都是别人的遗物。' },
+    { id: 'log_5', title: '增援广播', text: '「增援已进入区域」——可我们从没申请过增援。' },
+    { id: 'log_6', title: '它们也在等', text: '记得首领层的那些影子吗？它们不是在巡逻，是在等我们上去。' },
+    { id: 'log_7', title: '蜕变记录', text: '你在变强，它们也在变强。熔炉记得每一次蜕变的重量。' },
+    { id: 'log_8', title: '最后一句话', text: '最后一次撤离广播只有两个字：别来。' }
+  ];
+  const LORE_REWARD = 200;
+
+  function loreCollected(id) {
+    return Array.isArray(save?.lore) && save.lore.includes(id);
+  }
   const FACTION_SHOP = [
     { faction: 'scavenger', level: 2, type: 'a_recycler', price: 260 },
     { faction: 'military', level: 2, type: 'w_standard', price: 320 },
@@ -901,7 +917,9 @@
       daily: normalizeDaily(null),
       collector: { level: 0 },
       factions: { scavenger: 0, military: 0, blackmarket: 0 },
-      dailySurvival: { date: '', done: false }
+      dailySurvival: { date: '', done: false },
+      lore: [],
+      loreRewardDone: false
     };
   }
 
@@ -926,6 +944,8 @@
         date: typeof raw.dailySurvival?.date === 'string' ? raw.dailySurvival.date : '',
         done: raw.dailySurvival?.done === true
       },
+      lore: Array.isArray(raw.lore) ? raw.lore.filter((id) => LORE_DEFS.some((def) => def.id === id)) : [],
+      loreRewardDone: raw.loreRewardDone === true,
       transcend: {
         level: clamp(Math.floor(Number(raw.transcend?.level) || 0), 0, 9999),
         progress: Math.max(0, Math.floor(Number(raw.transcend?.progress) || 0))
@@ -1177,6 +1197,45 @@
     }
   }
 
+  function collectLore(id) {
+    const def = LORE_DEFS.find((entry) => entry.id === id);
+    if (!def) return;
+    save.lore = Array.isArray(save.lore) ? save.lore : [];
+    if (save.lore.includes(id)) return;
+    save.lore.push(id);
+    addLootFeed(`拾取影像档案：${def.title}`, true);
+    if (player) addFloatText(player.x, player.y - 34, `档案 ${def.title}`, '#7ee8d2');
+    playSound('pickup');
+    if (save.lore.length >= LORE_DEFS.length && !save.loreRewardDone) {
+      save.loreRewardDone = true;
+      save.scrap += LORE_REWARD;
+      addLootFeed(`档案集齐：+${LORE_REWARD} 废料`, true);
+      toast(`影像档案全部集齐！+${LORE_REWARD} 废料`);
+    } else {
+      toast(`收集到档案：${def.title}`);
+    }
+    persist();
+  }
+
+  function drawLore(lore) {
+    if (!lore || lore.taken) return;
+    const bounce = Math.sin(lore.bob + world.time * 3) * 3;
+    ctx.save();
+    ctx.translate(Math.round(lore.x), Math.round(lore.y + bounce));
+    const pulse = 0.5 + 0.5 * Math.sin(world.time * 3);
+    ctx.fillStyle = `rgba(126,232,210,${0.14 + pulse * 0.1})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#7ee8d2';
+    ctx.fillRect(-6, -8, 12, 15);
+    ctx.fillStyle = '#0a1017';
+    ctx.fillRect(-4, -5, 8, 1);
+    ctx.fillRect(-4, -2, 8, 1);
+    ctx.fillRect(-4, 1, 5, 1);
+    ctx.restore();
+  }
+
   function renderCollector() {
     const level = collectorLevel();
     const have = collectibleCount();
@@ -1207,6 +1266,18 @@
         <b>${state === 'done' ? '已激活' : state === 'next' ? '下一档' : '未解锁'}</b>`;
       el.collectorTiers.appendChild(row);
     });
+    if (el.loreList) {
+      const collected = Array.isArray(save.lore) ? save.lore : [];
+      el.loreList.innerHTML = '';
+      for (const def of LORE_DEFS) {
+        const got = collected.includes(def.id);
+        const row = document.createElement('div');
+        row.className = `lore-row${got ? ' got' : ''}`;
+        row.innerHTML = `<b>${got ? def.title : '未收集'}</b><span>${got ? def.text : '在地图中寻找发光的档案'}</span>`;
+        el.loreList.appendChild(row);
+      }
+      if (el.loreCount) el.loreCount.textContent = `${collected.length} / ${LORE_DEFS.length}`;
+    }
   }
 
   function donateCollector() {
@@ -1664,6 +1735,8 @@
     collectorLevel: $('#collectorLevel'),
     collectorHave: $('#collectorHave'),
     collectorTiers: $('#collectorTiers'),
+    loreList: $('#loreList'),
+    loreCount: $('#loreCount'),
     collectorHint: $('#collectorHint'),
     donateCollectorBtn: $('#donateCollectorBtn'),
     closeCollectorBtn: $('#closeCollectorBtn'),
@@ -3699,6 +3772,19 @@
     applyEliteAffix(keyGuard);
     enemies.push(keyGuard);
 
+    // One radio log per floor.
+    const loreRoom = pick(rooms.slice(1));
+    let loreSpot = roomSpot(loreRoom);
+    let loreGuard = 0;
+    while (!canStandOnTiles(tiles, loreSpot.x, loreSpot.y, 12) && loreGuard < 20) {
+      loreSpot = roomSpot(loreRoom);
+      loreGuard += 1;
+    }
+    const loreDef = pick(LORE_DEFS);
+    const lorePickup = loreGuard < 20
+      ? { x: loreSpot.x, y: loreSpot.y, id: loreDef.id, taken: false, bob: rand(0, TAU) }
+      : null;
+
     const worldObj = {
       tiles,
       rooms,
@@ -3710,6 +3796,7 @@
       boss: bossEnemy,
       keyRoom: { x: keyRoom.x * TILE, y: keyRoom.y * TILE, w: keyRoom.w * TILE, h: keyRoom.h * TILE },
       keyChest,
+      lore: lorePickup,
       objective: createRoomObjective(rooms, tiles),
       explored: new Uint8Array(MAP_W * MAP_H),
       fogMini: buildFogCanvas(),
@@ -6092,6 +6179,10 @@
     updatePickups(dt);
     updateObjective(dt);
     updateParticles(dt);
+    if (world.lore && !world.lore.taken && dist2(world.lore.x, world.lore.y, player.x, player.y) < 40 * 40) {
+      world.lore.taken = true;
+      collectLore(world.lore.id);
+    }
     updateInteraction(dt);
     hudAccumulator += dt;
     if (hudAccumulator >= 0.08) {
@@ -7037,6 +7128,7 @@
     // The minimap/full map still use world.fogMini and exploration state.
     for (const c of world.containers) drawContainer(c);
     for (const p of world.pickups) drawPickup(p);
+    if (world.lore) drawLore(world.lore);
     drawHazards();
     drawEnemyTelegraphs();
     drawBeams();
@@ -9035,6 +9127,18 @@
       };
     },
     installMod(slot, type = '') { installWeaponMod(slot, type); return this.weaponModState(); },
+    loreState() {
+      return {
+        collected: Array.isArray(save.lore) ? save.lore.slice() : [],
+        total: LORE_DEFS.length,
+        rewardDone: save.loreRewardDone === true,
+        scrap: save.scrap
+      };
+    },
+    collectLore(id = 'log_1') { collectLore(id); return this.loreState(); },
+    loreWorld() {
+      return world?.lore ? { x: world.lore.x, y: world.lore.y, id: world.lore.id, taken: world.lore.taken } : null;
+    },
     grantMod(type = 'mod_optic_1', count = 1) {
       addToStash(createItem(type, Math.max(1, Math.floor(count))));
       renderAllBase();
