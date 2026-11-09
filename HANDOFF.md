@@ -13,7 +13,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Entry: index.html
 - Main logic: js/game.js
 - Styles: css/style.css
-- PWA cache: sw.js, current CACHE_NAME pixel-extract-v45
+- PWA cache: sw.js, current CACHE_NAME pixel-extract-v46
 - Save key: localStorage pixel_extract_save_v1, schema version 10
 - Latest maintenance: boss signature attacks, elite affixes, room objectives, gear management/reroll, expanded tutorial and combat debrief statistics, daily contracts (see git log)
 
@@ -113,6 +113,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 - Keep boss challenge mode: 开始行动 opens the stage list, boss stages are single-layer (no 继续下一层), the extraction point works from the start, and difficulty N must keep using the old F(5N) stats.
 - Keep per-boss drops: every boss drops its own legendary weapon plus its collectible material (see the BOSS_DROPS table). Do not collapse them back to one shared boss weapon.
 - Keep the collector room: only the `collectible` kind is accepted (never weapons/backpacks/stones), the Nth donation costs N items, the eight bonuses are permanent and fixed-order, and they must be applied in the Player constructor + search/scrap/part-drop paths.
+- Keep kill slow-mo behind its own settings toggle (`settings.killSlowmo`, default on): normal kills 0.16s at 0.42x, boss kills 0.34s at 0.28x, plus a slight camera zoom. Never hard-code it on.
 
 ## Recent work
 - First-raid five-step tutorial: move, search, combat, tactical dash/skill, extract. Skippable, shows once.
@@ -174,7 +175,7 @@ Pure frontend single-player pixel extraction shooter. Read this file before cont
 ## Run and test
 - Local: run python -m http.server 8080 in the workspace, then open http://127.0.0.1:8080/index.html
 - Or double-click the Chinese start batch file.
-- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
+- Debug bridge: window.__PX with startRaid(), startBossStage(bossId,difficulty), snapshot(), enableTouch(), touchMove(), hurt(), grantPerkChoices(), grantXP(), grantKeys(), damageEnemy(), damageBoss(), lootSample(quality,count), packSample(quality,count), grantStone(type,count), enhanceEquipped(slot,stoneType), enhanceInfo(), fuseStone(type), grantTranscendProgress(value), transcendNow(), convertStashToTranscend(itemId), jumpFloor(floor), bossAttack(type), spawnEnemy(kind), spawnEnemyAt(kind,dx,dy), clearEnemies(), setAim(angle), setHp(hp), setEnemyHp(index,hp), shoot(), dash(), characterSkill(), chooseCharacter(id), grantStashItem(type), equipPack(type), searchContainer(index), openExtractionChoice(), continueToNextFloor(), returnFromExtraction(), gearSample(type,count), grantGear(type,setId,affixes), equipById(id), setBossHp(hp), forceBossPhase(phase), grantModParts(amount), teleportToObjective(), setObjectiveProgress(value), spawnEliteAt(kind,affix,dx,dy), bossSignature(), addBackpackItem(type), discardBackpackItem(id), dailyState(), setDailyValue(id,value), resetDaily(), claimDaily(), recordDailyRun(run), forceDaily(list), collectorState(), donateCollector(), grantCollectible(type,count), slowmoState(), openLoot(), secureState(), moveToSecure(id), moveFromSecure(id), tidyBackpack(), setTimeLeft(value), triggerWave(), advanceRaid(seconds).
 - After deploy verify:
   - document.documentElement.scrollHeight === innerHeight
   - manage windows scrollHeight === clientHeight
@@ -235,6 +236,7 @@ Each boss now drops its own legendary weapon plus a collectible material instead
 - Tiers: search speed +8%, flat attack +1, attack +1.5%, max HP +5, move speed +1%, crit +1%, scrap +5%, mod-part drop +8% (8 tiers).
 - Wiring: `collectorBonuses()` is read in the Player constructor (maxHp/speed/damageMultiplier/critChance/flatDamage); flat damage is added per bullet; search duration becomes `2.0 / (1 + searchSpeed)`; scrap gains multiply by `1 + scrap`; `gainModParts()` rolls +1 per part with the partDrop chance.
 - Verified: 6 collected materials -> donate 1 (level 1, have 5) -> donate 2 (level 2, have 3) -> donate 3 (level 3, have 0); bonuses object accumulates correctly; save version 10; collector window renders 8 tiers with activated/next/locked states at 932x430; no JS errors.
+- Kill slow-mo: `triggerKillSlowmo()` fires in `Enemy.die()` (0.16s at 0.42x for normal kills, 0.34s at 0.28x for bosses). The frame loop scales simulation dt during the window and `slowmo.zoom` drives a 4.5% camera zoom in `drawRaid`. It ships with a 「击杀慢镜头」 settings toggle (default on, stored as `settings.killSlowmo`). Verified the timer arms on a kill and the setting is normalised; note the headless virtual-time harness does not advance rAF, so decay is best checked by playing.
 - Extension pool for later tiers: medkit effect +10%, 30 temp shield on entering a new floor, extraction dwell -0.5s, armor reduction +1%, backpack +2 slots, secure box +1 slot, shop discount 5%, item value on extraction +5%, enhancement success +2%, transcendence yield +5%, sell price +5%, reload speed +5%, dash CD -0.2s, skill CD -3%, crit damage +10%, auto-lock range +30px, enemy vision -3%, boss damage +3%, daily contract reward +10%.
 
 ## Planned: side systems backlog (agreed order, not started)

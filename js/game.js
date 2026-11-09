@@ -813,6 +813,7 @@
     screenShake: true,
     floatText: true,
     damageFlash: true,
+    killSlowmo: true,
     autoLock: true,
     performanceMode: false,
     raidRisk: 'normal',
@@ -898,6 +899,7 @@
     touchSettings.aimSensitivity = clamp(Number(touchSettings.aimSensitivity) || 1, 0.6, 1.6);
     touchSettings.raidRisk = RISK_DEFS[touchSettings.raidRisk] ? touchSettings.raidRisk : 'normal';
     touchSettings.tutorialDone = touchSettings.tutorialDone === true;
+    touchSettings.killSlowmo = touchSettings.killSlowmo !== false;
     return merged;
   }
 
@@ -1476,6 +1478,7 @@
     settingFloatText: $('#settingFloatText'),
     settingDamageFlash: $('#settingDamageFlash'),
     settingPerformanceMode: $('#settingPerformanceMode'),
+    settingKillSlowmo: $('#settingKillSlowmo'),
     settingAutoLock: $('#settingAutoLock'),
     settingAimPadSize: $('#settingAimPadSize'),
     aimPadSizeValue: $('#aimPadSizeValue'),
@@ -1701,6 +1704,7 @@
     el.settingScreenShake.checked = save.settings.screenShake !== false;
     el.settingFloatText.checked = save.settings.floatText !== false;
     el.settingDamageFlash.checked = save.settings.damageFlash !== false;
+    el.settingKillSlowmo.checked = save.settings.killSlowmo !== false;
     el.settingPerformanceMode.checked = save.settings.performanceMode === true;
     el.settingAutoLock.checked = save.settings.autoLock !== false;
     el.settingAimPadSize.value = save.settings.aimPadSize;
@@ -2948,6 +2952,14 @@
   let lastMinimapDraw = -1;
   let raidVignetteGradient = null;
   let scanlinePattern = null;
+  const slowmo = { timer: 0, duration: 0.16, scale: 0.4, zoom: 0 };
+
+  function triggerKillSlowmo(isBoss = false) {
+    if (save.settings.killSlowmo === false) return;
+    slowmo.duration = isBoss ? 0.34 : 0.16;
+    slowmo.scale = isBoss ? 0.28 : 0.42;
+    slowmo.timer = slowmo.duration;
+  }
 
   const keys = Object.create(null);
   const mouse = { x: VIEW_W / 2, y: VIEW_H / 2, down: false, semiQueued: false, inside: false };
@@ -4980,6 +4992,7 @@
       this.dead = true;
       this.hp = 0;
       raid.kills += 1;
+      triggerKillSlowmo(!!this.isBoss);
       if (raid.stats) {
         if (this.isBoss) raid.stats.bossKills += 1;
         if (this.elite) raid.stats.eliteKills += 1;
@@ -6716,6 +6729,13 @@
     const camY = Math.round(camera.y + shakeY);
 
     ctx.save();
+    // Kill slow-mo: ease a small camera zoom around the view centre.
+    if (slowmo.zoom > 0) {
+      const zoomScale = 1 + slowmo.zoom * 0.045;
+      ctx.translate(VIEW_W / 2, VIEW_H / 2);
+      ctx.scale(zoomScale, zoomScale);
+      ctx.translate(-VIEW_W / 2, -VIEW_H / 2);
+    }
     ctx.translate(-camX, -camY);
 
     ctx.drawImage(world.mapCanvas, 0, 0);
@@ -8265,6 +8285,12 @@
     save.settings.performanceMode = el.settingPerformanceMode.checked;
     persist();
   });
+  if (el.settingKillSlowmo) {
+    el.settingKillSlowmo.addEventListener('change', () => {
+      save.settings.killSlowmo = el.settingKillSlowmo.checked;
+      persist();
+    });
+  }
   el.exportSaveBtn.addEventListener('click', exportSaveCode);
   el.importSaveBtn.addEventListener('click', importSaveCode);
   el.settingScreenShake.addEventListener('change', () => {
@@ -8343,8 +8369,18 @@
   // Main loop
   // ---------------------------------------------------------------------------
   function frame(now) {
-    const dt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
+    const rawDt = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
     lastTime = now;
+    // Kill slow-motion: shrink simulation dt and ease the camera zoom back.
+    let dt = rawDt;
+    if (slowmo.timer > 0) {
+      slowmo.timer = Math.max(0, slowmo.timer - rawDt);
+      const t = slowmo.timer / slowmo.duration;
+      dt = rawDt * (slowmo.scale + (1 - slowmo.scale) * (1 - t));
+      slowmo.zoom = t;
+    } else {
+      slowmo.zoom = 0;
+    }
 
     if (mode === 'raid' || mode === 'debrief') {
       if (mode === 'raid') updateRaid(dt);
@@ -8674,6 +8710,13 @@
     moveToSecure(id) { moveToSecure(id); return this.secureState(); },
     moveFromSecure(id) { moveFromSecure(id); return this.secureState(); },
     tidyBackpack() { tidyBackpack(); return this.secureState(); },
+    slowmoState() {
+      return {
+        timer: Number(slowmo.timer.toFixed(3)),
+        zoom: Number(slowmo.zoom.toFixed(3)),
+        enabled: save.settings.killSlowmo !== false
+      };
+    },
     setTimeLeft(value) {
       if (!raid) return null;
       raid.timeLeft = Math.max(0, Number(value) || 0);
@@ -8689,8 +8732,7 @@
         reinforceTimer: Math.round(raid.reinforceTimer || 0)
       };
     },
-    advanceRaid(seconds = 1) {
-      if (!raid || !world) return null;
+    advanceRaid(seconds = 1) {      if (!raid || !world) return null;
       let left = Math.max(0, Number(seconds) || 0);
       while (left > 0) {
         const step = Math.min(0.1, left);
